@@ -1,0 +1,6 @@
+.ecran-acces { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+.boite { width: 100%; max-width: 400px; padding: 32px 28px; }
+.tete { margin-bottom: 24px; }
+h1 { margin-bottom: 2px; }
+.sous-titre { margin-bottom: 20px; }
+.bas { margin: 20px 0 0; text-align: center; color: var(--gris); font-size: .9rem; }

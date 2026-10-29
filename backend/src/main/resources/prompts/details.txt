@@ -1,0 +1,13 @@
+Rédige le détail de chacune des publications ci-dessous. Langue : {{langue}}.
+
+Pour chaque publication :
+- legende : prête à publier, adaptée au réseau (Facebook 80 à 150 mots ; Instagram 50 à 120 mots avec retours à la ligne ; TikTok 1 à 2 phrases ; LinkedIn 100 à 180 mots, ton plus professionnel). Émojis avec modération.
+- hashtags : 3 à 8, dont au moins un local (ville ou pays) quand c'est pertinent.
+- cta : une action claire (WhatsApp, appel, visite, commentaire…).
+- Formats IMAGE, STORY et TEXTE : briefVisuel avec description, promptImage en anglais (sujet, style photo ou illustration, lumière, cadrage, couleurs de la marque en hex, personnes africaines quand il y a des personnes, aucun texte dans l'image), ratio (1:1, 4:5 ou 9:16). scenario = null.
+- Format CARROUSEL : briefVisuel avec type CARROUSEL, promptImage pour le visuel de couverture, et textesCarrousel de 4 à 7 visuels (titre court + texte de 25 mots maximum). scenario = null.
+- Format VIDEO : scenario avec titre, durée totale de 15 à 60 secondes, accroche, plans numérotés (durée, image, texte à l'écran, voix off, son), matériel nécessaire. Le scénario doit être tournable avec un téléphone. briefVisuel = null.
+- Reprends l'index de chaque idée.
+
+Publications à détailler :
+{{idees}}

@@ -1,0 +1,5 @@
+Voici une publication existante :
+{{publication}}
+
+Réécris uniquement le champ « {{champ}} » en tenant compte de cette consigne : {{consigne}}
+Langue : {{langue}}. Réponds avec un objet JSON {"texte": "..."}.

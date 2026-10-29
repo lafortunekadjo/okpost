@@ -1,0 +1,9 @@
+backend/target/
+backend/data/
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+deploy/.env
+.idea/
+.vscode/
+*.log

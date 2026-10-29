@@ -1,0 +1,79 @@
+spring:
+  application:
+    name: okpost
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/okpost}
+    username: ${DB_USER:okpost}
+    password: ${DB_PASSWORD:okpost}
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USER:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_TLS:false}
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: framework
+  error:
+    include-message: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+okpost:
+  url-publique: ${PUBLIC_URL:http://localhost:4200}
+  cors-origines: ${CORS_ORIGINS:http://localhost:4200}
+  jwt:
+    secret: ${JWT_SECRET:change-me-change-me-change-me-change-me-32+}
+    acces-minutes: 15
+    rafraichissement-jours: 7
+  fichiers:
+    dossier: ${FILES_DIR:./data/fichiers}
+  mail:
+    expediteur: ${MAIL_FROM:OkPost <no-reply@okpost.app>}
+    actif: ${MAIL_ENABLED:false}
+  validation:
+    duree-jours: 30
+  ia:
+    # gemini | claude — valeur par défaut, remplaçable plus tard depuis l'administration
+    fournisseur: ${IA_FOURNISSEUR:gemini}
+    debit-par-minute: ${IA_DEBIT_MINUTE:8}
+    lot-details: 5
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      base-url: https://generativelanguage.googleapis.com/v1beta/openai
+      modele: ${GEMINI_MODELE:gemini-2.5-flash}
+    claude:
+      api-key: ${ANTHROPIC_API_KEY:}
+      modele-strategie: ${CLAUDE_MODELE_STRATEGIE:claude-sonnet-5-5}
+      modele-redaction: ${CLAUDE_MODELE_REDACTION:claude-haiku-5-5}
+
+springdoc:
+  swagger-ui:
+    path: /api/docs
+  api-docs:
+    path: /api/v3/api-docs

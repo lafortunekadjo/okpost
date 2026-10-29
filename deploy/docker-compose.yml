@@ -1,0 +1,38 @@
+# OkPost — à côté de My2-0 sur le même VPS, dans un Compose séparé.
+# Le Nginx existant du VPS sert l'interface et relaie /api vers 127.0.0.1:8090.
+name: okpost
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: okpost
+      POSTGRES_USER: okpost
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD manquant}
+    volumes:
+      - db:/var/lib/postgresql/data
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=30"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U okpost"]
+      interval: 10s
+      retries: 5
+
+  api:
+    build: ../backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/okpost
+      DB_USER: okpost
+    volumes:
+      - fichiers:/data/fichiers
+    ports:
+      - "127.0.0.1:8090:8080"
+
+volumes:
+  db:
+  fichiers:
