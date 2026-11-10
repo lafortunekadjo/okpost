@@ -39,6 +39,9 @@ server:
     include-message: always
 
 management:
+  health:
+    mail:
+      enabled: false   # sinon /actuator/health passe en DOWN quand le SMTP n'est pas configuré
   endpoints:
     web:
       exposure:
