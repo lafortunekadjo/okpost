@@ -23,6 +23,10 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
             <p class="sous-titre">{{ c.total }} publications · {{ nomsReseaux(c.reseaux) }}</p>
           </div>
           <div class="ligne">
+            <button class="bouton" (click)="partager()" [disabled]="envoiPartage()">Partager le calendrier</button>
+            <a class="bouton secondaire" [routerLink]="['/calendriers', c.id, 'export']" [queryParams]="{ mode: 'client' }" target="_blank">PDF client</a>
+            <a class="bouton secondaire" [routerLink]="['/calendriers', c.id, 'export']" target="_blank">PDF évaluation</a>
+            <a class="bouton secondaire" [routerLink]="['/calendriers', c.id, 'evaluation']">Noter la qualité</a>
             <div class="bascule">
               <button [class.actif]="vue() === 'mois'" (click)="vue.set('mois')">Mois</button>
               <button [class.actif]="vue() === 'liste'" (click)="vue.set('liste')">Liste</button>
@@ -51,6 +55,12 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
             <div class="puces">@for (p of c.piliers; track p) { <span class="puce">{{ p }}</span> }</div>
           </details>
         }
+        @if (c.analysePage) {
+          <details class="carte strategie">
+            <summary><strong>Ce que l’IA a appris de la Page Facebook</strong> <span class="aide">90 jours avant la génération</span></summary>
+            <p class="analyse-page">{{ c.analysePage }}</p>
+          </details>
+        }
 
         <div class="outils">
           <select [(ngModel)]="filtreReseau">
@@ -66,9 +76,35 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
             <span class="aide">{{ selection().size }} sélectionnée(s)</span>
             <button class="bouton secondaire petit" (click)="viderSelection()">Annuler</button>
           }
+          @if (nbValidees() > 0) {
+            <button class="bouton secondaire" [disabled]="programmation()" (click)="programmerValidees()">Programmer les {{ nbValidees() }} validée(s)</button>
+          }
           <button class="bouton" [disabled]="!selection().size || envoiLien()" (click)="creerLien()">Envoyer en validation</button>
         </div>
+        @if (bilan(); as b) {
+          <div [class]="b.programmees ? 'succes' : 'info'">
+            {{ b.programmees }} publication(s) programmée(s).
+            @if (b.ignorees.length) { <br />Non programmées : @for (r of b.ignorees; track $index) { <br />· {{ r }} } }
+          </div>
+        }
         <p class="aide">Coche les publications à faire valider. En vue mois, glisse une carte pour changer sa date.</p>
+
+        @if (partageCree(); as l) {
+          <div class="carte partage">
+            <div class="ligne"><h2 class="espace" style="margin:0">Calendrier prêt à partager</h2>
+              <button class="bouton secondaire petit" (click)="partageCree.set(null)">Fermer</button></div>
+            <p class="aide">Lecture seule, valable jusqu'au {{ l.expireLe | date: 'd MMMM y' }}. Le destinataire peut aussi le télécharger en PDF.</p>
+            <div class="ligne"><input type="text" [value]="l.url" readonly class="mono" (focus)="$any($event.target).select()" />
+              <button class="bouton secondaire" (click)="copier(l.url)">{{ copie() ? 'Copié' : 'Copier le lien' }}</button></div>
+            <div class="ligne" style="margin-top:12px">
+              <a class="bouton" [href]="whatsappPartage(l, c)" target="_blank" rel="noopener">Envoyer par WhatsApp</a>
+              <input type="email" placeholder="E-mail du destinataire" [(ngModel)]="emailPartage" style="max-width:240px" />
+              <button class="bouton secondaire" [disabled]="!emailPartage" (click)="envoyerEmail(l, emailPartage)">Envoyer par e-mail</button>
+              <a class="bouton secondaire" [routerLink]="['/calendriers', c.id, 'export']" [queryParams]="{ mode: 'client' }" target="_blank">Télécharger le PDF</a>
+            </div>
+            @if (messageLien()) { <p class="aide" style="margin-top:8px">{{ messageLien() }}</p> }
+          </div>
+        }
 
         @if (lienCree(); as l) {
           <div class="carte partage">
@@ -109,13 +145,14 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
             @for (p of filtrees(); track p.id) {
               <div class="carte publi">
                 <input type="checkbox" [checked]="selection().has(p.id)" (change)="basculer(p.id)" />
+                @if (vignette(p); as v) { <img class="vignette" [src]="v" alt="" loading="lazy" /> }
                 <a [routerLink]="['/publications', p.id]" class="corps">
                   <div class="ligne">
                     <strong>{{ p.date | date: 'EEE d MMM' }}</strong>
                     <span><span class="reseau reseau-{{ p.reseau }}"></span>{{ libellesReseau[p.reseau] }} · {{ libellesFormat[p.format] }}</span>
                     @if (p.pilier) { <span class="aide">{{ p.pilier }}</span> }
                     <span class="espace"></span>
-                    <span class="pastille statut-{{ p.statut }}">{{ libellesStatut[p.statut] }}</span>
+                    <span class="pastille statut-{{ p.statut }}">{{ libellesStatut[p.statut] }}{{ p.statut === 'PROGRAMMEE' && p.publicationPrevue ? ' · ' + (p.publicationPrevue | date: 'd MMM HH:mm') : '' }}</span>
                   </div>
                   <p class="idee-liste">{{ p.idee }}</p>
                   @if (p.legende) { <p class="aide extrait">{{ p.legende }}</p> }
@@ -130,10 +167,10 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
 
         @if (liens().length) {
           <div class="carte" style="margin-top:24px">
-            <h2>Liens de validation</h2>
+            <h2>Liens envoyés</h2>
             @for (l of liens(); track l.id) {
               <div class="ligne lien">
-                <span>{{ l.creeLe | date: 'd MMM, HH:mm' }} · {{ l.publications }} publication(s)
+                <span><span class="pastille">{{ l.type === 'CONSULTATION' ? 'Partage' : 'Validation' }}</span> {{ l.creeLe | date: 'd MMM, HH:mm' }} · {{ l.publications }} publication(s)
                   @if (l.emailDestinataire) { · {{ l.emailDestinataire }} }</span>
                 <span class="espace"></span>
                 @if (l.revoque) { <span class="pastille">Révoqué</span> }
@@ -163,6 +200,7 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
     .progression .barre { grid-column: 1 / -1; }
     .strategie { margin-bottom: 16px; }
     .strategie summary { cursor: pointer; }
+    .analyse-page { white-space: pre-line; font-size: .9rem; color: #444; }
     .strategie p { margin-top: 10px; }
     .outils { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0 4px; }
     .outils select { width: auto; }
@@ -181,6 +219,7 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
     .publi { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; }
     .publi input { margin-top: 4px; }
     .publi .corps { flex: 1; color: inherit; min-width: 0; }
+    .vignette { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
     .publi .corps:hover { text-decoration: none; }
     .idee-liste { margin: 6px 0 4px; font-weight: 500; }
     .extrait { margin: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -202,6 +241,9 @@ export class CalendrierComponent implements OnInit {
   vue = signal<'mois' | 'liste'>(window.innerWidth < 760 ? 'liste' : 'mois');
   selection = signal<Set<string>>(new Set());
   lienCree = signal<LienValidation | null>(null);
+  partageCree = signal<LienValidation | null>(null);
+  envoiPartage = signal(false);
+  emailPartage = '';
   envoiLien = signal(false);
   messageLien = signal('');
   copie = signal(false);
@@ -217,6 +259,18 @@ export class CalendrierComponent implements OnInit {
   libellesStatut = LIBELLES_STATUT;
   statuts = Object.keys(LIBELLES_STATUT) as StatutPublication[];
   joursSemaine = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+  nbValidees = computed(() => (this.cal()?.publications ?? []).filter(p => p.statut === 'VALIDEE').length);
+  bilan = signal<{ programmees: number; ignorees: string[] } | null>(null);
+  programmation = signal(false);
+
+  programmerValidees() {
+    this.programmation.set(true);
+    this.api.programmerValidees(this.id()).subscribe({
+      next: b => { this.bilan.set(b); this.programmation.set(false); this.charger(); },
+      error: e => { this.erreur.set(messageErreur(e)); this.programmation.set(false); },
+    });
+  }
 
   enCours = computed(() => ['EN_ATTENTE', 'GRILLE', 'DETAILS'].includes(this.cal()?.statutGeneration ?? ''));
 
@@ -308,15 +362,38 @@ export class CalendrierComponent implements OnInit {
     });
   }
 
+  partager() {
+    this.envoiPartage.set(true);
+    this.api.partager(this.id()).subscribe({
+      next: l => {
+        this.partageCree.set(l);
+        this.liens.update(x => [l, ...x]);
+        this.envoiPartage.set(false);
+        this.messageLien.set('');
+      },
+      error: e => { this.erreur.set(messageErreur(e)); this.envoiPartage.set(false); },
+    });
+  }
+
+  whatsappPartage(l: LienValidation, c: Calendrier) {
+    const texte = `Bonjour, voici le calendrier éditorial de ${c.clientNom} (${c.total} publications) : ${l.url}\n`
+      + `Vous pouvez le consulter en ligne et le télécharger en PDF.`;
+    return `https://wa.me/?text=${encodeURIComponent(texte)}`;
+  }
+
+  vignette(p: Publication): string | null {
+    return p.visuels?.find(v => (v.type ?? 'IMAGE') === 'IMAGE')?.url ?? null;
+  }
+
   lienWhatsApp(l: LienValidation, c: Calendrier) {
     const texte = `Bonjour, voici les publications prévues pour ${c.clientNom} à valider : ${l.url}\n` +
       `Pour chacune, vous pouvez valider, modifier le texte ou demander une modification.`;
     return `https://wa.me/?text=${encodeURIComponent(texte)}`;
   }
 
-  envoyerEmail(l: LienValidation) {
-    this.api.envoyerLien(l.id, this.emailClient).subscribe({
-      next: () => this.messageLien.set(`E-mail envoyé à ${this.emailClient}.`),
+  envoyerEmail(l: LienValidation, email = this.emailClient) {
+    this.api.envoyerLien(l.id, email).subscribe({
+      next: () => this.messageLien.set(`E-mail envoyé à ${email}.`),
       error: e => this.messageLien.set(messageErreur(e)),
     });
   }

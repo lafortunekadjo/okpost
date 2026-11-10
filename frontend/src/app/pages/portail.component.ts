@@ -43,7 +43,9 @@ type Mode = 'lecture' | 'texte' | 'commentaire';
               @if (pub.statut === 'A_MODIFIER') { <span class="pastille statut-A_MODIFIER">Modification demandée</span> }
             </div>
 
-            @if (pub.format === 'VIDEO' && pub.scenario) {
+            @if (pub.format === 'VIDEO' && pub.visuelType === 'VIDEO' && pub.visuelUrl) {
+              <video class="image-prevue" [src]="pub.visuelUrl" controls playsinline preload="metadata"></video>
+            } @else if (pub.format === 'VIDEO' && pub.scenario) {
               <div class="visuel">
                 <span class="aide">Vidéo prévue · {{ pub.scenario.dureeTotaleS }} s</span>
                 <p><strong>{{ pub.scenario.titre }}</strong></p>
@@ -52,6 +54,15 @@ type Mode = 'lecture' | 'texte' | 'commentaire';
                   <ol>@for (pl of pub.scenario.plans; track pl.numero) { <li>{{ pl.image }} @if (pl.texteEcran) { — « {{ pl.texteEcran }} » }</li> }</ol>
                 </details>
               </div>
+            } @else if (pub.visuelUrl) {
+              @if (pub.visuelType === 'VIDEO') {
+                <video class="image-prevue" [src]="pub.visuelUrl" controls playsinline preload="metadata"></video>
+              } @else {
+                <img class="image-prevue" [src]="pub.visuelUrl" alt="Visuel prévu" loading="lazy" />
+              }
+              @if (pub.brief?.textesCarrousel?.length) {
+                <div class="visuel"><ol>@for (t of pub.brief!.textesCarrousel; track $index) { <li><strong>{{ t.titre }}</strong> — {{ t.texte }}</li> }</ol></div>
+              }
             } @else if (pub.brief) {
               <div class="visuel">
                 <span class="aide">Visuel prévu</span>
@@ -112,6 +123,7 @@ type Mode = 'lecture' | 'texte' | 'commentaire';
     .visuel p { margin: 4px 0 0; }
     .visuel ol { margin: 6px 0 0; padding-left: 20px; }
     .legende { margin-top: 12px; }
+    .image-prevue { width: 100%; border-radius: 10px; margin: 12px 0 0; display: block; }
     .hashtags { color: var(--bleu); font-size: .9rem; }
     .boutons { margin-top: 12px; }
     .pied { text-align: center; color: var(--gris); font-size: .8rem; margin-top: 24px; }

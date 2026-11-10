@@ -4,12 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { ApiService, messageErreur } from '../core/api.service';
 import { AuthService } from '../core/auth.service';
 import { Abonnement, Consommation, EtatIa, Membre } from '../core/models';
+import { CatalogueEvenementsComponent } from './catalogue-evenements.component';
 
 const FORMULES: Partial<Record<string, string>> = { ESSAI: 'Essai gratuit', SOLO: 'Solo', PRO: 'Pro', AGENCE: 'Agence' };
 
 @Component({
   selector: 'app-reglages',
-  imports: [FormsModule, DatePipe, DecimalPipe],
+  imports: [FormsModule, DatePipe, DecimalPipe, CatalogueEvenementsComponent],
   template: `
     <div class="page page-etroite">
       <div class="entete-page"><h1>Réglages</h1></div>
@@ -21,7 +22,7 @@ const FORMULES: Partial<Record<string, string>> = { ESSAI: 'Essai gratuit', SOLO
           <p><strong>{{ formules[a.formule] ?? a.formule }}</strong>
             @if (a.prixMensuelXaf) { · {{ a.prixMensuelXaf | number: '1.0-0' }} FCFA par mois }
             · jusqu'au {{ a.fin | date: 'd MMMM y' }}</p>
-          <p class="aide">{{ a.maxClients }} client(s), {{ a.maxMembres }} membre(s), {{ a.calendriersParMois }} calendrier(s) IA par mois.</p>
+          <p class="aide">{{ a.maxClients }} client(s), {{ a.maxMembres }} membre(s), {{ a.calendriersParMois }} calendrier(s) IA et {{ a.imagesParMois }} images IA par mois.</p>
           <p class="aide">Pour changer de formule ou renouveler : paiement Mobile Money, carte ou espèces auprès d'OkPost.</p>
         </div>
       }
@@ -55,16 +56,21 @@ const FORMULES: Partial<Record<string, string>> = { ESSAI: 'Essai gratuit', SOLO
       @if (ia(); as e) {
         <div class="carte">
           <h2>Intelligence artificielle</h2>
-          <p>Fournisseur utilisé : <strong>{{ e.fournisseurEspace === 'claude' ? 'Claude' : 'Gemini' }}</strong></p>
+          <p>Fournisseur utilisé : <strong>{{ nomIa(e.fournisseurEspace) }}</strong></p>
           @for (f of fournisseurs(e); track f) {
-            <p class="aide">{{ f === 'claude' ? 'Claude' : f === 'gemini' ? 'Gemini' : f }} :
+            <p class="aide">{{ nomIa(f) }} :
               {{ e.configures[f] ? 'clé configurée' : 'clé absente sur le serveur' }}</p>
+          }
+          <h3 style="margin-top:16px">Images</h3>
+          @for (m of moteursImages(e); track m) {
+            <p class="aide">{{ m === 'cloudflare' ? 'FLUX via Cloudflare (gratuit)' : m === 'gemini' ? 'Gemini Nano Banana (payant)' : m }} :
+              {{ e.images[m] ? 'configuré' : 'non configuré' }}{{ m === e.imageParDefaut ? ' — moteur par défaut' : '' }}</p>
           }
           @if (auth.estSuperAdmin()) {
             <div class="ligne" style="margin-top:8px">
               <label style="margin:0">Fournisseur par défaut de la plateforme</label>
               <select [ngModel]="e.fournisseurParDefaut" (ngModelChange)="changerIa($event)" style="width:auto">
-                @for (f of fournisseurs(e); track f) { <option [value]="f">{{ f }}</option> }
+                @for (f of fournisseurs(e); track f) { <option [value]="f">{{ nomIa(f) }}</option> }
               </select>
             </div>
           }
@@ -82,6 +88,7 @@ const FORMULES: Partial<Record<string, string>> = { ESSAI: 'Essai gratuit', SOLO
           }
         </div>
       }
+      @if (auth.estSuperAdmin()) { <app-catalogue-evenements /> }
     </div>
   `,
   styles: `
@@ -111,6 +118,14 @@ export class ReglagesComponent {
     if (this.auth.estAdmin()) {
       this.api.consommation().subscribe({ next: c => this.consommation.set(c), error: () => {} });
     }
+  }
+
+  nomIa(f: string) {
+    return ({ gemini: 'Gemini', claude: 'Claude', compatible: 'Compatible OpenAI (Groq…)' } as Partial<Record<string, string>>)[f] ?? f;
+  }
+
+  moteursImages(e: EtatIa) {
+    return Object.keys(e.images ?? {});
   }
 
   fournisseurs(e: EtatIa) {

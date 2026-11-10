@@ -27,6 +27,7 @@ import { DatePipe } from '@angular/common';
         }
       }
       @if (erreur()) { <div class="erreur">{{ erreur() }}</div> }
+      @if (erreurReseaux) { <div class="erreur">Connexion Facebook impossible : {{ erreurReseaux }}</div> }
 
       @if (clients() === null) {
         <p class="chargement">Chargement…</p>
@@ -73,6 +74,8 @@ export class TableauDeBordComponent {
   clients = signal<ClientResume[] | null>(null);
   abonnement = signal<Abonnement | null>(null);
   erreur = signal('');
+  erreurReseaux = new URLSearchParams(window.location.search).get('reseaux') === 'erreur'
+    ? new URLSearchParams(window.location.search).get('message') ?? 'erreur inconnue' : '';
 
   constructor() {
     this.api.clients().subscribe({ next: c => this.clients.set(c), error: e => { this.erreur.set(messageErreur(e)); this.clients.set([]); } });

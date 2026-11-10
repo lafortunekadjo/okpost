@@ -1,0 +1,8 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/frontend/browser",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://api.okpost.my2-0.cloud/api/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

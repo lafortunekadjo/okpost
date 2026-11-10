@@ -85,6 +85,10 @@ const TYPES_FICHIERS = [
               <div class="champ"><label>Adresse au public</label>
                 <select name="tutoiement" [(ngModel)]="c.tutoiement"><option [ngValue]="false">Vouvoiement</option><option [ngValue]="true">Tutoiement</option></select></div>
             </div>
+            <div class="champ"><label>Fêtes religieuses</label>
+              <select name="fetesReligieuses" [(ngModel)]="c.fetesReligieuses">
+                <option [ngValue]="true">Proposer les fêtes religieuses (Noël, Pâques, Ramadan, Tabaski…)</option>
+                <option [ngValue]="false">Ne pas les proposer</option></select></div>
             <div class="champ"><label>Ton</label><input type="text" name="ton" [(ngModel)]="c.ton" placeholder="Chaleureux et expert, rassurant, dynamique…" /></div>
             <div class="champ"><label>Mots ou sujets à éviter</label><textarea name="eviter" rows="2" [(ngModel)]="c.motsAEviter"></textarea></div>
             <div class="champ"><label>Exemples de publications appréciées</label><textarea name="exemples" rows="4" [(ngModel)]="c.exemples"></textarea></div>
@@ -183,7 +187,7 @@ export class FicheClientComponent implements OnInit {
   ];
 
   c: Client = {
-    nom: '', langue: 'fr', tutoiement: false, offres: [], cibles: [], concurrents: [], couleurs: [], reseaux: {},
+    nom: '', langue: 'fr', tutoiement: false, fetesReligieuses: true, offres: [], cibles: [], concurrents: [], couleurs: [], reseaux: {},
   };
 
   ngOnInit() {
