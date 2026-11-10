@@ -56,7 +56,21 @@ class ParcoursCompletTest {
         GenerateurIA generateurFactice() {
             return new IaFactice();
         }
+
+        @Bean
+        com.okpost.ia.GenerateurImage imageFactice() {
+            return new com.okpost.ia.GenerateurImage() {
+                public String nom() { return "factice"; }
+                public boolean configure() { return true; }
+                public ImageGeneree generer(UUID ws, String prompt, String ratio, java.util.List<Reference> refs) {
+                    return new ImageGeneree(PNG, "modele-test");
+                }
+            };
+        }
     }
+
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    com.okpost.reseaux.MetaApi meta;
 
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
@@ -122,6 +136,37 @@ class ParcoursCompletTest {
                 Map.of("champ", "legende", "consigne", "plus court"), 200);
         assertThat(regen.get("legende").asText()).contains("plus court");
 
+        // Image générée à partir du prompt du brief
+        String pubImage = null;
+        for (JsonNode p : vue.get("publications")) {
+            if (!"VIDEO".equals(p.get("format").asText())) { pubImage = p.get("id").asText(); break; }
+        }
+        JsonNode visuel = appeler(post("/api/v1/publications/" + pubImage + "/visuels"), jeton, Map.of(), 201);
+        mvc.perform(get(visuel.get("url").asText())).andExpect(status().isOk());
+        assertThat(appeler(get("/api/v1/publications/" + pubImage), jeton, null, 200).get("visuels").size()).isEqualTo(1);
+
+        // Vidéo téléversée par le CM (en-tête MP4 « ftyp »)
+        byte[] mp4 = {0, 0, 0, 0x18, 'f', 't', 'y', 'p', 'i', 's', 'o', 'm', 0, 0, 0, 0};
+        MockMultipartFile video = new MockMultipartFile("fichier", "tournage.mp4", "video/mp4", mp4);
+        MvcResult envoi = mvc.perform(multipart("/api/v1/publications/" + pubImage + "/medias").file(video)
+                        .header("Authorization", "Bearer " + jeton))
+                .andExpect(status().isCreated()).andReturn();
+        JsonNode media = json.readTree(envoi.getResponse().getContentAsString());
+        assertThat(media.get("type").asText()).isEqualTo("VIDEO");
+        assertThat(media.get("source").asText()).isEqualTo("TELEVERSE");
+        mvc.perform(get(media.get("url").asText())).andExpect(status().isOk());
+
+        // Lien de partage en lecture seule
+        JsonNode partage = appeler(post("/api/v1/calendriers/" + calId + "/partage"), jeton, Map.of(), 201);
+        String urlPartage = partage.get("url").asText();
+        assertThat(urlPartage).contains("/c/");
+        String jetonPartage = urlPartage.substring(urlPartage.lastIndexOf('/') + 1);
+        JsonNode vuePartage = appeler(get("/api/v1/public/partage/" + jetonPartage), null, null, 200);
+        assertThat(vuePartage.get("publications").size()).isEqualTo(vue.get("total").asInt());
+        assertThat(vuePartage.toString()).doesNotContain("promptImage\":\"A photo");
+        appeler(post("/api/v1/public/validation/" + jetonPartage + "/publications/" + ids.get(0)), null,
+                Map.of("decision", "OK"), 403);
+
         // Lot 4 : lien de validation et portail public
         JsonNode lien = appeler(post("/api/v1/calendriers/" + calId + "/liens-validation"), jeton,
                 Map.of("publications", ids.subList(0, 3)), 201);
@@ -170,6 +215,54 @@ class ParcoursCompletTest {
 
         // Formule d'essai : un seul client
         appeler(post("/api/v1/clients"), jeton, Map.of("nom", "Deuxième"), 402);
+    }
+
+    @Test
+    void publicationAutomatiqueSurFacebookApresValidation() throws Exception {
+        org.mockito.Mockito.when(meta.prolonger(org.mockito.ArgumentMatchers.anyString())).thenAnswer(i -> i.getArgument(0));
+        org.mockito.Mockito.when(meta.pages("jeton-utilisateur"))
+                .thenReturn(List.of(new com.okpost.reseaux.MetaApi.Page("123", "Page My2-0", "jeton-page")));
+        org.mockito.Mockito.when(meta.publierTexte(org.mockito.ArgumentMatchers.eq("123"), org.mockito.ArgumentMatchers.eq("jeton-page"),
+                        org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(new com.okpost.reseaux.MetaApi.Resultat("123_456", "https://www.facebook.com/123_456"));
+
+        String jeton = inscrire("Agence FB", "fb+" + UUID.randomUUID() + "@exemple.com");
+        JsonNode client = appeler(post("/api/v1/clients"), jeton, Map.of("nom", "My2-0", "autoPublication", true,
+                "heurePublication", "18:00"), 201);
+        String clientId = client.get("id").asText();
+        assertThat(client.get("autoPublication").asBoolean()).isTrue();
+
+        // Liaison de la Page avec un jeton collé : une seule Page, elle devient active
+        JsonNode comptes = appeler(post("/api/v1/clients/" + clientId + "/comptes-sociaux/facebook/jeton"), jeton,
+                Map.of("jeton", "jeton-utilisateur"), 200);
+        assertThat(comptes.get(0).get("actif").asBoolean()).isTrue();
+        assertThat(comptes.toString()).doesNotContain("jeton-page");
+
+        LocalDate debut = LocalDate.now().plusDays(1);
+        String calId = appeler(post("/api/v1/clients/" + clientId + "/calendriers"), jeton, Map.of(
+                "debut", debut.toString(), "fin", debut.plusDays(6).toString(), "rythme", Map.of("facebook", 2)), 202)
+                .get("id").asText();
+        JsonNode vue = null;
+        for (int i = 0; i < 50; i++) {
+            vue = appeler(get("/api/v1/calendriers/" + calId), jeton, null, 200);
+            if ("TERMINE".equals(vue.get("statutGeneration").asText())) break;
+            Thread.sleep(200);
+        }
+        String pubId = vue.get("publications").get(0).get("id").asText();
+        String url = appeler(post("/api/v1/calendriers/" + calId + "/liens-validation"), jeton,
+                Map.of("publications", List.of(pubId)), 201).get("url").asText();
+        String jetonLien = url.substring(url.lastIndexOf('/') + 1);
+
+        // Le client valide : la publication est programmée automatiquement
+        appeler(post("/api/v1/public/validation/" + jetonLien + "/publications/" + pubId), null, Map.of("decision", "OK"), 204);
+        JsonNode pub = appeler(get("/api/v1/publications/" + pubId), jeton, null, 200);
+        assertThat(pub.get("statut").asText()).isEqualTo("PROGRAMMEE");
+        assertThat(pub.get("publicationPrevue").asText()).isNotBlank();
+
+        // Publication immédiate
+        JsonNode publiee = appeler(post("/api/v1/publications/" + pubId + "/publier-maintenant"), jeton, null, 200);
+        assertThat(publiee.get("statut").asText()).isEqualTo("PUBLIEE");
+        assertThat(publiee.get("lienPost").asText()).contains("123_456");
     }
 
     @Test

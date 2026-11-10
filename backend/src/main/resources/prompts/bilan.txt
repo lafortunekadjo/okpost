@@ -1,0 +1,9 @@
+Voici le bilan Facebook de ce client sur une période, comparé à la période précédente.
+
+{{bilan}}
+
+Analyse ces chiffres comme un community manager senior qui prépare son rapport mensuel au client.
+- Constat : ce qui a le mieux marché et ce qui a moins marché, en t'appuyant sur les chiffres (formats, jours, sujets).
+- Recommandations : 3 à 5 actions concrètes pour la période suivante (sujets, formats, rythme, créneaux, appels à l'action).
+- N'invente aucun chiffre absent du bilan. Si les données sont trop peu nombreuses pour conclure (moins de 5 publications), dis-le.
+- Écris en français simple, sans jargon, en t'adressant au client.

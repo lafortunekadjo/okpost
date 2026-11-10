@@ -21,6 +21,11 @@ public interface PublicationRepository extends JpaRepository<Publication, UUID> 
 
     long countByCalendrierId(UUID calendrierId);
 
+    List<Publication> findTop20ByStatutAndPublicationPrevueBeforeAndTentativesLessThanOrderByPublicationPrevue(
+            StatutPublication statut, java.time.Instant limite, int tentativesMax);
+
+    long countByCalendrierIdAndDatePrevueBetween(UUID calendrierId, LocalDate debut, LocalDate fin);
+
     interface CompteStatut {
         StatutPublication getStatut();
         long getNombre();
@@ -34,4 +39,8 @@ public interface PublicationRepository extends JpaRepository<Publication, UUID> 
             group by p.statut
             """)
     List<CompteStatut> compterParStatut(UUID clientId, LocalDate debut, LocalDate fin);
+
+    @Query("select count(p) from Publication p, Calendrier c where p.calendrierId = c.id and c.clientId = :clientId "
+            + "and p.publieeLe >= :debut and p.publieeLe < :fin")
+    long compterPublieesParOkPost(UUID clientId, java.time.Instant debut, java.time.Instant fin);
 }

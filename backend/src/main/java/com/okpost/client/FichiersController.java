@@ -20,21 +20,26 @@ public class FichiersController {
 
     private final StockageFichiers stockage;
     private final ClientAssetRepository assets;
+    private final com.okpost.calendrier.VisuelGenereRepository visuels;
 
-    public FichiersController(StockageFichiers stockage, ClientAssetRepository assets) {
+    public FichiersController(StockageFichiers stockage, ClientAssetRepository assets,
+                              com.okpost.calendrier.VisuelGenereRepository visuels) {
         this.stockage = stockage;
         this.assets = assets;
+        this.visuels = visuels;
     }
 
     @GetMapping("/{chemin:.+}")
     public ResponseEntity<Resource> lire(@PathVariable String chemin) {
-        ClientAsset a = assets.findByChemin(chemin).orElseThrow(() -> ApiException.introuvable("Fichier"));
+        String mime = assets.findByChemin(chemin).map(ClientAsset::getMime)
+                .or(() -> visuels.findByChemin(chemin).map(com.okpost.calendrier.VisuelGenere::getMime))
+                .orElseThrow(() -> ApiException.introuvable("Fichier"));
         Resource r = stockage.lire(chemin);
         if (!r.exists()) {
             throw ApiException.introuvable("Fichier");
         }
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(a.getMime()))
+                .contentType(MediaType.parseMediaType(mime))
                 .cacheControl(CacheControl.maxAge(30, TimeUnit.DAYS).cachePublic())
                 .header("X-Content-Type-Options", "nosniff")
                 .header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")

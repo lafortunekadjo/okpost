@@ -69,6 +69,23 @@ public class Publication extends BaseEntity {
     @Version
     private int version;
 
+    @Column(name = "publication_prevue")
+    private java.time.Instant publicationPrevue;
+
+    @Column(name = "publiee_le")
+    private java.time.Instant publieeLe;
+
+    @Column(name = "post_externe_id")
+    private String postExterneId;
+
+    @Column(name = "lien_post")
+    private String lienPost;
+
+    @Column(name = "erreur_publication")
+    private String erreurPublication;
+
+    private int tentatives;
+
     public UUID getWorkspaceId() { return workspaceId; }
     public void setWorkspaceId(UUID workspaceId) { this.workspaceId = workspaceId; }
     public UUID getCalendrierId() { return calendrierId; }
@@ -102,4 +119,22 @@ public class Publication extends BaseEntity {
     public StatutPublication getStatut() { return statut; }
     public void setStatut(StatutPublication statut) { this.statut = statut; }
     public int getVersion() { return version; }
+    public java.time.Instant getPublicationPrevue() { return publicationPrevue; }
+    public void setPublicationPrevue(java.time.Instant publicationPrevue) { this.publicationPrevue = publicationPrevue; }
+    public java.time.Instant getPublieeLe() { return publieeLe; }
+    public void setPublieeLe(java.time.Instant publieeLe) { this.publieeLe = publieeLe; }
+    public String getPostExterneId() { return postExterneId; }
+    public void setPostExterneId(String postExterneId) { this.postExterneId = postExterneId; }
+    public String getLienPost() { return lienPost; }
+    public void setLienPost(String lienPost) { this.lienPost = lienPost; }
+    @Column(name = "mode_carrousel")
+    private String modeCarrousel;
+
+    public String getModeCarrousel() { return modeCarrousel; }
+    public void setModeCarrousel(String modeCarrousel) { this.modeCarrousel = modeCarrousel; }
+
+    public String getErreurPublication() { return erreurPublication; }
+    public void setErreurPublication(String erreurPublication) { this.erreurPublication = erreurPublication; }
+    public int getTentatives() { return tentatives; }
+    public void setTentatives(int tentatives) { this.tentatives = tentatives; }
 }

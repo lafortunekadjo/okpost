@@ -9,6 +9,8 @@ import java.util.UUID;
 
 public interface CalendrierRepository extends JpaRepository<Calendrier, UUID> {
     List<Calendrier> findByClientIdAndWorkspaceIdOrderByPeriodeDebutDesc(UUID clientId, UUID workspaceId);
+
+    List<Calendrier> findByWorkspaceId(UUID workspaceId);
     Optional<Calendrier> findByIdAndWorkspaceId(UUID id, UUID workspaceId);
     long countByWorkspaceIdAndCreatedAtAfter(UUID workspaceId, Instant depuis);
 }

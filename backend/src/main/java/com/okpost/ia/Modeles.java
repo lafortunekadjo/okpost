@@ -15,7 +15,18 @@ public final class Modeles {
 
     public record DemandeCalendrier(LocalDate debut, LocalDate fin, List<String> reseaux,
                                     java.util.Map<String, Integer> rythmeParSemaine,
-                                    String objectifs, String tempsForts, String langue) {}
+                                    String objectifs, String tempsForts, String langue,
+                                    List<String> piliers, List<String> dejaPrevues) {
+
+        /** Nombre de publications attendues par réseau sur la période (au prorata des jours). */
+        public java.util.Map<String, Integer> attendus() {
+            long jours = java.time.temporal.ChronoUnit.DAYS.between(debut, fin) + 1;
+            java.util.Map<String, Integer> m = new java.util.LinkedHashMap<>();
+            rythmeParSemaine.forEach((r, n) -> m.put(r.toUpperCase(java.util.Locale.ROOT),
+                    (int) Math.max(1, Math.round(n * jours / 7.0))));
+            return m;
+        }
+    }
 
     /** Idée déjà placée dans la grille, à détailler. */
     public record IdeeADetailler(int index, LocalDate date, String reseau, String format, String pilier,
@@ -40,6 +51,20 @@ public final class Modeles {
             @JsonPropertyDescription("Fête ou journée liée, sinon null") String tempsFort) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Recommandations(
+            @JsonPropertyDescription("Constat en 2 phrases : ce qui a marché, ce qui a moins marché") String constat,
+            @JsonPropertyDescription("3 à 5 recommandations concrètes pour la période suivante") List<String> recommandations) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record TempsFortsSuggeres(List<TempsFortSuggere> suggestions) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record TempsFortSuggere(
+            @JsonPropertyDescription("Nom court du temps fort") String nom,
+            @JsonPropertyDescription("Date AAAA-MM-JJ dans la période, ou null si la date n'est pas certaine") LocalDate date,
+            @JsonPropertyDescription("Pourquoi c'est pertinent pour ce client et quel angle prendre, en une phrase") String angle) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public record LotDetails(List<DetailGenere> publications) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -55,9 +80,10 @@ public final class Modeles {
     public record BriefVisuel(
             @JsonPropertyDescription("IMAGE, CARROUSEL ou STORY") String type,
             @JsonPropertyDescription("Ce que le graphiste doit comprendre, en une phrase") String description,
-            @JsonPropertyDescription("Prompt en anglais pour un générateur d'images : sujet, style, lumière, cadrage, couleurs hex de la marque, sans texte dans l'image") String promptImage,
+            @JsonPropertyDescription("Prompt UNIQUEMENT en anglais, 40 à 90 mots, une seule scène concrète ; voir les règles du prompt d'image") String promptImage,
             @JsonPropertyDescription("1:1, 4:5 ou 9:16") String ratio,
-            List<TexteCarrousel> textesCarrousel) {}
+            List<TexteCarrousel> textesCarrousel,
+            @JsonPropertyDescription("Titre accrocheur posé sur le visuel, 3 à 7 mots, dans la langue des contenus") String accroche) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record TexteCarrousel(int visuel, String titre, String texte) {}

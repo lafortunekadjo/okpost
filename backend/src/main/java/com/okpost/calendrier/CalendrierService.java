@@ -41,10 +41,12 @@ public class CalendrierService {
     private final ClientService clients;
     private final AbonnementService abonnements;
     private final ApplicationEventPublisher evenements;
+    private final VisuelGenereRepository visuels;
 
     public CalendrierService(CalendrierRepository calendriers, PublicationRepository publications,
                              RetourClientRepository retours, ClientService clients, AbonnementService abonnements,
-                             ApplicationEventPublisher evenements) {
+                             ApplicationEventPublisher evenements, VisuelGenereRepository visuels) {
+        this.visuels = visuels;
         this.calendriers = calendriers;
         this.publications = publications;
         this.retours = retours;
@@ -85,6 +87,7 @@ public class CalendrierService {
         c.setWorkspaceId(s.workspaceId());
         c.setClientId(client.getId());
         c.setPeriodeDebut(n.debut());
+        c.setAnalyserPage(Boolean.TRUE.equals(n.analyserPage()));
         c.setPeriodeFin(n.fin());
         c.setReseaux(new ArrayList<>(rythme.keySet()));
         c.setRythme(rythme);
@@ -137,12 +140,14 @@ public class CalendrierService {
         Client client = clients.charger(s, c.getClientId());
         List<Publication> pubs = publications.findByCalendrierIdOrderByDatePrevueAscReseauAsc(c.getId());
         Map<UUID, List<RetourVue>> parPub = retoursPar(pubs.stream().map(Publication::getId).toList());
-        List<PublicationVue> vues = pubs.stream().map(p -> vue(p, parPub.getOrDefault(p.getId(), List.of()))).toList();
+        Map<UUID, List<CalendrierDtos.VisuelVue>> images = visuelsPar(pubs.stream().map(Publication::getId).toList());
+        List<PublicationVue> vues = pubs.stream().map(p -> vue(p, parPub.getOrDefault(p.getId(), List.of()),
+                images.getOrDefault(p.getId(), List.of()))).toList();
         long detaillees = pubs.stream().filter(Publication::isDetailGenere).count();
         return new CalendrierVue(c.getId(), c.getClientId(), client.getNom(), c.getPeriodeDebut(), c.getPeriodeFin(),
                 c.getReseaux(), c.getRythme(), c.getObjectifs(), c.getTempsForts(), c.getLangue(), c.getStrategie(),
                 c.getPiliers(), c.getStatutGeneration().name(), c.getMessageErreur(), c.getFournisseurIa(),
-                pubs.size(), detaillees, vues);
+                pubs.size(), detaillees, vues, c.isAnalyserPage(), c.getAnalysePage());
     }
 
     @Transactional(readOnly = true)
@@ -183,13 +188,22 @@ public class CalendrierService {
             p.setStatut(StatutPublication.BROUILLON);
         }
         publications.saveAndFlush(p);
-        return vue(p, retoursPar(List.of(p.getId())).getOrDefault(p.getId(), List.of()));
+        return vue(p, retoursPar(List.of(p.getId())).getOrDefault(p.getId(), List.of()),
+                visuelsPar(List.of(p.getId())).getOrDefault(p.getId(), List.of()));
     }
 
     @Transactional(readOnly = true)
     public PublicationVue vuePublication(Session s, UUID id) {
         Publication p = chargerPublication(s, id);
-        return vue(p, retoursPar(List.of(p.getId())).getOrDefault(p.getId(), List.of()));
+        return vue(p, retoursPar(List.of(p.getId())).getOrDefault(p.getId(), List.of()),
+                visuelsPar(List.of(p.getId())).getOrDefault(p.getId(), List.of()));
+    }
+
+    private Map<UUID, List<CalendrierDtos.VisuelVue>> visuelsPar(List<UUID> ids) {
+        if (ids.isEmpty()) return Map.of();
+        return visuels.findByPublicationIdInOrderByCreatedAtDesc(ids).stream()
+                .collect(Collectors.groupingBy(VisuelGenere::getPublicationId, LinkedHashMap::new,
+                        Collectors.mapping(VisuelService::vue, Collectors.toList())));
     }
 
     private Map<UUID, List<RetourVue>> retoursPar(List<UUID> ids) {
@@ -200,10 +214,11 @@ public class CalendrierService {
                                 r.getLegendeProposee(), r.getLegendeOrigine(), r.getCreatedAt()), Collectors.toList())));
     }
 
-    public static PublicationVue vue(Publication p, List<RetourVue> retours) {
+    public static PublicationVue vue(Publication p, List<RetourVue> retours, List<CalendrierDtos.VisuelVue> images) {
         return new PublicationVue(p.getId(), p.getCalendrierId(), p.getDatePrevue(), p.getReseau(), p.getFormat(),
                 p.getPilier(), p.getIdee(), p.getObjectif(), p.getTempsFort(), p.getLegende(), p.getHashtags(),
                 p.getCta(), p.getBrief(), p.getScenario(), p.isDetailGenere(), p.getStatut().name(), p.getVersion(),
-                retours);
+                retours, images, p.getPublicationPrevue(), p.getPublieeLe(), p.getLienPost(), p.getErreurPublication(),
+                p.getModeCarrousel());
     }
 }

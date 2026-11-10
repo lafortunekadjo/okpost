@@ -48,8 +48,11 @@ public class ValidationService {
     private final UtilisateurRepository utilisateurs;
     private final MailService mail;
     private final OkpostProperties props;
+    private final com.okpost.calendrier.VisuelGenereRepository visuels;
+    private final com.okpost.reseaux.PublicationAutoService publicationAuto;
 
-    public ValidationService(LienValidationRepository liens, RetourClientRepository retours,
+    public ValidationService(com.okpost.calendrier.VisuelGenereRepository visuels,
+                             @org.springframework.context.annotation.Lazy com.okpost.reseaux.PublicationAutoService publicationAuto, LienValidationRepository liens, RetourClientRepository retours,
                              PublicationRepository publications, CalendrierRepository calendriers,
                              CalendrierService calendrierService, ClientRepository clients,
                              ClientService clientService, UtilisateurRepository utilisateurs, MailService mail,
@@ -64,6 +67,19 @@ public class ValidationService {
         this.utilisateurs = utilisateurs;
         this.mail = mail;
         this.props = props;
+        this.visuels = visuels;
+        this.publicationAuto = publicationAuto;
+    }
+
+    /** Programme la publication si le client a activé la publication automatique ; ne bloque jamais la validation. */
+    private void programmerSiAuto(Publication p) {
+        if (p.getStatut() != StatutPublication.VALIDEE) return;
+        try {
+            publicationAuto.apresValidation(p);
+        } catch (RuntimeException e) {
+            org.slf4j.LoggerFactory.getLogger(ValidationService.class)
+                    .info("Publication {} validée, non programmée : {}", p.getId(), e.getMessage());
+        }
     }
 
     // ---------------------------------------------------------------- côté CM
@@ -133,6 +149,52 @@ public class ValidationService {
         return liens.findByCalendrierIdOrderByCreatedAtDesc(calendrierId).stream().map(this::vue).toList();
     }
 
+    /** Lien de partage en lecture seule de tout le calendrier (90 jours), avec envoi par e-mail facultatif. */
+    @Transactional
+    public LienVue creerPartage(Session s, UUID calendrierId, String email) {
+        Calendrier cal = calendrierService.charger(s, calendrierId);
+        List<UUID> ids = publications.findByCalendrierIdOrderByDatePrevueAscReseauAsc(cal.getId()).stream()
+                .map(Publication::getId).toList();
+        LienValidation l = new LienValidation();
+        l.setType(LienValidation.Type.CONSULTATION);
+        l.setWorkspaceId(s.workspaceId());
+        l.setCalendrierId(cal.getId());
+        l.setJeton(JwtService.jetonAleatoire());
+        l.setExpireLe(Instant.now().plus(Duration.ofDays(90)));
+        l.setPublications(ids);
+        l.setEmailDestinataire(email);
+        liens.save(l);
+        if (email != null && !email.isBlank()) {
+            envoyerEmailLien(l, email);
+        }
+        return vue(l);
+    }
+
+    @Transactional(readOnly = true)
+    public ValidationDtos.PartageCalendrier partage(String jeton) {
+        LienValidation l = lienValide(jeton);
+        Calendrier cal = calendriers.findById(l.getCalendrierId()).orElseThrow(() -> ApiException.introuvable("Lien"));
+        Client client = clients.findById(cal.getClientId()).orElseThrow(() -> ApiException.introuvable("Lien"));
+        List<Publication> pubs = publications.findByIdInAndCalendrierId(l.getPublications(), cal.getId()).stream()
+                .sorted((a, b) -> a.getDatePrevue().compareTo(b.getDatePrevue())).toList();
+        Map<UUID, List<ValidationDtos.MediaPublic>> medias = visuels.findByPublicationIdInOrderByCreatedAtDesc(
+                        pubs.stream().map(Publication::getId).toList()).stream()
+                .collect(Collectors.groupingBy(com.okpost.calendrier.VisuelGenere::getPublicationId,
+                        Collectors.mapping(v -> new ValidationDtos.MediaPublic(
+                                com.okpost.client.ClientDtos.urlFichier(v.getChemin()), v.getTypeMedia().name()),
+                                Collectors.toList())));
+        List<ValidationDtos.PartagePublication> vues = pubs.stream().map(p -> new ValidationDtos.PartagePublication(
+                p.getId(), p.getDatePrevue(), p.getReseau(), p.getFormat(), p.getPilier(), p.getIdee(), p.getObjectif(),
+                p.getLegende(), p.getHashtags(), p.getCta(),
+                p.getBrief() == null ? null : new com.okpost.ia.Modeles.BriefVisuel(p.getBrief().type(),
+                        p.getBrief().description(), null, p.getBrief().ratio(), p.getBrief().textesCarrousel(),
+                        p.getBrief().accroche()),
+                p.getScenario(), medias.getOrDefault(p.getId(), List.of()))).toList();
+        return new ValidationDtos.PartageCalendrier(client.getNom(), clientService.logoUrl(client.getId()),
+                client.getCouleurs(), cal.getPeriodeDebut(), cal.getPeriodeFin(), cal.getStrategie(), cal.getPiliers(),
+                cal.getObjectifs(), cal.getTempsForts(), cal.getReseaux(), l.getExpireLe(), vues);
+    }
+
     // ---------------------------------------------------------------- côté client (public)
 
     @Transactional(readOnly = true)
@@ -145,11 +207,16 @@ public class ValidationService {
         Map<UUID, RetourClient> derniers = retours.findByPublicationIdInOrderByCreatedAtDesc(
                         pubs.stream().map(Publication::getId).toList()).stream()
                 .collect(Collectors.toMap(RetourClient::getPublicationId, Function.identity(), (a, b) -> a));
+        Map<UUID, com.okpost.calendrier.VisuelGenere> images = visuels.findByPublicationIdInOrderByCreatedAtDesc(
+                        pubs.stream().map(Publication::getId).toList()).stream()
+                .collect(Collectors.toMap(com.okpost.calendrier.VisuelGenere::getPublicationId, v -> v, (a, b) -> a));
         List<PortailPublication> vues = pubs.stream().map(p -> {
             RetourClient r = derniers.get(p.getId());
             return new PortailPublication(p.getId(), p.getDatePrevue(), p.getReseau(), p.getFormat(), p.getLegende(),
                     p.getHashtags(), p.getCta(), p.getBrief(), p.getScenario(), p.getStatut().name(),
-                    r == null ? null : r.getDecision().name(), r == null ? null : r.getCommentaire());
+                    r == null ? null : r.getDecision().name(), r == null ? null : r.getCommentaire(),
+                    images.containsKey(p.getId()) ? com.okpost.client.ClientDtos.urlFichier(images.get(p.getId()).getChemin()) : null,
+                    images.containsKey(p.getId()) ? images.get(p.getId()).getTypeMedia().name() : null);
         }).toList();
         int validees = (int) pubs.stream().filter(p -> p.getStatut() == StatutPublication.VALIDEE).count();
         int aModifier = (int) pubs.stream().filter(p -> p.getStatut() == StatutPublication.A_MODIFIER).count();
@@ -166,17 +233,18 @@ public class ValidationService {
         if (decision == RetourClient.Decision.A_MODIFIER && (commentaire == null || commentaire.isBlank())) {
             throw ApiException.requeteInvalide("Explique ce qu'il faut modifier");
         }
-        LienValidation l = lienValide(jeton);
+        LienValidation l = lienValidation(jeton);
         Publication p = publicationDuLien(l, publicationId);
         p.setStatut(decision == RetourClient.Decision.OK ? StatutPublication.VALIDEE : StatutPublication.A_MODIFIER);
         publications.save(p);
         enregistrerRetour(l, p, decision, commentaire, null, null, ipHash);
         notifier(l, p, decision, commentaire);
+        programmerSiAuto(p);
     }
 
     @Transactional
     public void modifierLegende(String jeton, UUID publicationId, String legende, String commentaire, String ipHash) {
-        LienValidation l = lienValide(jeton);
+        LienValidation l = lienValidation(jeton);
         Publication p = publicationDuLien(l, publicationId);
         String origine = p.getLegende();
         p.setLegende(legende.trim());
@@ -184,6 +252,7 @@ public class ValidationService {
         publications.save(p);
         enregistrerRetour(l, p, RetourClient.Decision.MODIFIEE, commentaire, legende.trim(), origine, ipHash);
         notifier(l, p, RetourClient.Decision.MODIFIEE, commentaire);
+        programmerSiAuto(p);
     }
 
     // ----------------------------------------------------------------
@@ -192,6 +261,15 @@ public class ValidationService {
         LienValidation l = liens.findByJeton(jeton).orElseThrow(() -> ApiException.introuvable("Lien"));
         if (!l.estValide()) {
             throw new ApiException(HttpStatus.GONE, "Ce lien de validation a expiré. Demande un nouveau lien à ton community manager.");
+        }
+        return l;
+    }
+
+    /** Lien valide ET de type validation : un lien de partage est en lecture seule. */
+    private LienValidation lienValidation(String jeton) {
+        LienValidation l = lienValide(jeton);
+        if (l.getType() != LienValidation.Type.VALIDATION) {
+            throw ApiException.interdit("Ce lien de partage est en lecture seule");
         }
         return l;
     }
@@ -246,6 +324,14 @@ public class ValidationService {
     private void envoyerEmailLien(LienValidation l, String email) {
         Calendrier cal = calendriers.findById(l.getCalendrierId()).orElseThrow();
         Client client = clients.findById(cal.getClientId()).orElseThrow();
+        if (l.getType() == LienValidation.Type.CONSULTATION) {
+            mail.envoyer(email, "Calendrier éditorial de " + client.getNom(),
+                    "Bonjour,\n\nVoici le calendrier éditorial de " + client.getNom() + " du " + cal.getPeriodeDebut()
+                            + " au " + cal.getPeriodeFin() + " (" + l.getPublications().size() + " publications).\n"
+                            + "Vous pouvez le consulter en ligne et le télécharger en PDF.",
+                    url(l), "Voir le calendrier");
+            return;
+        }
         mail.envoyer(email, "Publications à valider pour " + client.getNom(),
                 "Bonjour,\n\n" + l.getPublications().size() + " publication(s) prévues entre le " + cal.getPeriodeDebut()
                         + " et le " + cal.getPeriodeFin() + " attendent votre validation.\n"
@@ -254,11 +340,11 @@ public class ValidationService {
     }
 
     private String url(LienValidation l) {
-        return props.urlPublique() + "/v/" + l.getJeton();
+        return props.urlPublique() + (l.getType() == LienValidation.Type.CONSULTATION ? "/c/" : "/v/") + l.getJeton();
     }
 
     private LienVue vue(LienValidation l) {
         return new LienVue(l.getId(), url(l), l.getExpireLe(), l.isRevoque(), l.getPublications().size(),
-                l.getEmailDestinataire(), l.getCreatedAt());
+                l.getEmailDestinataire(), l.getCreatedAt(), l.getType().name());
     }
 }

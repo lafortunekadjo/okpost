@@ -94,6 +94,9 @@ public class ClientService {
         if (fichier.isEmpty()) {
             throw ApiException.requeteInvalide("Fichier vide");
         }
+        if (fichier.getSize() > 5L * 1024 * 1024) {
+            throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "Fichier trop lourd (5 Mo maximum)");
+        }
         byte[] octets;
         try {
             octets = fichier.getBytes();
@@ -135,7 +138,8 @@ public class ClientService {
                 c.getAnneeCreation(), c.getVille(), c.getPays(), c.getZone(), c.getAdresse(), c.getHoraires(),
                 c.getLangue(), c.getTon(), c.isTutoiement(), c.getMotsAEviter(), c.getExemples(), c.getOffres(),
                 c.getCibles(), c.getConcurrents(), c.getCouleurs(), c.getPolices(), c.getDomaine(), c.getReseaux(),
-                c.getWhatsapp(), c.getCmId(), fichiers, c.getUpdatedAt());
+                c.getWhatsapp(), c.getCmId(), fichiers, c.getUpdatedAt(), c.isAutoPublication(), c.getHeurePublication(),
+                c.isFetesReligieuses());
     }
 
     @Transactional(readOnly = true)
@@ -171,21 +175,24 @@ public class ClientService {
         c.setDomaine(f.domaine());
         c.setReseaux(f.reseaux() == null ? new LinkedHashMap<>() : new LinkedHashMap<>(f.reseaux()));
         c.setWhatsapp(f.whatsapp());
+        if (f.autoPublication() != null) c.setAutoPublication(f.autoPublication());
+        if (f.heurePublication() != null) c.setHeurePublication(f.heurePublication());
+        if (f.fetesReligieuses() != null) c.setFetesReligieuses(f.fetesReligieuses());
     }
 
     /** Détection du format par les premiers octets, pas par l'extension déclarée. */
-    enum TypeImage {
+    public enum TypeImage {
         PNG("png", "image/png"), JPG("jpg", "image/jpeg"), WEBP("webp", "image/webp"), SVG("svg", "image/svg+xml");
 
-        final String extension;
-        final String mime;
+        public final String extension;
+        public final String mime;
 
         TypeImage(String extension, String mime) {
             this.extension = extension;
             this.mime = mime;
         }
 
-        static TypeImage detecter(byte[] o) {
+        public static TypeImage detecter(byte[] o) {
             if (o.length > 8 && (o[0] & 0xFF) == 0x89 && o[1] == 'P' && o[2] == 'N' && o[3] == 'G') return PNG;
             if (o.length > 3 && (o[0] & 0xFF) == 0xFF && (o[1] & 0xFF) == 0xD8 && (o[2] & 0xFF) == 0xFF) return JPG;
             if (o.length > 12 && o[0] == 'R' && o[1] == 'I' && o[2] == 'F' && o[3] == 'F'

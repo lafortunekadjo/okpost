@@ -6,7 +6,7 @@ COPY src ./src
 RUN mvn -q -B -DskipTests package
 
 FROM eclipse-temurin:21-jre-alpine
-RUN addgroup -S okpost && adduser -S okpost -G okpost && mkdir -p /data/fichiers && chown -R okpost:okpost /data
+RUN apk add --no-cache fontconfig ttf-dejavu && addgroup -S okpost && adduser -S okpost -G okpost && mkdir -p /data/fichiers && chown -R okpost:okpost /data
 USER okpost
 WORKDIR /app
 COPY --from=build /src/target/okpost.jar app.jar

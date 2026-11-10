@@ -34,6 +34,13 @@ public class ValidationController {
         return service.creerLien(Session.courante(), id, n.publications(), n.email());
     }
 
+    /** Lien de partage en lecture seule (consultation et PDF), à envoyer par WhatsApp ou e-mail. */
+    @PostMapping("/calendriers/{id}/partage")
+    @ResponseStatus(HttpStatus.CREATED)
+    public LienVue partager(@PathVariable UUID id, @Valid @RequestBody ValidationDtos.NouveauPartage n) {
+        return service.creerPartage(Session.courante(), id, n.email());
+    }
+
     @GetMapping("/calendriers/{id}/liens-validation")
     public List<LienVue> lister(@PathVariable UUID id) {
         return service.lister(Session.courante(), id);

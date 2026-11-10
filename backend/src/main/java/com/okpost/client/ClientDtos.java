@@ -37,7 +37,10 @@ public final class ClientDtos {
             @Size(max = 255) String domaine,
             Map<String, String> reseaux,
             @Size(max = 50) String whatsapp,
-            UUID cmId) {}
+            UUID cmId,
+            Boolean autoPublication,
+            @Pattern(regexp = "([01]\\d|2[0-3]):[0-5]\\d") String heurePublication,
+            Boolean fetesReligieuses) {}
 
     public record AssetVue(UUID id, String type, String url, String nomOrigine, String legende) {}
 
@@ -46,7 +49,8 @@ public final class ClientDtos {
             String ville, String pays, String zone, String adresse, String horaires, String langue, String ton,
             boolean tutoiement, String motsAEviter, String exemples, List<Client.Offre> offres, List<String> cibles,
             List<String> concurrents, List<String> couleurs, String polices, String domaine,
-            Map<String, String> reseaux, String whatsapp, UUID cmId, List<AssetVue> assets, Instant updatedAt) {}
+            Map<String, String> reseaux, String whatsapp, UUID cmId, List<AssetVue> assets, Instant updatedAt,
+            boolean autoPublication, String heurePublication, boolean fetesReligieuses) {}
 
     public record ClientResume(UUID id, String nom, String secteur, String ville, String logoUrl,
                                long aValider, long validees, long aModifier) {}

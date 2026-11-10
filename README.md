@@ -38,30 +38,31 @@ Clé Gemini gratuite : https://aistudio.google.com/apikey — sur l'offre gratui
 
 Tests : `cd backend && mvn verify` (PostgreSQL lancé automatiquement par Testcontainers, IA simulée).
 
-## Déployer sur le VPS Hostinger (à côté de My2-0)
+## Déployer : API sur le VPS, interface sur Vercel
 
 ```bash
-# Sur le VPS
-git clone git@github.com:Fride10/okpost.git /opt/okpost
+# 1. VPS (DNS : api.okpost.my2-0.cloud -> IP du VPS)
+git clone https://github.com/lafortunekadjo/okpost.git /opt/okpost
 cd /opt/okpost/deploy
-cp .env.example .env && nano .env              # secrets, clé Gemini, super-admin
+cp .env.example .env && nano .env              # secrets, clés IA, PUBLIC_URL = URL Vercel
 docker compose up -d --build                    # API sur 127.0.0.1:8090
 
-# Interface
-cd /opt/okpost/frontend && npm ci && npx ng build
-sudo mkdir -p /var/www/okpost && sudo cp -r dist/frontend/browser /var/www/okpost/
-
-# Nginx (le Nginx existant de My2-0)
-sudo cp /opt/okpost/deploy/nginx-okpost.conf /etc/nginx/sites-available/okpost
-sudo ln -s /etc/nginx/sites-available/okpost /etc/nginx/sites-enabled/
-sudo certbot --nginx -d okpost.app -d www.okpost.app
+sudo cp nginx-api.conf /etc/nginx/sites-available/okpost-api
+sudo ln -s /etc/nginx/sites-available/okpost-api /etc/nginx/sites-enabled/
+sudo certbot --nginx -d api.okpost.my2-0.cloud
 sudo nginx -t && sudo systemctl reload nginx
 
-# Sauvegarde quotidienne
 (crontab -l; echo "30 2 * * * /opt/okpost/deploy/sauvegarde.sh") | crontab -
 ```
 
-Mémoire : l'API est limitée à 512 Mo et PostgreSQL réglé petit. Vérifier `free -h` avant, pour ne pas gêner My2-0.
+2. Vercel : importer le dépôt, **Root Directory = `frontend`** (le reste vient de `frontend/vercel.json`).
+   Le rewrite de `frontend/vercel.json` cible déjà `api.okpost.my2-0.cloud`.
+
+Vercel relaie `/api/*` vers le VPS : le navigateur ne parle qu'à un seul domaine, donc le cookie de
+rafraîchissement HttpOnly et le retour OAuth Meta fonctionnent sans réglage CORS.
+`PUBLIC_URL` doit être l'URL Vercel ; l'URI de retour Meta est `<PUBLIC_URL>/api/v1/public/meta/retour`.
+
+Mémoire : l'API est limitée à 512 Mo et PostgreSQL réglé petit. Vérifier `free -h` avant.
 
 ## Passer à Claude
 

@@ -74,12 +74,20 @@ public class GenerateurSpringAi implements GenerateurIA {
     public boolean configure() { return configure; }
 
     @Override
+    public String modele() { return modeleStrategie; }
+
+    @Override
     public GrilleGeneree genererCalendrier(UUID ws, String fiche, DemandeCalendrier d) {
         Map<String, String> v = new LinkedHashMap<>();
         v.put("debut", d.debut().toString());
         v.put("fin", d.fin().toString());
-        v.put("rythme", d.rythmeParSemaine().entrySet().stream()
-                .map(e -> e.getKey() + " : " + e.getValue() + " par semaine").collect(Collectors.joining(" ; ")));
+        Map<String, Integer> attendus = d.attendus();
+        v.put("attendu", attendus.values().stream().mapToInt(Integer::intValue).sum() + " au total, soit "
+                + attendus.entrySet().stream().map(e -> e.getKey() + " : " + e.getValue()).collect(Collectors.joining(", ")));
+        v.put("piliers", d.piliers() == null || d.piliers().isEmpty()
+                ? "à proposer (3 à 5 piliers)" : String.join(", ", d.piliers()));
+        v.put("deja", d.dejaPrevues() == null || d.dejaPrevues().isEmpty()
+                ? "aucune" : d.dejaPrevues().stream().map(x -> "- " + x).collect(Collectors.joining("\n")));
         v.put("reseaux", String.join(", ", d.reseaux()));
         v.put("objectifs", vide(d.objectifs()));
         v.put("tempsForts", vide(d.tempsForts()));
@@ -110,6 +118,28 @@ public class GenerateurSpringAi implements GenerateurIA {
         TexteRegenere t = appelerJson(ws, "regenerer:" + champ, modeleRedaction, systeme(fiche), user, TexteRegenere.class,
                 r -> r.texte() == null || r.texte().isBlank() ? List.of("texte vide") : List.of());
         return t.texte().trim();
+    }
+
+    @Override
+    public Modeles.Recommandations recommandations(UUID ws, String fiche, String bilan) {
+        String user = prompts.rendre("bilan", Map.of("bilan", bilan));
+        return appelerJson(ws, "bilan", modeleStrategie, systeme(fiche), user, Modeles.Recommandations.class,
+                r -> r.recommandations() == null || r.recommandations().isEmpty() ? List.of("aucune recommandation") : List.of());
+    }
+
+    @Override
+    public List<Modeles.TempsFortSuggere> suggererTempsForts(UUID ws, String fiche, java.time.LocalDate debut,
+                                                              java.time.LocalDate fin, List<String> deja) {
+        String user = prompts.rendre("temps-forts", Map.of("debut", debut.toString(), "fin", fin.toString(),
+                "deja", deja == null || deja.isEmpty() ? "aucun" : String.join(", ", deja)));
+        Modeles.TempsFortsSuggeres r = appelerJson(ws, "temps-forts", modeleStrategie, systeme(fiche), user,
+                Modeles.TempsFortsSuggeres.class,
+                t -> t.suggestions() == null ? List.of("liste absente") : List.of());
+        return r.suggestions().stream()
+                .filter(x -> x.nom() != null && !x.nom().isBlank())
+                .map(x -> x.date() != null && (x.date().isBefore(debut) || x.date().isAfter(fin))
+                        ? new Modeles.TempsFortSuggere(x.nom(), null, x.angle()) : x)
+                .limit(8).toList();
     }
 
     // ------------------------------------------------------------------
@@ -150,6 +180,7 @@ public class GenerateurSpringAi implements GenerateurIA {
         if (!configure) {
             throw new GenerationException("Le fournisseur IA « " + nom + " » n'est pas configuré (clé API absente)");
         }
+        log.info("IA {} / {} : {} — envoi de la demande", nom, nomModele, operation);
         return file.executer(() -> {
             long debut = System.currentTimeMillis();
             try {
@@ -159,11 +190,15 @@ public class GenerateurSpringAi implements GenerateurIA {
                 journal.noter(ws, nom, nomModele, operation,
                         u == null ? null : u.getPromptTokens(), u == null ? null : u.getCompletionTokens(),
                         System.currentTimeMillis() - debut, true, null);
+                log.info("IA {} / {} : {} — réponse en {} s ({} jetons reçus)", nom, nomModele, operation,
+                        (System.currentTimeMillis() - debut) / 1000, u == null ? "?" : u.getCompletionTokens());
                 if (r.getResult() == null || r.getResult().getOutput() == null) {
                     throw new GenerationException("Réponse vide du fournisseur IA");
                 }
                 return r.getResult().getOutput().getText();
             } catch (RuntimeException e) {
+                log.warn("IA {} / {} : {} — échec après {} s : {}", nom, nomModele, operation,
+                        (System.currentTimeMillis() - debut) / 1000, e.getMessage());
                 journal.noter(ws, nom, nomModele, operation, null, null,
                         System.currentTimeMillis() - debut, false, e.getMessage());
                 throw e;
@@ -208,6 +243,16 @@ public class GenerateurSpringAi implements GenerateurIA {
             }
             if (erreurs.size() > 8) break;
         }
+        // Nombre de publications par réseau : tolérance d'une publication en moins.
+        Map<String, Long> parReseau = g.publications().stream().filter(p -> p.reseau() != null)
+                .collect(Collectors.groupingBy(p -> p.reseau().toUpperCase(Locale.ROOT), Collectors.counting()));
+        d.attendus().forEach((reseau, n) -> {
+            long obtenu = parReseau.getOrDefault(reseau, 0L);
+            if (obtenu < n - 1) {
+                erreurs.add(reseau + " : " + obtenu + " publication(s) au lieu de " + n
+                        + " — couvre toute la période jusqu'au " + d.fin());
+            }
+        });
         return erreurs;
     }
 

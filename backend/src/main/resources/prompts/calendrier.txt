@@ -1,15 +1,20 @@
 Construis la grille éditoriale suivante.
 
 Période : du {{debut}} au {{fin}} (inclus).
-Réseaux et nombre de publications par semaine : {{rythme}}
+Nombre EXACT de publications à produire sur cette période : {{attendu}}.
 Objectifs de la période : {{objectifs}}
 Temps forts à couvrir : {{tempsForts}}
 Langue des contenus : {{langue}}
+Piliers de contenu à utiliser : {{piliers}}
+Idées déjà prévues les semaines précédentes (ne pas les répéter) :
+{{deja}}
 
 Contraintes :
-- Respecte le nombre de publications par semaine pour chaque réseau, réparties sur des jours différents.
+- Produis exactement le nombre de publications indiqué pour chaque réseau, réparties sur toute la période jusqu'au {{fin}}, sur des jours différents pour un même réseau.
 - Toutes les dates sont dans la période, au format AAAA-MM-JJ.
 - reseau ∈ {{reseaux}} ; format ∈ IMAGE, CARROUSEL, VIDEO, TEXTE, STORY ; objectif ∈ NOTORIETE, ENGAGEMENT, VENTE, CONFIANCE, RECRUTEMENT.
 - Sur TIKTOK, utilise uniquement le format VIDEO. Sur INSTAGRAM, privilégie CARROUSEL, VIDEO et IMAGE.
 - Chaque idée est concrète et spécifique au client (pas de « publication inspirante » générique).
+- Place les publications liées à un temps fort le jour même ou dans les jours qui précèdent (annonce, préparation), jamais après la date sauf pour un remerciement ou un bilan. Indique ce temps fort dans le champ tempsFort.
+- Un temps fort marqué « date approximative » : publie la veille ou le jour, sans écrire la date exacte dans l'idée.
 - Classe les publications par date.

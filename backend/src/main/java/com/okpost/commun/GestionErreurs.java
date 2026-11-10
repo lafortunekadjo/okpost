@@ -31,9 +31,14 @@ public class GestionErreurs {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Champs invalides — " + detail);
     }
 
+    @ExceptionHandler(com.okpost.ia.GenerationException.class)
+    public ProblemDetail ia(com.okpost.ia.GenerationException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, e.getMessage());
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ProblemDetail tropGros(MaxUploadSizeExceededException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.PAYLOAD_TOO_LARGE, "Fichier trop lourd (5 Mo maximum)");
+        return ProblemDetail.forStatusAndDetail(HttpStatus.PAYLOAD_TOO_LARGE, "Fichier trop lourd (200 Mo maximum pour une vidéo)");
     }
 
     @ExceptionHandler(AccessDeniedException.class)
@@ -51,8 +56,22 @@ public class GestionErreurs {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Requête illisible : vérifie le format des données envoyées");
     }
 
+    /**
+     * Le navigateur a interrompu le téléchargement (lecture vidéo, page fermée) : rien à répondre ni à signaler.
+     * Sans ce gestionnaire, le serveur tente d'écrire un message d'erreur dans une réponse vidéo déjà commencée.
+     */
+    @ExceptionHandler({org.springframework.web.context.request.async.AsyncRequestNotUsableException.class,
+            org.apache.catalina.connector.ClientAbortException.class})
+    public void connexionInterrompue(Exception e) {
+        log.debug("Connexion interrompue par le navigateur : {}", e.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail inattendu(Exception e) {
+        if (String.valueOf(e.getMessage()).contains("Connection reset") || String.valueOf(e.getMessage()).contains("Broken pipe")) {
+            log.debug("Connexion interrompue : {}", e.getMessage());
+            return null;
+        }
         log.error("Erreur inattendue", e);
         return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR,
                 "Une erreur inattendue est survenue. Réessaie dans un instant.");

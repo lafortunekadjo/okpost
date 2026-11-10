@@ -41,7 +41,8 @@ public class IaFactice implements GenerateurIA {
                     null, new ScenarioVideo("Titre", 30, "Accroche", List.of(new PlanVideo(1, 3, "Plan", "Texte", "Voix", "Son")), List.of("Téléphone")))
                 : new DetailGenere(x.index(), "Légende " + x.index(), List.of("#Douala"), "Écrivez-nous",
                     new BriefVisuel(x.format(), "Description", "A photo of...", "4:5",
-                            "CARROUSEL".equals(x.format()) ? List.of(new Modeles.TexteCarrousel(1, "Titre", "Texte")) : null), null))
+                            "CARROUSEL".equals(x.format()) ? List.of(new Modeles.TexteCarrousel(1, "Titre", "Texte")) : null,
+                            "Accroche de test"), null))
                 .toList();
     }
 

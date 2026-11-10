@@ -4,7 +4,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/okpost}
     username: ${DB_USER:okpost}
-    password: ${DB_PASSWORD:okpost}
+    password: ${DB_PASSWORD:}
     hikari:
       maximum-pool-size: 10
   jpa:
@@ -33,7 +33,7 @@ spring:
       write-dates-as-timestamps: false
 
 server:
-  port: ${PORT:8080}
+  port: ${PORT:8082}
   forward-headers-strategy: framework
   error:
     include-message: always
@@ -59,18 +59,43 @@ okpost:
   validation:
     duree-jours: 30
   ia:
-    # gemini | claude — valeur par défaut, remplaçable plus tard depuis l'administration
+    # gemini | claude | compatible — valeur par défaut, remplaçable plus tard depuis l'administration
     fournisseur: ${IA_FOURNISSEUR:gemini}
     debit-par-minute: ${IA_DEBIT_MINUTE:8}
     lot-details: 5
+    # délai maximum d'une réponse de l'IA, en secondes
+    delai-secondes: ${IA_DELAI_SECONDES:240}
     gemini:
       api-key: ${GEMINI_API_KEY:}
       base-url: https://generativelanguage.googleapis.com/v1beta/openai
-      modele: ${GEMINI_MODELE:gemini-2.5-flash}
+      modele: ${GEMINI_MODELE:gemini-3.5-flash-lite}
     claude:
       api-key: ${ANTHROPIC_API_KEY:}
       modele-strategie: ${CLAUDE_MODELE_STRATEGIE:claude-sonnet-5-5}
       modele-redaction: ${CLAUDE_MODELE_REDACTION:claude-haiku-5-5}
+    image:
+      fournisseur: ${IA_IMAGE_FOURNISSEUR:cloudflare}   # gemini | cloudflare
+      modele: ${IA_IMAGE_MODELE:gemini-nano-banana-2.1}
+      taille: ${IA_IMAGE_TAILLE:1K}
+      # Cloudflare Workers AI : FLUX.1 schnell, quota gratuit chaque jour
+      cloudflare-compte: ${CLOUDFLARE_ACCOUNT_ID:}
+      cloudflare-jeton: ${CLOUDFLARE_API_TOKEN:}
+      cloudflare-modele: ${CLOUDFLARE_MODELE:@cf/black-forest-labs/flux-1-schnell}
+
+    # fournisseur « compatible » : n'importe quelle API compatible OpenAI (Groq par défaut)
+    compatible:
+      api-key: ${COMPATIBLE_API_KEY:}
+      base-url: ${COMPATIBLE_BASE_URL:https://api.groq.com/openai}
+      completions-path: ${COMPATIBLE_PATH:/v1/chat/completions}
+      modele: ${COMPATIBLE_MODELE:openai/gpt-oss-120b}
+    # Clé de chiffrement des jetons des réseaux sociaux (32 caractères ou plus, à ne jamais changer ensuite)
+  cle-chiffrement: ${OKPOST_CLE_CHIFFREMENT:change-me-change-me-change-me-change-me}
+  meta:
+    app-id: ${META_APP_ID:}
+    app-secret: ${META_APP_SECRET:}
+    version: ${META_GRAPH_VERSION:v23.0}
+
+
 
 springdoc:
   swagger-ui:

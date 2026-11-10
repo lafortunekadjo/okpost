@@ -1,0 +1,9 @@
+Propose des temps forts pour la période du {{debut}} au {{fin}}, propres au métier et à la clientèle de ce client.
+
+Déjà listés (ne pas les répéter) : {{deja}}
+
+Ce qui est attendu :
+- 3 à 6 temps forts liés au métier : saisons d'activité, moments de l'année où sa clientèle a un besoin particulier (examens, départs en vacances, saison des pluies, période des commandes de fin d'année, paie de fin de mois…), événements de son secteur.
+- Seulement des événements réels et vérifiables. N'invente aucun salon, aucune édition ni aucun événement local précis.
+- Mets une date uniquement si tu es certain qu'elle tombe dans la période ; sinon, date = null.
+- Pour chacun, une phrase d'angle : pourquoi c'est pertinent pour ce client et quoi publier.

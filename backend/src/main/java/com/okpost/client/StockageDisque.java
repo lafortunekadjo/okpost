@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
 @Component
 public class StockageDisque implements StockageFichiers {
 
-    private static final Pattern NOM_VALIDE = Pattern.compile("^[0-9a-f-]{36}\\.(png|jpg|webp|svg)$");
+    private static final Pattern NOM_VALIDE = Pattern.compile("^[0-9a-f-]{36}\\.(png|jpg|webp|svg|mp4|mov|webm)$");
 
     private final Path racine;
 

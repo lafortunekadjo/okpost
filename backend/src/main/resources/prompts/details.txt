@@ -4,7 +4,14 @@ Pour chaque publication :
 - legende : prête à publier, adaptée au réseau (Facebook 80 à 150 mots ; Instagram 50 à 120 mots avec retours à la ligne ; TikTok 1 à 2 phrases ; LinkedIn 100 à 180 mots, ton plus professionnel). Émojis avec modération.
 - hashtags : 3 à 8, dont au moins un local (ville ou pays) quand c'est pertinent.
 - cta : une action claire (WhatsApp, appel, visite, commentaire…).
-- Formats IMAGE, STORY et TEXTE : briefVisuel avec description, promptImage en anglais (sujet, style photo ou illustration, lumière, cadrage, couleurs de la marque en hex, personnes africaines quand il y a des personnes, aucun texte dans l'image), ratio (1:1, 4:5 ou 9:16). scenario = null.
+- Formats IMAGE, STORY et TEXTE : briefVisuel avec description (en français, pour le graphiste), promptImage, accroche (3 à 7 mots percutants, posés ensuite sur l'image par OkPost) et ratio (1:1, 4:5 ou 9:16). scenario = null.
+
+Règles du promptImage (il est envoyé tel quel à un générateur d'images) :
+- Uniquement en anglais. N'y mets jamais la légende, l'appel à l'action, un lien, un numéro ou une phrase en français.
+- Une seule scène concrète et vivante qui illustre l'idée de la publication, de préférence une photo réaliste de la vie locale (lieu, personnes africaines, objets, action précise). Évite les infographies, les rangées d'icônes et les montages abstraits.
+- Précise : le sujet et l'action, le lieu, le cadrage (plan large, gros plan…), la lumière, l'ambiance, et 1 ou 2 couleurs de la marque en hex pour les vêtements ou les accessoires.
+- Composition : garde le haut à gauche et le quart inférieur de l'image dégagés et simples (ciel, mur, sol flou), car OkPost y ajoute le logo, l'accroche et les coordonnées.
+- Termine toujours par : "no text, no letters, no logo, no watermark".
 - Format CARROUSEL : briefVisuel avec type CARROUSEL, promptImage pour le visuel de couverture, et textesCarrousel de 4 à 7 visuels (titre court + texte de 25 mots maximum). scenario = null.
 - Format VIDEO : scenario avec titre, durée totale de 15 à 60 secondes, accroche, plans numérotés (durée, image, texte à l'écran, voix off, son), matériel nécessaire. Le scénario doit être tournable avec un téléphone. briefVisuel = null.
 - Reprends l'index de chaque idée.

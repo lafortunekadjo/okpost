@@ -16,6 +16,13 @@ import java.util.UUID;
 @Table(name = "lien_validation")
 public class LienValidation extends BaseEntity {
 
+    /** VALIDATION : le client valide ou commente. CONSULTATION : lecture seule (partage du calendrier). */
+    public enum Type { VALIDATION, CONSULTATION }
+
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(nullable = false)
+    private Type type = Type.VALIDATION;
+
     @Column(name = "workspace_id", nullable = false)
     private UUID workspaceId;
 
@@ -42,6 +49,8 @@ public class LienValidation extends BaseEntity {
         return !revoque && expireLe.isAfter(Instant.now());
     }
 
+    public Type getType() { return type; }
+    public void setType(Type type) { this.type = type; }
     public UUID getWorkspaceId() { return workspaceId; }
     public void setWorkspaceId(UUID workspaceId) { this.workspaceId = workspaceId; }
     public UUID getCalendrierId() { return calendrierId; }

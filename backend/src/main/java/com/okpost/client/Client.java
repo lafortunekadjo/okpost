@@ -74,6 +74,21 @@ public class Client extends BaseEntity {
     private String whatsapp;
     private boolean archive;
 
+    @Column(name = "auto_publication")
+    private boolean autoPublication;
+
+    @Column(name = "heure_publication", nullable = false)
+    private String heurePublication = "18:00";
+
+    @Column(nullable = false)
+    private String fuseau = "Africa/Douala";
+
+    @Column(name = "fetes_religieuses", nullable = false)
+    private boolean fetesReligieuses = true;
+
+    public boolean isFetesReligieuses() { return fetesReligieuses; }
+    public void setFetesReligieuses(boolean fetesReligieuses) { this.fetesReligieuses = fetesReligieuses; }
+
     public UUID getWorkspaceId() { return workspaceId; }
     public void setWorkspaceId(UUID workspaceId) { this.workspaceId = workspaceId; }
     public UUID getCmId() { return cmId; }
@@ -125,5 +140,11 @@ public class Client extends BaseEntity {
     public String getWhatsapp() { return whatsapp; }
     public void setWhatsapp(String whatsapp) { this.whatsapp = whatsapp; }
     public boolean isArchive() { return archive; }
+    public boolean isAutoPublication() { return autoPublication; }
+    public void setAutoPublication(boolean autoPublication) { this.autoPublication = autoPublication; }
+    public String getHeurePublication() { return heurePublication; }
+    public void setHeurePublication(String heurePublication) { this.heurePublication = heurePublication; }
+    public String getFuseau() { return fuseau; }
+    public void setFuseau(String fuseau) { this.fuseau = fuseau; }
     public void setArchive(boolean archive) { this.archive = archive; }
 }

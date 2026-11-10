@@ -63,6 +63,28 @@ public class Calendrier extends BaseEntity {
     @Column(name = "fournisseur_ia")
     private String fournisseurIa;
 
+    @Column(name = "note_equilibre")
+    private Integer noteEquilibre;
+
+    @Column(name = "avis_global")
+    private String avisGlobal;
+
+    @Column(name = "analyser_page", nullable = false)
+    private boolean analyserPage;
+
+    @Column(name = "analyse_page")
+    private String analysePage;
+
+    public boolean isAnalyserPage() { return analyserPage; }
+    public void setAnalyserPage(boolean analyserPage) { this.analyserPage = analyserPage; }
+    public String getAnalysePage() { return analysePage; }
+    public void setAnalysePage(String analysePage) { this.analysePage = analysePage; }
+
+    public Integer getNoteEquilibre() { return noteEquilibre; }
+    public void setNoteEquilibre(Integer noteEquilibre) { this.noteEquilibre = noteEquilibre; }
+    public String getAvisGlobal() { return avisGlobal; }
+    public void setAvisGlobal(String avisGlobal) { this.avisGlobal = avisGlobal; }
+
     public UUID getWorkspaceId() { return workspaceId; }
     public void setWorkspaceId(UUID workspaceId) { this.workspaceId = workspaceId; }
     public UUID getClientId() { return clientId; }

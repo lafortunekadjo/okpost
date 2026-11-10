@@ -12,7 +12,8 @@ import java.time.LocalDate;
 public class AbonnementController {
 
     public record AbonnementVue(String formule, LocalDate debut, LocalDate fin, String statut, String mode,
-                                int maxClients, int maxMembres, int calendriersParMois, long prixMensuelXaf) {}
+                                int maxClients, int maxMembres, int calendriersParMois, int imagesParMois,
+                                long prixMensuelXaf) {}
 
     private final AbonnementService service;
 
@@ -25,6 +26,7 @@ public class AbonnementController {
         Abonnement a = service.courant(Session.courante().workspaceId());
         Formule f = a.getFormule();
         return new AbonnementVue(f.name(), a.getDebut(), a.getFin(), a.statutAu(LocalDate.now()).name(),
-                a.getMode().name(), f.maxClients(), f.maxMembres(), f.calendriersParMois(), f.prixMensuelXaf());
+                a.getMode().name(), f.maxClients(), f.maxMembres(), f.calendriersParMois(), f.imagesParMois(),
+                f.prixMensuelXaf());
     }
 }

@@ -20,6 +20,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -45,10 +46,12 @@ public class GenerationService {
     private final SelecteurIA selecteur;
     private final TransactionTemplate tx;
     private final OkpostProperties props;
+    private final com.okpost.analyse.AnalysePageService analysePage;
 
     public GenerationService(CalendrierRepository calendriers, PublicationRepository publications,
                              ClientRepository clients, SelecteurIA selecteur, TransactionTemplate tx,
-                             OkpostProperties props) {
+                             OkpostProperties props, com.okpost.analyse.AnalysePageService analysePage) {
+        this.analysePage = analysePage;
         this.calendriers = calendriers;
         this.publications = publications;
         this.clients = clients;
@@ -80,20 +83,35 @@ public class GenerationService {
         try {
             Calendrier cal = tx.execute(s -> calendriers.findById(calendrierId).orElseThrow());
             Client client = tx.execute(s -> clients.findById(cal.getClientId()).orElseThrow());
-            String fiche = FicheTexte.de(client);
+            String fiche = FicheTexte.de(client) + historiquePage(cal, client);
             GenerateurIA ia = selecteur.pour(cal.getWorkspaceId());
 
-            if (publications.countByCalendrierId(calendrierId) == 0) {
-                etat(calendrierId, StatutGeneration.GRILLE, null, ia.nom());
-                DemandeCalendrier demande = new DemandeCalendrier(cal.getPeriodeDebut(), cal.getPeriodeFin(),
-                        cal.getReseaux(), cal.getRythme(), cal.getObjectifs(), cal.getTempsForts(), cal.getLangue());
+            log.info("Calendrier {} : génération lancée avec {}", calendrierId, ia.nom());
+            // Grille semaine par semaine : des demandes courtes que même un petit modèle remplit en entier.
+            for (LocalDate debut = cal.getPeriodeDebut(); !debut.isAfter(cal.getPeriodeFin()); debut = debut.plusDays(7)) {
+                LocalDate fin = debut.plusDays(6).isAfter(cal.getPeriodeFin()) ? cal.getPeriodeFin() : debut.plusDays(6);
+                long existantes = publications.countByCalendrierIdAndDatePrevueBetween(calendrierId, debut, fin);
+                long attendues = new DemandeCalendrier(debut, fin, cal.getReseaux(), cal.getRythme(), null, null, null,
+                        null, null).attendus().values().stream().mapToInt(Integer::intValue).sum();
+                if (existantes * 2 >= attendues) {
+                    continue; // semaine déjà générée (relance après une erreur)
+                }
+                etat(calendrierId, StatutGeneration.GRILLE, null, ia.nom() + " / " + ia.modele());
+                Calendrier actuel = tx.execute(s -> calendriers.findById(calendrierId).orElseThrow());
+                List<String> deja = tx.execute(s -> publications.findByCalendrierIdOrderByDatePrevueAscReseauAsc(calendrierId)
+                        .stream().map(Publication::getIdee).toList());
+                List<String> recentes = deja.subList(Math.max(0, deja.size() - 30), deja.size());
+                DemandeCalendrier demande = new DemandeCalendrier(debut, fin, cal.getReseaux(), cal.getRythme(),
+                        cal.getObjectifs(), cal.getTempsForts(), cal.getLangue(), actuel.getPiliers(), recentes);
+                log.info("Calendrier {} : grille du {} au {}", calendrierId, debut, fin);
                 GrilleGeneree grille = ia.genererCalendrier(cal.getWorkspaceId(), fiche, demande);
                 enregistrerGrille(calendrierId, grille);
             }
 
-            etat(calendrierId, StatutGeneration.DETAILS, null, ia.nom());
+            etat(calendrierId, StatutGeneration.DETAILS, null, ia.nom() + " / " + ia.modele());
             detaillerRestantes(cal, fiche, ia, null);
-            etat(calendrierId, StatutGeneration.TERMINE, null, ia.nom());
+            etat(calendrierId, StatutGeneration.TERMINE, null, ia.nom() + " / " + ia.modele());
+            log.info("Calendrier {} : génération terminée", calendrierId);
         } catch (RuntimeException e) {
             log.error("Échec de la génération du calendrier {}", calendrierId, e);
             etat(calendrierId, StatutGeneration.ERREUR, messageLisible(e), null);
@@ -150,8 +168,12 @@ public class GenerationService {
     private void enregistrerGrille(UUID calendrierId, GrilleGeneree grille) {
         tx.executeWithoutResult(s -> {
             Calendrier cal = calendriers.findById(calendrierId).orElseThrow();
-            cal.setStrategie(grille.strategie());
-            cal.setPiliers(grille.piliers() == null ? new ArrayList<>() : new ArrayList<>(grille.piliers()));
+            if (cal.getStrategie() == null || cal.getStrategie().isBlank()) {
+                cal.setStrategie(grille.strategie());
+            }
+            if ((cal.getPiliers() == null || cal.getPiliers().isEmpty()) && grille.piliers() != null) {
+                cal.setPiliers(new ArrayList<>(grille.piliers()));
+            }
             calendriers.save(cal);
             for (IdeeGeneree i : grille.publications()) {
                 Publication p = new Publication();
@@ -188,6 +210,26 @@ public class GenerationService {
             p.setScenario(null);
         }
         p.setDetailGenere(true);
+    }
+
+    /**
+     * Analyse de la Page Facebook (90 derniers jours), faite une fois au début de la génération et gardée
+     * sur le calendrier : une relance après erreur réutilise la même analyse.
+     */
+    private String historiquePage(Calendrier cal, Client client) {
+        if (!cal.isAnalyserPage()) return "";
+        String analyse = cal.getAnalysePage();
+        if (analyse == null) {
+            analyse = analysePage.resumePourCalendrier(client);
+            if (analyse == null) return "";
+            String texte = analyse;
+            tx.executeWithoutResult(s -> calendriers.findById(cal.getId()).ifPresent(c -> {
+                c.setAnalysePage(texte);
+                calendriers.save(c);
+            }));
+            log.info("Calendrier {} : Page Facebook analysée", cal.getId());
+        }
+        return "\n\nHISTORIQUE DE LA PAGE FACEBOOK\n" + analyse;
     }
 
     private void etat(UUID calendrierId, StatutGeneration statut, String message, String fournisseur) {

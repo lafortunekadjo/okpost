@@ -37,9 +37,14 @@ public class CalendrierController {
     private final SelecteurIA selecteur;
     private final ClientRepository clients;
     private final PublicationRepository publications;
+    private final VisuelService visuels;
+    private final MontageService montage;
 
     public CalendrierController(CalendrierService service, GenerationService generation, SelecteurIA selecteur,
-                                ClientRepository clients, PublicationRepository publications) {
+                                ClientRepository clients, PublicationRepository publications, VisuelService visuels,
+                                MontageService montage) {
+        this.visuels = visuels;
+        this.montage = montage;
         this.service = service;
         this.generation = generation;
         this.selecteur = selecteur;
@@ -87,6 +92,52 @@ public class CalendrierController {
     }
 
     /** Régénère un champ (légende, CTA) ou tout le détail, avec une consigne. Appel synchrone (quelques secondes). */
+    /** Génère une image à partir du prompt (celui du brief par défaut). Payant chez le fournisseur. */
+    @PostMapping("/publications/{id}/visuels")
+    @ResponseStatus(HttpStatus.CREATED)
+    public CalendrierDtos.VisuelVue genererImage(@PathVariable UUID id, @Valid @RequestBody CalendrierDtos.DemandeImage d) {
+        return visuels.generer(Session.courante(), id, d.prompt(), d.ratio(), !Boolean.FALSE.equals(d.habiller()),
+                d.accroche(), d.moteur(), d.diapositive());
+    }
+
+    /** Photo ou vidéo téléversée par le CM (sans génération). */
+    @PostMapping("/publications/{id}/medias")
+    @ResponseStatus(HttpStatus.CREATED)
+    public CalendrierDtos.VisuelVue televerser(@PathVariable UUID id,
+                                              @org.springframework.web.bind.annotation.RequestParam("fichier")
+                                              org.springframework.web.multipart.MultipartFile fichier,
+                                              @org.springframework.web.bind.annotation.RequestParam(value = "diapositive", required = false)
+                                              Integer diapositive) {
+        return visuels.televerser(Session.courante(), id, fichier, diapositive);
+    }
+
+    /** Vidéo défilante à partir des visuels du carrousel (ffmpeg, 5 à 30 secondes de calcul). */
+    @PostMapping("/publications/{id}/montage")
+    @ResponseStatus(HttpStatus.CREATED)
+    public CalendrierDtos.VisuelVue monter(@PathVariable UUID id,
+            @org.springframework.web.bind.annotation.RequestParam(value = "secondes", required = false) Integer secondes,
+            @org.springframework.web.bind.annotation.RequestParam(value = "transition", required = false) String transition,
+            @org.springframework.web.bind.annotation.RequestParam(value = "musique", required = false)
+            org.springframework.web.multipart.MultipartFile musique) {
+        return montage.monter(Session.courante(), id, secondes, transition, musique);
+    }
+
+    /** Carrousel sur Facebook : vidéo défilante (VIDEO) ou plusieurs photos dans une publication (PHOTOS). */
+    @org.springframework.web.bind.annotation.PutMapping("/publications/{id}/mode-carrousel")
+    public PublicationVue modeCarrousel(@PathVariable UUID id, @Valid @RequestBody CalendrierDtos.ModeCarrousel m) {
+        Session s = Session.courante();
+        Publication p = service.chargerPublication(s, id);
+        p.setModeCarrousel(m.mode());
+        publications.save(p);
+        return service.vuePublication(s, id);
+    }
+
+    @DeleteMapping("/publications/{id}/visuels/{visuelId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void supprimerImage(@PathVariable UUID id, @PathVariable UUID visuelId) {
+        visuels.supprimer(Session.courante(), id, visuelId);
+    }
+
     @PostMapping("/publications/{id}/regenerer")
     public PublicationVue regenerer(@PathVariable UUID id, @Valid @RequestBody Regeneration r) {
         Session s = Session.courante();
