@@ -1,5 +1,5 @@
 # OkPost — à côté de My2-0 sur le même VPS, dans un Compose séparé.
-# Le Nginx existant du VPS sert l'interface et relaie /api vers 127.0.0.1:8090.
+# Le Nginx existant du VPS sert l'interface et relaie /api vers 127.0.0.1:8083.
 name: okpost
 
 services:
@@ -31,7 +31,7 @@ services:
     volumes:
       - fichiers:/data/fichiers
     ports:
-      - "127.0.0.1:8090:8080"
+      - "127.0.0.1:8083:8080"
 
 volumes:
   db:

@@ -45,7 +45,7 @@ Tests : `cd backend && mvn verify` (PostgreSQL lancé automatiquement par Testco
 git clone https://github.com/lafortunekadjo/okpost.git /opt/okpost
 cd /opt/okpost/deploy
 cp .env.example .env && nano .env              # secrets, clés IA, PUBLIC_URL = URL Vercel
-docker compose up -d --build                    # API sur 127.0.0.1:8090
+docker compose up -d --build                    # API sur 127.0.0.1:8083
 
 sudo cp nginx-api.conf /etc/nginx/sites-available/okpost-api
 sudo ln -s /etc/nginx/sites-available/okpost-api /etc/nginx/sites-enabled/
