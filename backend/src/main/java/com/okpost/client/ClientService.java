@@ -119,6 +119,25 @@ public class ClientService {
         return assets.save(a);
     }
 
+    /** Corrige la description ou les mots-clés d'une photo (la recherche de la banque s'appuie dessus). */
+    @Transactional
+    public ClientAsset modifierFichier(Session s, UUID clientId, UUID assetId, ClientDtos.AssetModif m) {
+        abonnements.exigerEcriture(s.workspaceId());
+        charger(s, clientId);
+        ClientAsset a = assets.findByIdAndClientId(assetId, clientId)
+                .orElseThrow(() -> ApiException.introuvable("Fichier"));
+        if (m.legende() != null) a.setLegende(m.legende().isBlank() ? null : m.legende().trim());
+        if (m.description() != null) a.setDescription(m.description().isBlank() ? null : m.description().trim());
+        if (m.tags() != null) a.setTags(AnalyseurPhoto.nettoyerTags(m.tags()));
+        return assets.save(a);
+    }
+
+    @Transactional(readOnly = true)
+    public ClientAsset photo(Session s, UUID clientId, UUID assetId) {
+        charger(s, clientId);
+        return assets.findByIdAndClientId(assetId, clientId).orElseThrow(() -> ApiException.introuvable("Fichier"));
+    }
+
     @Transactional
     public void supprimerFichier(Session s, UUID clientId, UUID assetId) {
         charger(s, clientId);
@@ -131,8 +150,7 @@ public class ClientService {
     @Transactional(readOnly = true)
     public ClientVue vue(Client c) {
         List<AssetVue> fichiers = assets.findByClientIdOrderByCreatedAt(c.getId()).stream()
-                .map(a -> new AssetVue(a.getId(), a.getType().name(), ClientDtos.urlFichier(a.getChemin()),
-                        a.getNomOrigine(), a.getLegende()))
+                .map(AssetVue::de)
                 .toList();
         return new ClientVue(c.getId(), c.getNom(), c.getSecteur(), c.getDescription(), c.getSlogan(),
                 c.getAnneeCreation(), c.getVille(), c.getPays(), c.getZone(), c.getAdresse(), c.getHoraires(),

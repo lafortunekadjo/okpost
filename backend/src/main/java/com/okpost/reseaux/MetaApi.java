@@ -23,9 +23,13 @@ import java.util.List;
 @Component
 public class MetaApi {
 
-    public static final String PERMISSIONS = "pages_show_list,pages_read_engagement,pages_manage_posts,read_insights,pages_read_user_content";
+    public static final String PERMISSIONS = "pages_show_list,pages_read_engagement,pages_manage_posts,read_insights,"
+            + "pages_read_user_content,instagram_basic,instagram_content_publish";
 
     public record Page(String id, String nom, String jeton) {}
+
+    /** Compte Instagram professionnel lié à une Page Facebook. */
+    public record CompteInstagram(String id, String nom) {}
 
     public record Resultat(String postId, String lien) {}
 
@@ -243,6 +247,95 @@ public class MetaApi {
         postParams("/" + pageId + "/video_reels", "upload_phase", "finish", "video_id", videoId,
                 "video_state", "PUBLISHED", "description", description, "access_token", jeton);
         return new Resultat(videoId, "https://www.facebook.com/reel/" + videoId);
+    }
+
+    // ------------------------------------------------------------------ Instagram
+
+    /** Compte Instagram professionnel lié à la Page (vide s'il n'y en a pas, ou si la permission instagram_basic manque). */
+    public java.util.Optional<CompteInstagram> compteInstagram(String pageId, String jetonPage) {
+        try {
+            JsonNode r = get("/{p}?fields={f}&access_token={t}", pageId, "instagram_business_account{id,username}", jetonPage);
+            JsonNode ig = r.path("instagram_business_account");
+            if (ig.path("id").asText("").isEmpty()) return java.util.Optional.empty();
+            String pseudo = ig.path("username").asText("");
+            return java.util.Optional.of(new CompteInstagram(ig.path("id").asText(), pseudo.isEmpty() ? "Instagram" : "@" + pseudo));
+        } catch (MetaException e) {
+            return java.util.Optional.empty();
+        }
+    }
+
+    /** Photo (JPEG, adresse publique) ou story. Instagram télécharge l'image lui-même depuis cette adresse. */
+    public Resultat publierInstagramImage(String igId, String jeton, String urlImage, String legende, boolean story) {
+        String conteneur = creerConteneurInstagram(igId, jeton, "image_url", urlImage, story ? null : legende, story ? "STORIES" : null, false);
+        attendreConteneur(conteneur, jeton, 90);
+        return publierConteneur(igId, jeton, conteneur);
+    }
+
+    /** Reel (ou story vidéo). Le traitement par Instagram peut prendre quelques minutes. */
+    public Resultat publierInstagramVideo(String igId, String jeton, String urlVideo, String legende, boolean story) {
+        String conteneur = creerConteneurInstagram(igId, jeton, "video_url", urlVideo, story ? null : legende, story ? "STORIES" : "REELS", false);
+        attendreConteneur(conteneur, jeton, 300);
+        return publierConteneur(igId, jeton, conteneur);
+    }
+
+    /** Carrousel de 2 à 10 photos. */
+    public Resultat publierInstagramCarrousel(String igId, String jeton, List<String> urlsImages, String legende) {
+        if (urlsImages.size() < 2 || urlsImages.size() > 10) throw new MetaException("Instagram : un carrousel compte de 2 à 10 photos");
+        List<String> enfants = new ArrayList<>();
+        for (String url : urlsImages) {
+            String id = creerConteneurInstagram(igId, jeton, "image_url", url, null, null, true);
+            attendreConteneur(id, jeton, 90);
+            enfants.add(id);
+        }
+        JsonNode r = postParams("/" + igId + "/media", "media_type", "CAROUSEL", "children", String.join(",", enfants),
+                "caption", legende == null ? "" : legende, "access_token", jeton);
+        String conteneur = r.path("id").asText();
+        if (conteneur.isEmpty()) throw new MetaException("Instagram : carrousel non créé");
+        attendreConteneur(conteneur, jeton, 90);
+        return publierConteneur(igId, jeton, conteneur);
+    }
+
+    private String creerConteneurInstagram(String igId, String jeton, String cleMedia, String urlMedia, String legende,
+                                           String type, boolean enfantDeCarrousel) {
+        List<String> p = new ArrayList<>(List.of(cleMedia, urlMedia, "access_token", jeton));
+        if (legende != null && !legende.isBlank()) { p.add("caption"); p.add(legende); }
+        if (type != null) { p.add("media_type"); p.add(type); }
+        if (enfantDeCarrousel) { p.add("is_carousel_item"); p.add("true"); }
+        String id = postParams("/" + igId + "/media", p.toArray(new String[0])).path("id").asText();
+        if (id.isEmpty()) throw new MetaException("Instagram : le média n'a pas été accepté");
+        return id;
+    }
+
+    /** Instagram traite le média avant de le publier : on attend l'état FINISHED. */
+    private void attendreConteneur(String conteneur, String jeton, int secondesMax) {
+        long fin = System.currentTimeMillis() + secondesMax * 1000L;
+        while (true) {
+            JsonNode r = get("/{c}?fields=status_code,status&access_token={t}", conteneur, jeton);
+            String etat = r.path("status_code").asText("");
+            if ("FINISHED".equals(etat)) return;
+            if ("ERROR".equals(etat) || "EXPIRED".equals(etat)) {
+                throw new MetaException("Instagram a refusé le média : " + r.path("status").asText(etat));
+            }
+            if (System.currentTimeMillis() > fin) throw new MetaException("Instagram met trop de temps à traiter le média (nouvel essai plus tard)");
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new MetaException("Publication interrompue");
+            }
+        }
+    }
+
+    private Resultat publierConteneur(String igId, String jeton, String conteneur) {
+        String id = postParams("/" + igId + "/media_publish", "creation_id", conteneur, "access_token", jeton).path("id").asText();
+        if (id.isEmpty()) throw new MetaException("Instagram : publication refusée");
+        String lien = "https://www.instagram.com/";
+        try {
+            lien = get("/{i}?fields=permalink&access_token={t}", id, jeton).path("permalink").asText(lien);
+        } catch (MetaException ignore) {
+            // le lien est un confort : la publication a réussi
+        }
+        return new Resultat(id, lien);
     }
 
     private static final String CHAMPS_POSTS = "id,message,created_time,permalink_url,status_type,"

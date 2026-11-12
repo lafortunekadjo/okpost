@@ -12,7 +12,7 @@ import java.util.UUID;
 @Table(name = "visuel_genere")
 public class VisuelGenere extends BaseEntity {
 
-    public enum Source { GENERE, TELEVERSE, MONTAGE }
+    public enum Source { GENERE, TELEVERSE, MONTAGE, BANQUE }
 
     public enum TypeMedia { IMAGE, VIDEO }
 
@@ -55,6 +55,12 @@ public class VisuelGenere extends BaseEntity {
 
     private String modele;
 
+    /** Photo de la banque du client utilisée comme fond, le cas échéant. */
+    @Column(name = "asset_id")
+    private UUID assetId;
+
+    public UUID getAssetId() { return assetId; }
+    public void setAssetId(UUID assetId) { this.assetId = assetId; }
     public Source getSource() { return source; }
     public void setSource(Source source) { this.source = source; }
     public TypeMedia getTypeMedia() { return typeMedia; }

@@ -27,6 +27,8 @@ import { LogoComponent } from '../shared/logo.component';
           <button class="bouton plein" [disabled]="envoi()">{{ envoi() ? 'Création…' : 'Commencer' }}</button>
         </form>
         <p class="bas">Déjà un compte ? <a routerLink="/connexion">Se connecter</a></p>
+        <p class="bas">En créant un compte, tu acceptes les <a routerLink="/conditions">conditions d'utilisation</a>
+          et la <a routerLink="/confidentialite">politique de confidentialité</a>.</p>
       </div>
     </div>
   `,

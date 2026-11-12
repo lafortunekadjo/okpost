@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -28,10 +29,12 @@ public class ClientController {
 
     private final ClientService service;
     private final TableauDeBord tableau;
+    private final AnalyseurPhoto analyseur;
 
-    public ClientController(ClientService service, TableauDeBord tableau) {
+    public ClientController(ClientService service, TableauDeBord tableau, AnalyseurPhoto analyseur) {
         this.service = service;
         this.tableau = tableau;
+        this.analyseur = analyseur;
     }
 
     @GetMapping
@@ -69,7 +72,28 @@ public class ClientController {
                                    @RequestParam(value = "legende", required = false) String legende,
                                    @RequestParam("fichier") MultipartFile fichier) {
         ClientAsset a = service.ajouterFichier(Session.courante(), id, type, legende, fichier);
-        return new AssetVue(a.getId(), a.getType().name(), ClientDtos.urlFichier(a.getChemin()), a.getNomOrigine(), a.getLegende());
+        if (a.getType() == ClientAsset.Type.PHOTO) {
+            analyseur.analyser(a.getId());
+        }
+        return AssetVue.de(a);
+    }
+
+    @PatchMapping("/{id}/assets/{assetId}")
+    public AssetVue modifierFichier(@PathVariable UUID id, @PathVariable UUID assetId,
+                                    @Valid @RequestBody ClientDtos.AssetModif m) {
+        return AssetVue.de(service.modifierFichier(Session.courante(), id, assetId, m));
+    }
+
+    /** Relance la description automatique d'une photo (asynchrone : l'état passe à EN_COURS puis OK ou ECHEC). */
+    @PostMapping("/{id}/assets/{assetId}/analyser")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public AssetVue analyser(@PathVariable UUID id, @PathVariable UUID assetId) {
+        ClientAsset a = service.photo(Session.courante(), id, assetId);
+        if (a.getType() != ClientAsset.Type.PHOTO) {
+            throw com.okpost.commun.ApiException.requeteInvalide("Seules les photos sont décrites");
+        }
+        analyseur.analyser(a.getId());
+        return AssetVue.de(a);
     }
 
     @DeleteMapping("/{id}/assets/{assetId}")

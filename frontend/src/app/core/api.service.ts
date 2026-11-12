@@ -24,6 +24,12 @@ export class ApiService {
     if (legende) f.append('legende', legende);
     return this.http.post<Asset>(`${this.base}/clients/${clientId}/assets`, f);
   }
+  modifierFichier(clientId: string, assetId: string, patch: { legende?: string; description?: string; tags?: string[] }) {
+    return this.http.patch<Asset>(`${this.base}/clients/${clientId}/assets/${assetId}`, patch);
+  }
+  analyserFichier(clientId: string, assetId: string) {
+    return this.http.post<Asset>(`${this.base}/clients/${clientId}/assets/${assetId}/analyser`, {});
+  }
   supprimerFichier(clientId: string, assetId: string) {
     return this.http.delete<void>(`${this.base}/clients/${clientId}/assets/${assetId}`);
   }
@@ -39,10 +45,11 @@ export class ApiService {
     return this.http.patch<Publication>(`${this.base}/publications/${id}`, patch);
   }
   genererImage(id: string, prompt?: string, ratio?: string, habiller = true, accroche?: string, moteur?: string,
-               diapositive?: number) {
+               diapositive?: number, affiche?: { gabarit?: string; chiffre?: string; texte?: string; cta?: string; photo?: string }) {
     return this.http.post<Visuel>(`${this.base}/publications/${id}/visuels`,
       { prompt: prompt || null, ratio: ratio || null, habiller, accroche: accroche ?? null, moteur: moteur || null,
-        diapositive: diapositive ?? null });
+        diapositive: diapositive ?? null, gabarit: affiche?.gabarit || null, chiffre: affiche?.chiffre || null,
+        texte: affiche?.texte || null, cta: affiche?.cta || null, photo: affiche?.photo || null });
   }
   monterCarrousel(id: string, secondes: number, transition: string, musique?: File | null) {
     const f = new FormData();

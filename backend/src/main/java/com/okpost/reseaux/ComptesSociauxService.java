@@ -24,6 +24,7 @@ public class ComptesSociauxService {
     public record CompteVue(UUID id, String reseau, String nom, String compteExterneId, boolean actif) {}
 
     public static final String FACEBOOK = "FACEBOOK";
+    public static final String INSTAGRAM = "INSTAGRAM";
 
     private final CompteSocialRepository comptes;
     private final ClientService clients;
@@ -125,7 +126,24 @@ public class ComptesSociauxService {
             compte.setJetonChiffre(chiffreur.chiffrer(p.jeton()));
             if (!dejaActif && pages.size() == 1) compte.setActif(true);
             comptes.save(compte);
+            meta.compteInstagram(p.id(), p.jeton()).ifPresent(ig -> enregistrerInstagram(c, ig, p.jeton(), pages.size() == 1));
         }
+    }
+
+    /** Le compte Instagram professionnel lié à la Page : il publie avec le jeton de la Page. */
+    private void enregistrerInstagram(Client c, MetaApi.CompteInstagram ig, String jetonPage, boolean pageUnique) {
+        List<CompteSocial> existants = comptes.findByClientIdAndReseau(c.getId(), INSTAGRAM);
+        boolean dejaActif = existants.stream().anyMatch(CompteSocial::isActif);
+        CompteSocial compte = existants.stream().filter(x -> x.getCompteExterneId().equals(ig.id())).findFirst()
+                .orElseGet(CompteSocial::new);
+        compte.setWorkspaceId(c.getWorkspaceId());
+        compte.setClientId(c.getId());
+        compte.setReseau(INSTAGRAM);
+        compte.setCompteExterneId(ig.id());
+        compte.setNom(ig.nom());
+        compte.setJetonChiffre(chiffreur.chiffrer(jetonPage));
+        if (!dejaActif && pageUnique) compte.setActif(true);
+        comptes.save(compte);
     }
 
     private String redirection() {

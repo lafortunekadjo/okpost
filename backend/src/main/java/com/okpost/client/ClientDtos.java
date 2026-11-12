@@ -42,7 +42,18 @@ public final class ClientDtos {
             @Pattern(regexp = "([01]\\d|2[0-3]):[0-5]\\d") String heurePublication,
             Boolean fetesReligieuses) {}
 
-    public record AssetVue(UUID id, String type, String url, String nomOrigine, String legende) {}
+    public record AssetVue(UUID id, String type, String url, String nomOrigine, String legende,
+                           String description, java.util.List<String> tags, String analyse) {
+        public static AssetVue de(ClientAsset a) {
+            return new AssetVue(a.getId(), a.getType().name(), urlFichier(a.getChemin()), a.getNomOrigine(), a.getLegende(),
+                    a.getDescription(), a.getTags(), a.getAnalyse().name());
+        }
+    }
+
+    /** Modification d'une photo de la banque : légende, description et mots-clés (null = inchangé). */
+    public record AssetModif(@jakarta.validation.constraints.Size(max = 255) String legende,
+                             @jakarta.validation.constraints.Size(max = 600) String description,
+                             @jakarta.validation.constraints.Size(max = 30) java.util.List<@jakarta.validation.constraints.Size(max = 40) String> tags) {}
 
     public record ClientVue(
             UUID id, String nom, String secteur, String description, String slogan, Integer anneeCreation,

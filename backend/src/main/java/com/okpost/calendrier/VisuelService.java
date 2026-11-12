@@ -39,16 +39,20 @@ public class VisuelService {
     private final ClientService clients;
     private final ClientAssetRepository assets;
     private final CompositionVisuel composition;
+    private final MoteurAffiche affiches;
+    private final BanqueImages banque;
     private final com.okpost.config.OkpostProperties props;
 
     public VisuelService(VisuelGenereRepository visuels, CalendrierService calendriers, AbonnementService abonnements,
                          StockageFichiers stockage, List<GenerateurImage> generateurs, ClientService clients,
-                         ClientAssetRepository assets, CompositionVisuel composition,
+                         ClientAssetRepository assets, CompositionVisuel composition, MoteurAffiche affiches, BanqueImages banque,
                          com.okpost.config.OkpostProperties props) {
         this.props = props;
         this.clients = clients;
         this.assets = assets;
         this.composition = composition;
+        this.affiches = affiches;
+        this.banque = banque;
         this.visuels = visuels;
         this.calendriers = calendriers;
         this.abonnements = abonnements;
@@ -59,12 +63,13 @@ public class VisuelService {
     /** Génère une image (appel synchrone, 10 à 40 secondes) et l'enregistre. */
     public VisuelVue generer(Session s, UUID publicationId, String promptDemande, String ratioDemande,
                              boolean habiller, String accrocheDemandee, String moteur) {
-        return generer(s, publicationId, promptDemande, ratioDemande, habiller, accrocheDemandee, moteur, null);
+        return generer(s, publicationId, promptDemande, ratioDemande, habiller,
+                new Saisie(accrocheDemandee, null, null, null, null, null), moteur, null);
     }
 
     /** diapositive : numéro de la diapositive d'un carrousel, dont le titre sert d'accroche et le texte précise la scène. */
     public VisuelVue generer(Session s, UUID publicationId, String promptDemande, String ratioDemande,
-                             boolean habiller, String accrocheDemandee, String moteur, Integer diapositive) {
+                             boolean habiller, Saisie saisie, String moteur, Integer diapositive) {
         abonnements.exigerEcriture(s.workspaceId());
         Publication p = calendriers.chargerPublication(s, publicationId);
         String prompt = promptDemande != null && !promptDemande.isBlank() ? promptDemande.trim()
@@ -72,6 +77,7 @@ public class VisuelService {
         if (prompt == null || prompt.isBlank()) {
             throw ApiException.requeteInvalide("Pas de prompt d'image pour cette publication");
         }
+        String scene = prompt;
         Modeles.TexteCarrousel diapo = null;
         if (diapositive != null) {
             List<Modeles.TexteCarrousel> textes = p.getBrief() == null ? null : p.getBrief().textesCarrousel();
@@ -83,46 +89,68 @@ public class VisuelService {
         }
         String ratio = ratioDemande != null ? ratioDemande
                 : p.getBrief() != null && p.getBrief().ratio() != null ? p.getBrief().ratio() : "1:1";
-        int quota = abonnements.formule(s.workspaceId()).imagesParMois();
-        long ceMois = visuels.countByWorkspaceIdAndSourceAndCreatedAtAfter(s.workspaceId(), VisuelGenere.Source.GENERE,
-                LocalDate.now().withDayOfMonth(1).atStartOfDay().toInstant(ZoneOffset.UTC));
-        if (ceMois >= quota) {
-            throw new ApiException(HttpStatus.PAYMENT_REQUIRED,
-                    "Tu as utilisé tes " + quota + " images IA du mois. Passe à la formule supérieure pour en générer plus.");
-        }
-        GenerateurImage ia = choisir(moteur);
-        org.slf4j.LoggerFactory.getLogger(VisuelService.class).info("Image : moteur demandé {}, réglage {}, utilisé {}",
-                moteur, props.ia().image() == null ? null : props.ia().image().fournisseur(), ia.nom());
-        // Affiche complète : l'IA compose le visuel et l'accroche en laissant libres le coin du logo et le bas ;
-        // OkPost pose ensuite le vrai logo et le bandeau de coordonnées, toujours exacts.
-        // (Le logo n'est pas joint à l'IA : avec une image jointe, le modèle la retouche au lieu de créer une affiche.)
-        String promptEnvoye = prompt;
-        List<GenerateurImage.Reference> references = List.of();
-        CompositionVisuel.Habillage bandeau = null;
+        Calendrier cal = calendriers.charger(s, p.getCalendrierId());
+        Client client = clients.charger(s, cal.getClientId());
+        // L'affiche est composée par OkPost (MoteurAffiche) sur une photo : le titre, le chiffre, le bouton, le logo et
+        // les coordonnées sont dessinés par OkPost, donc toujours exacts, lisibles et aux couleurs de la marque.
+        MoteurAffiche.Contenu contenu = null;
+        CompositionVisuel.Habillage marque = null;
         if (habiller) {
-            Calendrier cal = calendriers.charger(s, p.getCalendrierId());
-            Client client = clients.charger(s, cal.getClientId());
-            String accroche = accrocheDemandee != null && !accrocheDemandee.isBlank() ? accrocheDemandee
-                    : diapo != null ? diapo.titre()
-                    : p.getBrief() == null ? null
-                    : p.getBrief().accroche() != null ? p.getBrief().accroche()
-                    : p.getBrief().textesCarrousel() != null && !p.getBrief().textesCarrousel().isEmpty()
-                    ? p.getBrief().textesCarrousel().get(0).titre() : null;
             Fiche f = fiche(client);
-            bandeau = new CompositionVisuel.Habillage(f.logo(), f.couleur(), f.contacts());
-            promptEnvoye = promptAffiche(prompt, accroche, client.getNom(), client.getCouleurs(), f.logo() != null,
-                    partBandeau(ratio, f.contacts().size()), f.couleur());
+            marque = new CompositionVisuel.Habillage(f.logo(), f.couleur(), f.contacts());
+            contenu = contenuAffiche(p.getBrief(), diapo, saisie);
         }
-        ImageGeneree image;
-        try {
-            image = ia.generer(s.workspaceId(), promptEnvoye, ratio, references);
-        } catch (GenerationException e) {
-            throw new ApiException(HttpStatus.BAD_GATEWAY, e.getMessage());
+        // Photo de fond : la banque du client d'abord (vraies photos, gratuit, instantané), l'IA si rien ne correspond.
+        String mode = saisie == null || saisie.photo() == null ? "AUTO" : saisie.photo().toUpperCase(java.util.Locale.ROOT);
+        ClientAsset deLaBanque = null;
+        if (habiller && !"IA".equals(mode)) {
+            String requete = String.join(" ", p.getIdee() == null ? "" : p.getIdee(),
+                    p.getBrief() == null || p.getBrief().description() == null ? "" : p.getBrief().description(),
+                    scene, contenu.titre() == null ? "" : contenu.titre(), contenu.texte() == null ? "" : contenu.texte());
+            deLaBanque = banque.choisir(client.getId(), requete).orElse(null);
+            if (deLaBanque == null && "BANQUE".equals(mode)) {
+                throw ApiException.requeteInvalide("Aucune photo de la banque ne correspond à cette publication. "
+                        + "Ajoute des photos à la fiche du client, ou choisis la génération par IA.");
+            }
         }
-        byte[] octets = composition.recadrer(image.octets(), ratio);
-        if (bandeau != null && (!bandeau.contacts().isEmpty() || bandeau.logo() != null)) {
-            octets = composition.habiller(octets, bandeau);
+        byte[] photo;
+        String fournisseur;
+        String modele;
+        VisuelGenere.Source source;
+        if (deLaBanque != null) {
+            try (var in = stockage.lire(deLaBanque.getChemin()).getInputStream()) {
+                photo = in.readAllBytes();
+            } catch (java.io.IOException e) {
+                throw new ApiException(HttpStatus.BAD_GATEWAY, "Photo de la banque illisible");
+            }
+            fournisseur = "banque";
+            modele = deLaBanque.getId().toString();
+            source = VisuelGenere.Source.BANQUE;
+        } else {
+            int quota = abonnements.formule(s.workspaceId()).imagesParMois();
+            long ceMois = visuels.countByWorkspaceIdAndSourceAndCreatedAtAfter(s.workspaceId(), VisuelGenere.Source.GENERE,
+                    LocalDate.now().withDayOfMonth(1).atStartOfDay().toInstant(ZoneOffset.UTC));
+            if (ceMois >= quota) {
+                throw new ApiException(HttpStatus.PAYMENT_REQUIRED,
+                        "Tu as utilisé tes " + quota + " images IA du mois. Passe à la formule supérieure pour en générer plus.");
+            }
+            GenerateurImage ia = choisir(moteur);
+            org.slf4j.LoggerFactory.getLogger(VisuelService.class).info("Image : moteur demandé {}, réglage {}, utilisé {}",
+                    moteur, props.ia().image() == null ? null : props.ia().image().fournisseur(), ia.nom());
+            String promptEnvoye = contenu != null ? promptPhoto(prompt, contenu.gabarit()) : prompt;
+            ImageGeneree image;
+            try {
+                image = ia.generer(s.workspaceId(), promptEnvoye, ratio, List.of());
+            } catch (GenerationException e) {
+                throw new ApiException(HttpStatus.BAD_GATEWAY, e.getMessage());
+            }
+            photo = image.octets();
+            fournisseur = ia.nom();
+            modele = image.modele();
+            source = VisuelGenere.Source.GENERE;
         }
+        byte[] octets = contenu != null ? affiches.composer(photo, ratio, contenu, marque)
+                : composition.recadrer(photo, ratio);
         ClientService.TypeImage type = ClientService.TypeImage.detecter(octets);
         if (type == null || type == ClientService.TypeImage.SVG) {
             throw new ApiException(HttpStatus.BAD_GATEWAY, "Image reçue dans un format inattendu");
@@ -135,8 +163,10 @@ public class VisuelService {
         v.setMime(type.mime);
         v.setPrompt(prompt);
         v.setRatio(ratio);
-        v.setFournisseur(ia.nom());
-        v.setModele(image.modele());
+        v.setFournisseur(fournisseur);
+        v.setModele(modele);
+        v.setSource(source);
+        v.setAssetId(deLaBanque == null ? null : deLaBanque.getId());
         v.setDiapositive(diapositive);
         return vue(visuels.save(v));
     }
@@ -182,43 +212,36 @@ public class VisuelService {
 
     record Fiche(byte[] logo, String logoMime, String couleur, List<CompositionVisuel.Contact> contacts) {}
 
-    /** Consignes d'affiche envoyées au générateur d'images (en anglais, plus fiable). */
-    static String promptAffiche(String scene, String accroche, String marque, List<String> couleurs, boolean logo,
-                                int pourcentBandeau, String couleurBandeau) {
-        String visuel = scene.replaceAll("(?i)[,.;]?\\s*no text.*$", "").trim();
-        StringBuilder sb = new StringBuilder();
-        sb.append("Professional social media poster for the brand \"").append(marque)
-          .append("\", polished graphic design worthy of a top advertising agency, ready to publish.\n\n");
-        sb.append("Visual: ").append(visuel).append("\n\n");
-        if (accroche != null && !accroche.isBlank()) {
-            sb.append("Headline: write exactly \"").append(accroche.trim())
-              .append("\" once, keeping the French spelling and accents exactly, in large bold modern sans-serif typography, ")
-              .append("perfectly legible, with strong contrast, integrated into the layout (not a plain caption).\n\n");
-        }
-        if (logo) {
-            sb.append("Top-left corner (about 25% of the width and 12% of the height): keep it plain and uncluttered, ")
-              .append("with no text or important detail, because the brand logo will be placed there afterwards.\n\n");
-        }
-        if (couleurs != null && !couleurs.isEmpty()) {
-            sb.append("Brand colours: ").append(String.join(", ", couleurs)).append(".\n\n");
-        }
-        if (pourcentBandeau > 0) {
-            sb.append("Bottom ").append(pourcentBandeau).append("% of the image: a plain solid ").append(couleurBandeau)
-              .append(" band, completely empty (contact details will be added later).\n\n");
-        }
-        sb.append(accroche != null && !accroche.isBlank()
-                ? "No other text, letters, numbers, URLs or watermarks anywhere."
-                : "No text, letters, numbers, logos, URLs or watermarks anywhere.");
-        return sb.toString();
+    /** Ce que le CM a saisi dans le formulaire : prioritaire sur le brief enregistré (champs vides = on garde le brief). */
+    public record Saisie(String titre, String gabarit, String chiffre, String texte, String cta, String photo) {}
+
+    private static String ou(String saisi, String brief) {
+        return saisi != null && !saisi.isBlank() ? saisi : brief;
     }
 
-    /** Hauteur du bandeau en % de la hauteur de l'image, comme le dessine CompositionVisuel (relatif à la largeur). */
-    static int partBandeau(String ratio, int nbContacts) {
-        if (nbContacts == 0) return 0;
-        String[] r = (ratio == null ? "1:1" : ratio).split(":");
-        double l = Double.parseDouble(r[0]);
-        double h = Double.parseDouble(r[1]);
-        return (int) Math.ceil(CompositionVisuel.hauteurBandeau(nbContacts) * l / h) + 1;
+    /** Ce qui s'écrit sur l'affiche : le brief de l'IA, avec la priorité à ce que le CM a saisi. */
+    static MoteurAffiche.Contenu contenuAffiche(Modeles.BriefVisuel b, Modeles.TexteCarrousel diapo, Saisie saisie) {
+        Saisie s = saisie == null ? new Saisie(null, null, null, null, null, null) : saisie;
+        if (diapo != null) {
+            // Diapositive de carrousel : photo pleine page, titre et texte de la diapositive.
+            return new MoteurAffiche.Contenu(MoteurAffiche.Gabarit.PLEIN_CADRE, ou(s.titre(), diapo.titre()), null, diapo.texte(), null);
+        }
+        String titreBrief = b == null ? null
+                : b.accroche() != null && !b.accroche().isBlank() ? b.accroche()
+                : b.textesCarrousel() != null && !b.textesCarrousel().isEmpty() ? b.textesCarrousel().get(0).titre() : null;
+        String chiffre = ou(s.chiffre(), b == null ? null : b.chiffre());
+        String texte = ou(s.texte(), b == null ? null : b.texte());
+        String cta = ou(s.cta(), b == null ? null : b.cta());
+        MoteurAffiche.Gabarit g = MoteurAffiche.resoudre(s.gabarit(), b == null ? null : b.gabarit(), chiffre, texte);
+        return new MoteurAffiche.Contenu(g, ou(s.titre(), titreBrief), chiffre, texte, cta);
+    }
+
+    /** Demande à l'IA une photo seule, cadrée pour laisser de la place au texte du gabarit. */
+    static String promptPhoto(String scene, MoteurAffiche.Gabarit gabarit) {
+        String visuel = scene.replaceAll("(?i)[,.;]?\\s*no text.*$", "").trim();
+        return visuel + ". Composition: " + gabarit.cadrage + ". Photorealistic documentary photograph, natural light, "
+                + "authentic candid expressions, sharp focus, realistic skin and fabric textures. "
+                + "No text, no letters, no numbers, no logo, no watermark, no frame, no graphic design, no overlay.";
     }
 
     /** Logo, couleur et coordonnées tirés de la fiche client. */

@@ -33,6 +33,7 @@ public class FichiersController {
     public ResponseEntity<Resource> lire(@PathVariable String chemin) {
         String mime = assets.findByChemin(chemin).map(ClientAsset::getMime)
                 .or(() -> visuels.findByChemin(chemin).map(com.okpost.calendrier.VisuelGenere::getMime))
+                .or(() -> chemin.endsWith(".jpg") ? java.util.Optional.of("image/jpeg") : java.util.Optional.empty())
                 .orElseThrow(() -> ApiException.introuvable("Fichier"));
         Resource r = stockage.lire(chemin);
         if (!r.exists()) {

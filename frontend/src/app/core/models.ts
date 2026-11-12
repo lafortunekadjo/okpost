@@ -11,7 +11,8 @@ export interface SessionUtilisateur {
 
 export interface Offre { nom: string; description?: string; prix?: string; }
 
-export interface Asset { id: string; type: string; url: string; nomOrigine?: string; legende?: string; }
+export interface Asset { id: string; type: string; url: string; nomOrigine?: string; legende?: string;
+  description?: string; tags?: string[]; analyse?: 'AUCUNE' | 'EN_COURS' | 'OK' | 'ECHEC' | string; }
 
 export interface Client {
   id?: string;
@@ -58,7 +59,8 @@ export interface CalendrierResume {
 }
 
 export interface TexteCarrousel { visuel: number; titre: string; texte: string; }
-export interface BriefVisuel { type?: string; description?: string; promptImage?: string; ratio?: string; textesCarrousel?: TexteCarrousel[]; accroche?: string; }
+export interface BriefVisuel { type?: string; description?: string; promptImage?: string; ratio?: string; textesCarrousel?: TexteCarrousel[]; accroche?: string;
+  gabarit?: string; chiffre?: string; texte?: string; cta?: string; }
 export interface PlanVideo { numero: number; dureeS: number; image?: string; texteEcran?: string; voixOff?: string; son?: string; }
 export interface ScenarioVideo { titre?: string; dureeTotaleS?: number; accroche?: string; plans?: PlanVideo[]; materiel?: string[]; }
 
@@ -66,7 +68,7 @@ export interface Retour { decision: string; commentaire?: string; legendePropose
 
 export interface Visuel {
   id: string; url: string; prompt?: string; ratio?: string; modele?: string; date: string;
-  type?: 'IMAGE' | 'VIDEO' | string; source?: 'GENERE' | 'TELEVERSE' | 'MONTAGE' | string; nomOrigine?: string;
+  type?: 'IMAGE' | 'VIDEO' | string; source?: 'GENERE' | 'TELEVERSE' | 'MONTAGE' | 'BANQUE' | string; nomOrigine?: string;
   diapositive?: number | null;
 }
 

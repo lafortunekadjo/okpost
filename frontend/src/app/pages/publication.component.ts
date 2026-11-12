@@ -44,13 +44,13 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
           </div>
         }
 
-        @if (pub.reseau !== 'FACEBOOK' && pub.statut === 'VALIDEE') {
-          <div class="info">Validée. La publication automatique n'est disponible que pour Facebook pour l'instant : publie-la à la main sur {{ libellesReseau[pub.reseau] }}.</div>
+        @if (pub.reseau !== 'FACEBOOK' && pub.reseau !== 'INSTAGRAM' && pub.statut === 'VALIDEE') {
+          <div class="info">Validée. La publication automatique n'est disponible que pour Facebook et Instagram pour l'instant : publie-la à la main sur {{ libellesReseau[pub.reseau] }}.</div>
         }
-        @if (pub.reseau === 'FACEBOOK' && ['VALIDEE', 'PROGRAMMEE', 'PUBLIEE'].includes(pub.statut)) {
+        @if ((pub.reseau === 'FACEBOOK' || pub.reseau === 'INSTAGRAM') && ['VALIDEE', 'PROGRAMMEE', 'PUBLIEE'].includes(pub.statut)) {
           <div class="carte publication-auto">
             @if (pub.statut === 'PUBLIEE') {
-              <strong>Publiée sur Facebook</strong> le {{ pub.publieeLe | date: 'd MMMM à HH:mm' }}
+              <strong>Publiée sur {{ pub.reseau === 'INSTAGRAM' ? 'Instagram' : 'Facebook' }}</strong> le {{ pub.publieeLe | date: 'd MMMM à HH:mm' }}
               @if (pub.lienPost) { · <a [href]="pub.lienPost" target="_blank" rel="noopener">Voir la publication</a> }
             } @else if (pub.statut === 'PROGRAMMEE') {
               <div class="ligne">
@@ -61,7 +61,7 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
               @if (pub.erreurPublication) { <p class="erreur" style="margin:8px 0 0">Dernier essai échoué : {{ pub.erreurPublication }}</p> }
             } @else {
               <div class="ligne">
-                <span class="espace">Validée par le client. Publier sur la Page Facebook reliée :</span>
+                <span class="espace">Validée par le client. Publier sur {{ pub.reseau === 'INSTAGRAM' ? 'le compte Instagram relié' : 'la Page Facebook reliée' }} :</span>
                 <input type="datetime-local" [(ngModel)]="quand" style="max-width:220px" />
                 <button class="bouton secondaire petit" [disabled]="actionAuto()" (click)="programmer()">Programmer</button>
                 <button class="bouton petit" [disabled]="actionAuto()" (click)="publierMaintenant()">Publier maintenant</button>
@@ -137,11 +137,35 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
                     @for (m of moteurs(); track m) { <option [value]="m">{{ libelleMoteur(m) }}</option> }
                   </select></div>
               }
-              <label class="case-habiller"><input type="checkbox" name="habiller" [(ngModel)]="habiller" />
-                Affiche complète : accroche et logo intégrés par l'IA, bandeau des coordonnées ajouté par OkPost</label>
               @if (habiller) {
-                <div class="champ"><label>Accroche <span class="aide">3 à 7 mots, écrits sur l'affiche</span></label>
+                <div class="champ"><label>Photo de fond</label>
+                  <select name="b-photo" [(ngModel)]="sourcePhoto" style="max-width:360px">
+                    <option value="AUTO">Automatique : banque du client, sinon IA</option>
+                    <option value="BANQUE">Banque du client uniquement</option>
+                    <option value="IA">Générée par l'IA uniquement</option>
+                  </select></div>
+              }
+              <label class="case-habiller"><input type="checkbox" name="habiller" [(ngModel)]="habiller" />
+                Affiche complète : l'IA fournit la photo, OkPost écrit le titre et ajoute logo et coordonnées</label>
+              @if (habiller) {
+                <div class="champ"><label>Mise en page</label>
+                  <select name="b-gabarit" [(ngModel)]="brief.gabarit" style="max-width:360px">
+                    <option value="">Automatique</option>
+                    <option value="CHIFFRE">Gros chiffre</option>
+                    <option value="TITRE_HAUT">Titre en haut</option>
+                    <option value="DIAGONALE">Panneau diagonal</option>
+                    <option value="PLEIN_CADRE">Photo pleine page</option>
+                  </select></div>
+                <div class="champ"><label>Titre <span class="aide">2 à 7 mots, écrits sur l'affiche</span></label>
                   <input type="text" name="b-accroche" [(ngModel)]="brief.accroche" maxlength="120" /></div>
+                @if (brief.gabarit === 'CHIFFRE' || brief.chiffre) {
+                  <div class="champ"><label>Chiffre <span class="aide">ex. 850, 0 F, -30 %</span></label>
+                    <input type="text" name="b-chiffre" [(ngModel)]="brief.chiffre" maxlength="12" style="max-width:200px" /></div>
+                }
+                <div class="champ"><label>Texte d'appui <span class="aide">une phrase, facultatif</span></label>
+                  <textarea name="b-texte" rows="2" [(ngModel)]="brief.texte" maxlength="300"></textarea></div>
+                <div class="champ"><label>Bouton <span class="aide">2 à 5 mots, facultatif</span></label>
+                  <input type="text" name="b-cta" [(ngModel)]="brief.cta" maxlength="60" style="max-width:360px" /></div>
               }
               <div class="ligne">
                 <button type="button" class="bouton" [disabled]="generationImage() || !brief.promptImage" (click)="genererImage()">
@@ -248,7 +272,7 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
                       <a [href]="v.url" target="_blank" rel="noopener"><img [src]="v.url" [alt]="v.prompt || v.nomOrigine || 'Visuel'" loading="lazy" /></a>
                     }
                     <figcaption>
-                      <span class="pastille">{{ v.source === 'MONTAGE' ? 'Vidéo défilante' : v.source === 'TELEVERSE' ? (v.type === 'VIDEO' ? 'Vidéo' : 'Photo') : 'Générée' }}</span>
+                      <span class="pastille">{{ v.source === 'MONTAGE' ? 'Vidéo défilante' : v.source === 'BANQUE' ? 'Banque' : v.source === 'TELEVERSE' ? (v.type === 'VIDEO' ? 'Vidéo' : 'Photo') : 'Générée' }}</span>
                       @if (v.diapositive) { <span class="pastille">Diapo {{ v.diapositive }}</span> }
                       <span class="aide">{{ v.date | date: 'd MMM, HH:mm' }}</span>
                       <span class="espace"></span>
@@ -331,6 +355,7 @@ export class PublicationComponent implements OnInit {
   envoiMedia = signal(false);
   progression = signal(0);
   habiller = true;
+  sourcePhoto = 'AUTO';
   moteurs = signal<string[]>([]);
   moteur = '';
   erreur = signal('');
@@ -434,7 +459,8 @@ export class PublicationComponent implements OnInit {
     if (!p) return;
     this.generationImage.set(true);
     this.erreur.set('');
-    this.api.genererImage(p.id, this.brief.promptImage, this.brief.ratio, this.habiller, this.brief.accroche ?? '', this.moteur).subscribe({
+    this.api.genererImage(p.id, this.brief.promptImage, this.brief.ratio, this.habiller, this.brief.accroche ?? '', this.moteur,
+      undefined, { gabarit: this.brief.gabarit, chiffre: this.brief.chiffre, texte: this.brief.texte, cta: this.brief.cta, photo: this.sourcePhoto }).subscribe({
       next: v => {
         this.p.set({ ...p, visuels: [v, ...(p.visuels ?? [])] });
         this.generationImage.set(false);
@@ -580,7 +606,7 @@ export class PublicationComponent implements OnInit {
 
   publierMaintenant() {
     const p = this.p();
-    if (!p || !confirm('Publier maintenant sur la Page Facebook du client ?')) return;
+    if (!p || !confirm(p.reseau === 'INSTAGRAM' ? 'Publier maintenant sur le compte Instagram du client ?' : 'Publier maintenant sur la Page Facebook du client ?')) return;
     this.lancer(this.api.publierMaintenant(p.id));
   }
 

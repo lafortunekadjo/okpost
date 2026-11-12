@@ -7,3 +7,4 @@ deploy/.env
 .idea/
 .vscode/
 *.log
+backend/doc/

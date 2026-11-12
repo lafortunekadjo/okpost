@@ -4,10 +4,11 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ApiService, messageErreur } from '../core/api.service';
 import { CalendrierResume, Client, CompteSocial, LIBELLES_RESEAU } from '../core/models';
+import { BanqueImagesComponent } from '../shared/banque-images.component';
 
 @Component({
   selector: 'app-client',
-  imports: [RouterLink, DatePipe, FormsModule],
+  imports: [RouterLink, DatePipe, FormsModule, BanqueImagesComponent],
   template: `
     <div class="page">
       @if (erreur()) { <div class="erreur">{{ erreur() }}</div> }
@@ -55,18 +56,20 @@ import { CalendrierResume, Client, CompteSocial, LIBELLES_RESEAU } from '../core
           }
         </div>
 
+        <app-banque-images [clientId]="c.id!" />
+
         <div class="carte">
           <h2>Réseaux connectés</h2>
           @if (messageReseaux()) { <div class="succes">{{ messageReseaux() }}</div> }
           @if (erreurReseaux()) { <div class="erreur">{{ erreurReseaux() }}</div> }
-          <p class="aide">Relie la Page Facebook du client : les publications validées pourront se publier toutes seules.
-            Instagram, TikTok et LinkedIn viendront ensuite.</p>
+          <p class="aide">Relie la Page Facebook du client : son compte Instagram professionnel, s'il est lié à la Page, est relié en même temps.
+            Les publications validées pourront se publier toutes seules sur les deux. TikTok et LinkedIn viendront ensuite.</p>
           @for (cpt of comptes(); track cpt.id) {
             <div class="ligne compte">
               <span class="reseau reseau-{{ cpt.reseau }}"></span>
-              <strong class="espace">{{ cpt.nom }}</strong>
-              @if (cpt.actif) { <span class="pastille statut-VALIDEE">Page utilisée</span> }
-              @else { <button class="bouton secondaire petit" (click)="activer(cpt.id)">Utiliser cette Page</button> }
+              <strong class="espace">{{ cpt.nom }} <span class="aide">{{ cpt.reseau === 'INSTAGRAM' ? 'Instagram' : 'Facebook' }}</span></strong>
+              @if (cpt.actif) { <span class="pastille statut-VALIDEE">Compte utilisé</span> }
+              @else { <button class="bouton secondaire petit" (click)="activer(cpt.id)">Utiliser ce compte</button> }
               <button class="bouton danger petit" (click)="delier(cpt.id)">Délier</button>
             </div>
           }
@@ -78,7 +81,7 @@ import { CalendrierResume, Client, CompteSocial, LIBELLES_RESEAU } from '../core
           </div>
           @if (modeJeton()) {
             <div class="champ" style="margin-top:12px">
-              <label>Jeton d'accès <span class="aide">jeton utilisateur prolongé (pages_show_list, pages_read_engagement, pages_manage_posts, read_insights, pages_read_user_content) ou jeton de Page</span></label>
+              <label>Jeton d'accès <span class="aide">jeton utilisateur prolongé (pages_show_list, pages_read_engagement, pages_manage_posts, read_insights, pages_read_user_content, instagram_basic, instagram_content_publish) ou jeton de Page</span></label>
               <div class="ligne"><input type="password" [(ngModel)]="jeton" autocomplete="off" class="espace" />
                 <button class="bouton" [disabled]="!jeton" (click)="relierJeton()">Relier</button></div>
               <p class="aide">Le jeton est chiffré sur le serveur et n'est plus jamais affiché.</p>

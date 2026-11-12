@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { ApiService, messageErreur } from '../core/api.service';
 import { Asset, Client, RESEAUX, LIBELLES_RESEAU } from '../core/models';
 import { PucesComponent } from '../shared/puces.component';
+import { BanqueImagesComponent } from '../shared/banque-images.component';
 
 type Onglet = 'identite' | 'offres' | 'localisation' | 'audience' | 'ton' | 'visuel' | 'en-ligne';
 
@@ -17,7 +18,7 @@ const TYPES_FICHIERS = [
 
 @Component({
   selector: 'app-fiche-client',
-  imports: [FormsModule, RouterLink, PucesComponent],
+  imports: [FormsModule, RouterLink, PucesComponent, BanqueImagesComponent],
   template: `
     <div class="page page-etroite">
       <div class="entete-page">
@@ -107,12 +108,12 @@ const TYPES_FICHIERS = [
               </div>
             </div>
             <div class="champ"><label>Polices</label><input type="text" name="polices" [(ngModel)]="c.polices" /></div>
-            <h3>Logos et photos</h3>
+            <h3>Logos</h3>
             @if (!id()) {
-              <p class="aide">Enregistre d'abord la fiche pour ajouter des logos et des photos.</p>
+              <p class="aide">Enregistre d'abord la fiche pour ajouter des logos et la banque d'images.</p>
             } @else {
               <div class="fichiers">
-                @for (a of assets(); track a.id) {
+                @for (a of logos(); track a.id) {
                   <figure>
                     <img [src]="a.url" [alt]="a.legende || a.type" />
                     <figcaption>{{ libelleType(a.type) }}</figcaption>
@@ -122,14 +123,17 @@ const TYPES_FICHIERS = [
               </div>
               <div class="ligne">
                 <select #type style="max-width:180px">
-                  @for (t of typesFichiers; track t.valeur) { <option [value]="t.valeur">{{ t.libelle }}</option> }
+                  @for (t of typesFichiers; track t.valeur) {
+                    @if (t.valeur !== 'PHOTO') { <option [value]="t.valeur">{{ t.libelle }}</option> }
+                  }
                 </select>
                 <label class="bouton secondaire" style="margin:0">
-                  {{ envoiFichier() ? 'Envoi…' : 'Choisir un fichier' }}
+                  {{ envoiFichier() ? 'Envoi…' : 'Choisir un logo' }}
                   <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden (change)="envoyerFichier($event, type.value)" />
                 </label>
               </div>
               <p class="aide">PNG, JPG, WebP ou SVG, 5 Mo maximum.</p>
+              <app-banque-images [clientId]="id()!" />
             }
           }
           @case ('en-ligne') {
@@ -160,6 +164,7 @@ const TYPES_FICHIERS = [
     figure { margin: 0; border: 1px solid var(--gris-clair); border-radius: 10px; padding: 8px; text-align: center; }
     figure img { width: 100%; height: 90px; object-fit: contain; background: repeating-conic-gradient(#f3f4f6 0% 25%, #fff 0% 50%) 50% / 16px 16px; border-radius: 6px; }
     figcaption { font-size: .8rem; color: var(--gris); margin: 6px 0; }
+
     .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; border-top: 1px solid var(--gris-clair); margin-top: 20px; padding-top: 16px; }
   `,
 })
@@ -254,6 +259,10 @@ export class FicheClientComponent implements OnInit {
       next: a => { this.assets.update(l => [...l, a]); this.envoiFichier.set(false); champ.value = ''; },
       error: e => { this.erreur.set(messageErreur(e)); this.envoiFichier.set(false); champ.value = ''; },
     });
+  }
+
+  logos(): Asset[] {
+    return this.assets().filter(a => a.type !== 'PHOTO');
   }
 
   supprimerFichier(a: Asset) {

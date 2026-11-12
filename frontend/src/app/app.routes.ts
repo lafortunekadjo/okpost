@@ -5,6 +5,10 @@ import { CadreComponent } from './shared/cadre.component';
 export const routes: Routes = [
   { path: 'connexion', canActivate: [inviteGuard], loadComponent: () => import('./pages/connexion.component').then(m => m.ConnexionComponent) },
   { path: 'inscription', canActivate: [inviteGuard], loadComponent: () => import('./pages/inscription.component').then(m => m.InscriptionComponent) },
+  // Pages publiques exigées par Meta pour la revue de l'application
+  { path: 'confidentialite', data: { page: 'confidentialite' }, loadComponent: () => import('./pages/legal.component').then(m => m.LegalComponent) },
+  { path: 'conditions', data: { page: 'conditions' }, loadComponent: () => import('./pages/legal.component').then(m => m.LegalComponent) },
+  { path: 'suppression-donnees', data: { page: 'suppression-donnees' }, loadComponent: () => import('./pages/legal.component').then(m => m.LegalComponent) },
   {
     path: 'calendriers/:id/export',
     canActivate: [connecteGuard],

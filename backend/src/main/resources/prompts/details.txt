@@ -4,17 +4,37 @@ Pour chaque publication :
 - legende : prête à publier, adaptée au réseau (Facebook 80 à 150 mots ; Instagram 50 à 120 mots avec retours à la ligne ; TikTok 1 à 2 phrases ; LinkedIn 100 à 180 mots, ton plus professionnel). Émojis avec modération.
 - hashtags : 3 à 8, dont au moins un local (ville ou pays) quand c'est pertinent.
 - cta : une action claire (WhatsApp, appel, visite, commentaire…).
-- Formats IMAGE, STORY et TEXTE : briefVisuel avec description (en français, pour le graphiste), promptImage, accroche (3 à 7 mots percutants, posés ensuite sur l'image par OkPost) et ratio (1:1, 4:5 ou 9:16). scenario = null.
-
-Règles du promptImage (il est envoyé tel quel à un générateur d'images) :
-- Uniquement en anglais. N'y mets jamais la légende, l'appel à l'action, un lien, un numéro ou une phrase en français.
-- Une seule scène concrète et vivante qui illustre l'idée de la publication, de préférence une photo réaliste de la vie locale (lieu, personnes africaines, objets, action précise). Évite les infographies, les rangées d'icônes et les montages abstraits.
-- Précise : le sujet et l'action, le lieu, le cadrage (plan large, gros plan…), la lumière, l'ambiance, et 1 ou 2 couleurs de la marque en hex pour les vêtements ou les accessoires.
-- Composition : garde le haut à gauche et le quart inférieur de l'image dégagés et simples (ciel, mur, sol flou), car OkPost y ajoute le logo, l'accroche et les coordonnées.
-- Termine toujours par : "no text, no letters, no logo, no watermark".
-- Format CARROUSEL : briefVisuel avec type CARROUSEL, promptImage pour le visuel de couverture, et textesCarrousel de 4 à 7 visuels (titre court + texte de 25 mots maximum). scenario = null.
+- Formats IMAGE, STORY et TEXTE : un briefVisuel complet (voir ci-dessous). scenario = null.
+- Format CARROUSEL : briefVisuel avec type CARROUSEL, promptImage pour la photo de couverture, et textesCarrousel de 4 à 7 visuels (titre court de 2 à 6 mots + texte de 25 mots maximum). scenario = null.
 - Format VIDEO : scenario avec titre, durée totale de 15 à 60 secondes, accroche, plans numérotés (durée, image, texte à l'écran, voix off, son), matériel nécessaire. Le scénario doit être tournable avec un téléphone. briefVisuel = null.
 - Reprends l'index de chaque idée.
+
+COMMENT FONCTIONNE LE VISUEL
+OkPost fabrique l'affiche lui-même : il prend une PHOTO (la tienne, décrite par promptImage) et dessine par-dessus le titre, le chiffre, le texte, le bouton, le logo et les coordonnées du client. Tu n'as donc PAS à décrire une affiche, ni du texte, ni un logo : tu décris seulement une bonne photo et tu rédiges le contenu de l'affiche.
+
+Champs du briefVisuel (formats IMAGE, STORY, TEXTE, et couverture de CARROUSEL) :
+- description : en français, ce que montre le visuel et pourquoi, en une phrase.
+- gabarit : la mise en page, à choisir selon l'idée :
+  • CHIFFRE : l'idée repose sur un chiffre ou un prix réel (« 850 utilisateurs », « 0 F », « -30 % ») ;
+  • TITRE_HAUT : une question, une explication ou un conseil (titre fort + une phrase) ;
+  • DIAGONALE : une annonce, une offre, un événement, un lancement ;
+  • PLEIN_CADRE : une ambiance, une émotion, un portrait, une scène où la photo parle d'elle-même.
+  Varie les gabarits d'une publication à l'autre.
+- chiffre : uniquement avec le gabarit CHIFFRE, 1 à 8 caractères (« 850 », « 0 F », « -30 % »). Ne l'invente jamais : il doit figurer dans la fiche client ou dans l'idée. Sinon null et choisis un autre gabarit.
+- accroche : le titre de l'affiche, 2 à 7 mots, percutant, qui donne envie de lire la suite. Pas de point final. Avec CHIFFRE, c'est le mot qui suit le chiffre (« utilisateurs », « pour ton tournoi »).
+- texte : une phrase d'appui de 8 à 20 mots qui apporte le bénéfice concret ou la preuve. Null avec PLEIN_CADRE si la photo suffit. N'invente ni prix, ni chiffre, ni nom.
+- cta : texte du bouton, 2 à 5 mots, un verbe à l'impératif (« Crée ton compte », « Écris-nous sur WhatsApp »). Null s'il n'y a pas d'action à faire.
+- ratio : 1:1, 4:5 ou 9:16 (9:16 pour STORY).
+Ni accroche, ni texte, ni cta ne doivent contenir d'émoji, de numéro de téléphone, d'adresse web ou de hashtag : les coordonnées du client sont ajoutées automatiquement en bas de l'affiche.
+
+Règles du promptImage (envoyé tel quel à un générateur de photos) :
+- Uniquement en anglais, 40 à 80 mots, une seule scène. N'y mets aucun texte à écrire sur l'image, ni légende, ni slogan, ni numéro, ni phrase en français.
+- C'est une PHOTO réaliste de la vie locale, jamais une infographie, une illustration, une rangée d'icônes ou un montage. Style documentaire, lumière naturelle, expressions authentiques.
+- Précise : qui (âge, nombre de personnes, personnes africaines réalistes et diverses, vêtements), l'action précise et naturelle, le lieu typique du pays du client (rue, marché, terrain, boutique, bureau, salle…), le cadrage (plan moyen, gros plan, plan large), l'heure et la lumière.
+- Les mains, les visages et les objets doivent être simples : peu de personnes (1 à 4 de préférence), pas de foule détaillée, pas de texte lisible sur un écran, un maillot ou une enseigne.
+- Si l'idée concerne un produit ou un service numérique, montre les personnes qui l'utilisent (téléphone à la main, sourire, échange), pas un écran avec une interface inventée.
+- Ne parle ni de composition, ni de marges, ni de zones libres, ni de couleurs de marque : OkPost cadre et habille la photo lui-même.
+- Termine par : "no text, no letters, no logo, no watermark".
 
 Publications à détailler :
 {{idees}}

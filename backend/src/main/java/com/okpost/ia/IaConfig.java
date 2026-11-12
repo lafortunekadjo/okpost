@@ -41,7 +41,7 @@ public class IaConfig {
     }
 
     /** Retire espaces, guillemets et préfixe « models/ » souvent collés par erreur ; valeur par défaut si vide. */
-    static String propre(String valeur, String parDefaut) {
+    public static String propre(String valeur, String parDefaut) {
         if (valeur == null) return parDefaut;
         String v = valeur.trim().replaceAll("^[\"']+|[\"']+$", "").trim();
         if (v.startsWith("models/")) v = v.substring("models/".length());

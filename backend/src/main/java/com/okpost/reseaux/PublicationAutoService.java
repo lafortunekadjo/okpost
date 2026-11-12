@@ -20,6 +20,12 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalTime;
@@ -84,14 +90,22 @@ public class PublicationAutoService {
     /** Pourquoi une publication ne peut pas être programmée (null si elle peut l'être). */
     public String raisonNonProgrammable(Client c, Publication p, boolean verifierAuto) {
         if (c == null) return "client introuvable";
-        if (!ComptesSociauxService.FACEBOOK.equals(p.getReseau())) {
-            return "publication prévue sur " + p.getReseau() + " (seul Facebook est pris en charge pour l'instant)";
+        boolean instagram = ComptesSociauxService.INSTAGRAM.equals(p.getReseau());
+        if (!instagram && !ComptesSociauxService.FACEBOOK.equals(p.getReseau())) {
+            return "publication prévue sur " + p.getReseau() + " (seuls Facebook et Instagram sont pris en charge pour l'instant)";
         }
         if (verifierAuto && !c.isAutoPublication()) {
             return "la case « Publier automatiquement après validation » n'est pas cochée pour " + c.getNom();
         }
-        if (comptes.findFirstByClientIdAndReseauAndActifTrue(c.getId(), ComptesSociauxService.FACEBOOK).isEmpty()) {
-            return "aucune Page Facebook « utilisée » pour " + c.getNom();
+        if (comptes.findFirstByClientIdAndReseauAndActifTrue(c.getId(), p.getReseau()).isEmpty()) {
+            return instagram ? "aucun compte Instagram « utilisé » pour " + c.getNom() + " (relie la Page Facebook liée à son compte Instagram professionnel)"
+                    : "aucune Page Facebook « utilisée » pour " + c.getNom();
+        }
+        if (instagram) {
+            if ("TEXTE".equals(p.getFormat())) return "Instagram demande une image ou une vidéo (format TEXTE)";
+            if (visuels.findByPublicationIdInOrderByCreatedAtDesc(List.of(p.getId())).isEmpty()) {
+                return "aucune image ni vidéo n'est prête pour Instagram";
+            }
         }
         return null;
     }
@@ -154,15 +168,17 @@ public class PublicationAutoService {
 
     /** Publie une publication tout de suite (bouton « Publier maintenant » ou échéance atteinte). */
     public void publier(UUID publicationId) {
-        record Travail(String pageId, String jeton, String message, VisuelGenere media, List<VisuelGenere> photos,
-                       Client client) {}
+        record Travail(String reseau, String format, String compteId, String jeton, String message, VisuelGenere media,
+                       List<VisuelGenere> photos, Client client) {}
         Travail t;
         try {
             t = tx.execute(s -> {
                 Publication p = publications.findById(publicationId).orElseThrow();
                 Client c = clientDe(p);
-                CompteSocial compte = comptes.findFirstByClientIdAndReseauAndActifTrue(c.getId(), ComptesSociauxService.FACEBOOK)
-                        .orElseThrow(() -> new MetaApi.MetaException("Aucune Page Facebook reliée pour " + c.getNom()));
+                String reseau = ComptesSociauxService.INSTAGRAM.equals(p.getReseau()) ? ComptesSociauxService.INSTAGRAM
+                        : ComptesSociauxService.FACEBOOK;
+                CompteSocial compte = comptes.findFirstByClientIdAndReseauAndActifTrue(c.getId(), reseau)
+                        .orElseThrow(() -> new MetaApi.MetaException("Aucun compte " + libelle(reseau) + " relié pour " + c.getNom()));
                 List<VisuelGenere> tous = visuels.findByPublicationIdInOrderByCreatedAtDesc(List.of(p.getId()));
                 List<VisuelGenere> photos = List.of();
                 VisuelGenere media = tous.stream().findFirst().orElse(null);
@@ -178,7 +194,7 @@ public class PublicationAutoService {
                         throw new MetaApi.MetaException("Carrousel en vidéo défilante choisi, mais la vidéo n'est pas encore montée");
                     }
                 }
-                return new Travail(compte.getCompteExterneId(), chiffreur.dechiffrer(compte.getJetonChiffre()),
+                return new Travail(reseau, p.getFormat(), compte.getCompteExterneId(), chiffreur.dechiffrer(compte.getJetonChiffre()),
                         message(p), media, photos, c);
             });
         } catch (RuntimeException e) {
@@ -186,17 +202,19 @@ public class PublicationAutoService {
             return;
         }
         try {
-            log.info("Publication {} : envoi sur la Page {}", publicationId, t.pageId());
+            log.info("Publication {} : envoi sur {} {}", publicationId, libelle(t.reseau()), t.compteId());
             MetaApi.Resultat r;
-            if (!t.photos().isEmpty()) {
-                r = meta.publierPhotos(t.pageId(), t.jeton(),
+            if (ComptesSociauxService.INSTAGRAM.equals(t.reseau())) {
+                r = publierSurInstagram(t.compteId(), t.jeton(), t.message(), t.format(), t.media(), t.photos());
+            } else if (!t.photos().isEmpty()) {
+                r = meta.publierPhotos(t.compteId(), t.jeton(),
                         t.photos().stream().map(v -> stockage.lire(v.getChemin())).toList(), t.message());
             } else if (t.media() == null) {
-                r = meta.publierTexte(t.pageId(), t.jeton(), t.message());
+                r = meta.publierTexte(t.compteId(), t.jeton(), t.message());
             } else if (t.media().getTypeMedia() == VisuelGenere.TypeMedia.VIDEO) {
-                r = meta.publierVideo(t.pageId(), t.jeton(), stockage.lire(t.media().getChemin()), t.message());
+                r = meta.publierVideo(t.compteId(), t.jeton(), stockage.lire(t.media().getChemin()), t.message());
             } else {
-                r = meta.publierPhoto(t.pageId(), t.jeton(), stockage.lire(t.media().getChemin()), t.message());
+                r = meta.publierPhoto(t.compteId(), t.jeton(), stockage.lire(t.media().getChemin()), t.message());
             }
             tx.executeWithoutResult(s -> publications.findById(publicationId).ifPresent(p -> {
                 p.setStatut(StatutPublication.PUBLIEE);
@@ -211,6 +229,89 @@ public class PublicationAutoService {
             log.warn("Publication {} : échec — {}", publicationId, e.getMessage());
             echec(publicationId, e.getMessage());
         }
+    }
+
+    static String libelle(String reseau) {
+        return ComptesSociauxService.INSTAGRAM.equals(reseau) ? "Instagram" : "Facebook";
+    }
+
+    /** Instagram télécharge les médias depuis une adresse publique (celle de l'application, relayée par le frontend). */
+    private MetaApi.Resultat publierSurInstagram(String igId, String jeton, String message, String format,
+                                                 VisuelGenere media, List<VisuelGenere> photos) {
+        String legende = legendeInstagram(message);
+        boolean story = "STORY".equals(format);
+        List<String> temporaires = new java.util.ArrayList<>();
+        try {
+            if (!photos.isEmpty()) {
+                List<String> urls = photos.stream().limit(10).map(v -> urlPubliqueJpeg(v, temporaires)).toList();
+                return meta.publierInstagramCarrousel(igId, jeton, urls, legende);
+            }
+            if (media == null) {
+                throw new MetaApi.MetaException("Instagram demande une image ou une vidéo : ajoute un visuel à la publication");
+            }
+            if (media.getTypeMedia() == VisuelGenere.TypeMedia.VIDEO) {
+                return meta.publierInstagramVideo(igId, jeton, urlPublique(media.getChemin()), legende, story);
+            }
+            return meta.publierInstagramImage(igId, jeton, urlPubliqueJpeg(media, temporaires), legende, story);
+        } finally {
+            temporaires.forEach(stockage::supprimer);
+        }
+    }
+
+    private String urlPublique(String chemin) {
+        return props.urlPublique().replaceAll("/+$", "") + com.okpost.client.ClientDtos.urlFichier(chemin);
+    }
+
+    /** Instagram n'accepte que le JPEG : une image PNG est convertie dans un fichier temporaire, supprimé après l'envoi. */
+    private String urlPubliqueJpeg(VisuelGenere v, List<String> temporaires) {
+        if ("image/jpeg".equals(v.getMime())) return urlPublique(v.getChemin());
+        byte[] jpeg;
+        try (var in = stockage.lire(v.getChemin()).getInputStream()) {
+            jpeg = enJpeg(in.readAllBytes());
+        } catch (IOException e) {
+            throw new MetaApi.MetaException("Image illisible sur le serveur");
+        }
+        String chemin = stockage.enregistrer(new ByteArrayInputStream(jpeg), "jpg");
+        temporaires.add(chemin);
+        return urlPublique(chemin);
+    }
+
+    static byte[] enJpeg(byte[] octets) {
+        try {
+            BufferedImage src = javax.imageio.ImageIO.read(new ByteArrayInputStream(octets));
+            if (src == null) {
+                throw new MetaApi.MetaException("Instagram n'accepte que le JPEG : cette image (WebP ?) ne peut pas être convertie, téléverse-la en JPG ou PNG");
+            }
+            BufferedImage out = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = out.createGraphics();
+            g.drawImage(src, 0, 0, Color.WHITE, null);
+            g.dispose();
+            ByteArrayOutputStream sortie = new ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(out, "jpg", sortie);
+            return sortie.toByteArray();
+        } catch (IOException e) {
+            throw new MetaApi.MetaException("Image illisible");
+        }
+    }
+
+    /** Instagram limite la légende à 2 200 caractères et à 30 hashtags. */
+    static String legendeInstagram(String message) {
+        if (message == null) return "";
+        StringBuilder sb = new StringBuilder();
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("#[\\p{L}\\p{N}_]+").matcher(message);
+        int dernier = 0;
+        int n = 0;
+        while (m.find()) {
+            sb.append(message, dernier, m.start());
+            if (++n <= 30) sb.append(m.group());
+            dernier = m.end();
+        }
+        sb.append(message.substring(dernier));
+        String texte = sb.toString().replaceAll("[ \\t]+\\n", "\n").trim();
+        if (texte.length() <= 2200) return texte;
+        String coupe = texte.substring(0, 2199);
+        int i = coupe.lastIndexOf(' ');
+        return (i > 1500 ? coupe.substring(0, i) : coupe) + "…";
     }
 
     private void echec(UUID publicationId, String message) {
@@ -229,7 +330,7 @@ public class PublicationAutoService {
         if (c == null || c.getCmId() == null) return;
         utilisateurs.findById(c.getCmId()).ifPresent(cm -> mail.envoyer(cm.getEmail(),
                 "Publication non publiée pour " + c.getNom(),
-                "La publication du " + p.getDatePrevue() + " n'a pas pu être publiée sur Facebook après "
+                "La publication du " + p.getDatePrevue() + " n'a pas pu être publiée sur " + libelle(p.getReseau()) + " après "
                         + TENTATIVES_MAX + " essais.\n\nRaison : " + message,
                 props.urlPublique() + "/publications/" + p.getId(), "Voir la publication"));
     }

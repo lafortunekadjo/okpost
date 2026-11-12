@@ -97,7 +97,7 @@ public class CalendrierController {
     @ResponseStatus(HttpStatus.CREATED)
     public CalendrierDtos.VisuelVue genererImage(@PathVariable UUID id, @Valid @RequestBody CalendrierDtos.DemandeImage d) {
         return visuels.generer(Session.courante(), id, d.prompt(), d.ratio(), !Boolean.FALSE.equals(d.habiller()),
-                d.accroche(), d.moteur(), d.diapositive());
+                new VisuelService.Saisie(d.accroche(), d.gabarit(), d.chiffre(), d.texte(), d.cta(), d.photo()), d.moteur(), d.diapositive());
     }
 
     /** Photo ou vidéo téléversée par le CM (sans génération). */

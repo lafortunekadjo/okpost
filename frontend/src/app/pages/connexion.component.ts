@@ -23,6 +23,7 @@ import { LogoComponent } from '../shared/logo.component';
           <button class="bouton plein" [disabled]="envoi()">{{ envoi() ? 'Connexion…' : 'Se connecter' }}</button>
         </form>
         <p class="bas">Pas encore de compte ? <a routerLink="/inscription">Essai gratuit de 14 jours</a></p>
+        <p class="bas"><a routerLink="/confidentialite">Confidentialité</a> · <a routerLink="/conditions">Conditions</a></p>
       </div>
     </div>
   `,
