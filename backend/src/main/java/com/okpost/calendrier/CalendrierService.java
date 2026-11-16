@@ -42,11 +42,14 @@ public class CalendrierService {
     private final AbonnementService abonnements;
     private final ApplicationEventPublisher evenements;
     private final VisuelGenereRepository visuels;
+    private final com.okpost.reseaux.PublicationAutoService publicationAuto;
 
     public CalendrierService(CalendrierRepository calendriers, PublicationRepository publications,
                              RetourClientRepository retours, ClientService clients, AbonnementService abonnements,
-                             ApplicationEventPublisher evenements, VisuelGenereRepository visuels) {
+                             ApplicationEventPublisher evenements, VisuelGenereRepository visuels,
+                             @org.springframework.context.annotation.Lazy com.okpost.reseaux.PublicationAutoService publicationAuto) {
         this.visuels = visuels;
+        this.publicationAuto = publicationAuto;
         this.calendriers = calendriers;
         this.publications = publications;
         this.retours = retours;
@@ -181,7 +184,21 @@ public class CalendrierService {
         if (m.brief() != null) p.setBrief(m.brief());
         if (m.scenario() != null) p.setScenario(m.scenario());
         if (m.statut() != null) {
-            p.setStatut(m.statut());
+            StatutPublication avant = p.getStatut();
+            boolean aProgrammer = m.statut() == StatutPublication.PROGRAMMEE
+                    && (avant != StatutPublication.PROGRAMMEE || p.getPublicationPrevue() == null);
+            if (aProgrammer) {
+                // « Programmée » ne doit jamais être posé sans heure de publication : la tâche planifiée ne publie que
+                // les publications dont l'heure est renseignée. On passe donc par la même programmation que le bouton « Programmer ».
+                if (avant != StatutPublication.PROGRAMMEE && avant != StatutPublication.VALIDEE) {
+                    throw ApiException.requeteInvalide("Seule une publication validée peut être programmée : passe-la d'abord en « Validée ».");
+                }
+                Client client = clients.charger(s, charger(s, p.getCalendrierId()).getClientId());
+                publicationAuto.programmer(p, client, null);
+            } else {
+                p.setStatut(m.statut());
+                if (m.statut() != StatutPublication.PROGRAMMEE) p.setPublicationPrevue(null);
+            }
         } else if (p.getStatut() == StatutPublication.A_MODIFIER
                 && (m.legende() != null || m.brief() != null || m.scenario() != null || m.cta() != null)) {
             // Une publication corrigée repasse en brouillon, prête à être renvoyée en validation.
