@@ -17,6 +17,18 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      # Les Docker récents refusent les anciennes versions de l'API que certaines bibliothèques de test utilisent encore
+      - name: Docker, accepter les anciennes versions de l'API
+        run: |
+          sudo mkdir -p /etc/docker
+          if [ -s /etc/docker/daemon.json ]; then
+            sudo jq '. + {"min-api-version": "1.24"}' /etc/docker/daemon.json | sudo tee /etc/docker/daemon.json.new > /dev/null
+            sudo mv /etc/docker/daemon.json.new /etc/docker/daemon.json
+          else
+            echo '{"min-api-version": "1.24"}' | sudo tee /etc/docker/daemon.json > /dev/null
+          fi
+          sudo systemctl restart docker
+          docker version --format 'Docker serveur {{.Server.Version}} (API {{.Server.APIVersion}})'
       - name: Compilation et tests (PostgreSQL via Testcontainers)
         run: mvn -B verify
       # Le jar testé est celui qui sera déployé (compilé pour Java 17, comme le serveur)
