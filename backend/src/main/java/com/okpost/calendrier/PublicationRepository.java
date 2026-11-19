@@ -15,6 +15,8 @@ public interface PublicationRepository extends JpaRepository<Publication, UUID> 
 
     Optional<Publication> findByIdAndWorkspaceId(UUID id, UUID workspaceId);
 
+    List<Publication> findByWorkspaceIdAndStatut(UUID workspaceId, StatutPublication statut);
+
     List<Publication> findByIdInAndCalendrierId(Collection<UUID> ids, UUID calendrierId);
 
     long countByCalendrierIdAndDetailGenereTrue(UUID calendrierId);

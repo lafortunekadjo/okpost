@@ -14,6 +14,13 @@ export interface Offre { nom: string; description?: string; prix?: string; }
 /** Piste de la bibliothèque de musiques du serveur. */
 export interface Musique { id: string; nom: string; taille: number; }
 
+/** Ce qui demande l'attention du CM : publication échouée, sans heure, en retard ou non programmée. */
+export interface Alerte {
+  type: 'ECHEC' | 'SANS_HEURE' | 'EN_RETARD' | 'NON_PROGRAMMEE' | string;
+  niveau: 'ERREUR' | 'ATTENTION' | string;
+  publicationId: string; clientId: string; clientNom: string; reseau: string; date: string; message: string;
+}
+
 export interface Asset { id: string; type: string; url: string; nomOrigine?: string; legende?: string;
   description?: string; tags?: string[]; analyse?: 'AUCUNE' | 'EN_COURS' | 'OK' | 'ECHEC' | string; }
 

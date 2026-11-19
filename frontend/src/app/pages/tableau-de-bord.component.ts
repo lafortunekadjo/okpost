@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ApiService, messageErreur } from '../core/api.service';
-import { Abonnement, ClientResume } from '../core/models';
+import { Abonnement, Alerte, ClientResume, LIBELLES_RESEAU } from '../core/models';
 import { DatePipe } from '@angular/common';
 
 @Component({
@@ -28,6 +28,19 @@ import { DatePipe } from '@angular/common';
       }
       @if (erreur()) { <div class="erreur">{{ erreur() }}</div> }
       @if (erreurReseaux) { <div class="erreur">Connexion Facebook impossible : {{ erreurReseaux }}</div> }
+
+      @if (alertes().length) {
+        <section class="carte surveillance" aria-label="À surveiller">
+          <h2>À surveiller <span class="pastille statut-A_MODIFIER">{{ alertes().length }}</span></h2>
+          @for (a of alertes(); track a.publicationId + a.type) {
+            <a class="alerte niveau-{{ a.niveau }}" [routerLink]="['/publications', a.publicationId]">
+              <strong>{{ a.clientNom }}</strong>
+              <span class="aide">{{ libelleReseau(a.reseau) }} · {{ a.date | date: 'd MMM' }}</span>
+              <span class="texte">{{ a.message }}</span>
+            </a>
+          }
+        </section>
+      }
 
       @if (clients() === null) {
         <p class="chargement">Chargement…</p>
@@ -61,6 +74,12 @@ import { DatePipe } from '@angular/common';
     </div>
   `,
   styles: `
+    .surveillance { border-left: 4px solid #dc2626; margin-bottom: 16px; }
+    .alerte { display: grid; gap: 2px; padding: 10px 0; border-top: 1px solid var(--gris-clair); color: inherit; text-decoration: none; }
+    .alerte:first-of-type { border-top: 0; }
+    .alerte:hover .texte { text-decoration: underline; }
+    .alerte.niveau-ATTENTION { border-left: 3px solid #d97706; padding-left: 8px; }
+    .alerte.niveau-ERREUR { border-left: 3px solid #dc2626; padding-left: 8px; }
     .client { display: block; color: inherit; transition: transform .1s, box-shadow .15s; }
     .client:hover { text-decoration: none; box-shadow: 0 4px 12px rgba(17,24,39,.1); }
     .client h3 { margin: 0; }
@@ -74,11 +93,14 @@ export class TableauDeBordComponent {
   clients = signal<ClientResume[] | null>(null);
   abonnement = signal<Abonnement | null>(null);
   erreur = signal('');
+  alertes = signal<Alerte[]>([]);
+  libelleReseau = (r: string) => LIBELLES_RESEAU[r] ?? r;
   erreurReseaux = new URLSearchParams(window.location.search).get('reseaux') === 'erreur'
     ? new URLSearchParams(window.location.search).get('message') ?? 'erreur inconnue' : '';
 
   constructor() {
     this.api.clients().subscribe({ next: c => this.clients.set(c), error: e => { this.erreur.set(messageErreur(e)); this.clients.set([]); } });
     this.api.abonnement().subscribe({ next: a => this.abonnement.set(a), error: () => {} });
+    this.api.surveillance().subscribe({ next: a => this.alertes.set(a), error: () => {} });
   }
 }

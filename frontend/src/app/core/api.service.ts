@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import {
-  Abonnement, Asset, Musique, Calendrier, CalendrierResume, Client, ClientResume, Consommation, EtatIa,
+  Abonnement, Alerte, Asset, Musique, Calendrier, CalendrierResume, Client, ClientResume, Consommation, EtatIa,
   CompteSocial, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
   PropositionEvenement, TempsFortSuggere, EvenementCatalogue, EvaluationCalendrier, LigneSynthese, NotesPublication,
   BilanPage, Recommandations,
@@ -51,6 +51,7 @@ export class ApiService {
         diapositive: diapositive ?? null, gabarit: affiche?.gabarit || null, chiffre: affiche?.chiffre || null,
         texte: affiche?.texte || null, cta: affiche?.cta || null, photo: affiche?.photo || null });
   }
+  surveillance() { return this.http.get<Alerte[]>(`${this.base}/surveillance`); }
   musiques() { return this.http.get<Musique[]>(`${this.base}/musiques`); }
   ajouterMusique(fichier: File) {
     const f = new FormData();
