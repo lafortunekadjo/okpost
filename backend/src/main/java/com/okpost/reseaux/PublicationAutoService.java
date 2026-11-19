@@ -97,6 +97,9 @@ public class PublicationAutoService {
         if (verifierAuto && !c.isAutoPublication()) {
             return "la case « Publier automatiquement après validation » n'est pas cochée pour " + c.getNom();
         }
+        if (instagram && !meta.instagramActif()) {
+            return "la publication sur Instagram n'est pas encore activée sur le serveur (connexion Instagram non configurée)";
+        }
         if (comptes.findFirstByClientIdAndReseauAndActifTrue(c.getId(), p.getReseau()).isEmpty()) {
             return instagram ? "aucun compte Instagram « utilisé » pour " + c.getNom() + " (relie la Page Facebook liée à son compte Instagram professionnel)"
                     : "aucune Page Facebook « utilisée » pour " + c.getNom();
