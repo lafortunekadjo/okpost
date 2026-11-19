@@ -184,7 +184,7 @@ public class GenerationService {
                 String format = i.format().toUpperCase(Locale.ROOT);
                 p.setFormat("TIKTOK".equals(p.getReseau()) ? "VIDEO" : format);
                 p.setPilier(i.pilier());
-                p.setIdee(i.idee());
+                p.setIdee(NettoyageTextes.idee(i.idee()));
                 p.setObjectif(i.objectif() == null ? null : i.objectif().toUpperCase(Locale.ROOT));
                 p.setTempsFort(i.tempsFort());
                 p.setStatut(StatutPublication.IDEE);

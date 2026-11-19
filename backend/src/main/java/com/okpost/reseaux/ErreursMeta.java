@@ -32,7 +32,7 @@ final class ErreursMeta {
             return Nature.TEMPORAIRE;
         }
         if (contient(m, "aspect ratio", "only photo or video", "refusé le média", "not supported", "unsupported",
-                "invalid parameter", "image illisible", "n'accepte que", "n'a pas été accepté")) {
+                "invalid parameter", "image illisible", "n'accepte que", "n'a pas été accepté", "pas encore montée", "n'est pas encore")) {
             return Nature.DEFINITIVE;
         }
         return Nature.TEMPORAIRE;

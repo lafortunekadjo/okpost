@@ -45,4 +45,15 @@ public interface PublicationRepository extends JpaRepository<Publication, UUID> 
     @Query("select count(p) from Publication p, Calendrier c where p.calendrierId = c.id and c.clientId = :clientId "
             + "and p.publieeLe >= :debut and p.publieeLe < :fin")
     long compterPublieesParOkPost(UUID clientId, java.time.Instant debut, java.time.Instant fin);
+
+    /** Date de la prochaine publication prévue (programmée ou validée) d'un client. */
+    @Query("select min(p.datePrevue) from Publication p, Calendrier c where p.calendrierId = c.id and c.clientId = :clientId "
+            + "and p.statut in (com.okpost.calendrier.StatutPublication.PROGRAMMEE, com.okpost.calendrier.StatutPublication.VALIDEE) "
+            + "and p.datePrevue >= :aujourdhui")
+    LocalDate prochainePublication(UUID clientId, LocalDate aujourdhui);
+
+    /** Moment de la dernière publication réellement publiée d'un client. */
+    @Query("select max(p.publieeLe) from Publication p, Calendrier c where p.calendrierId = c.id and c.clientId = :clientId "
+            + "and p.statut = com.okpost.calendrier.StatutPublication.PUBLIEE")
+    java.time.Instant dernierePublication(UUID clientId);
 }

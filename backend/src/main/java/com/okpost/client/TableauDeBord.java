@@ -33,6 +33,8 @@ public class TableauDeBord {
         return new ClientResume(c.getId(), c.getNom(), c.getSecteur(), c.getVille(), clients.logoUrl(c.getId()),
                 n.getOrDefault(StatutPublication.A_VALIDER, 0L),
                 n.getOrDefault(StatutPublication.VALIDEE, 0L),
-                n.getOrDefault(StatutPublication.A_MODIFIER, 0L));
+                n.getOrDefault(StatutPublication.A_MODIFIER, 0L),
+                publications.prochainePublication(c.getId(), LocalDate.now()),
+                publications.dernierePublication(c.getId()));
     }
 }

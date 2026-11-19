@@ -104,6 +104,14 @@ public class PublicationAutoService {
             return instagram ? "aucun compte Instagram « utilisé » pour " + c.getNom() + " (relie la Page Facebook liée à son compte Instagram professionnel)"
                     : "aucune Page Facebook « utilisée » pour " + c.getNom();
         }
+        if ("CARROUSEL".equals(p.getFormat())) {
+            List<VisuelGenere> tous = visuels.findByPublicationIdInOrderByCreatedAtDesc(List.of(p.getId()));
+            boolean montage = tous.stream().anyMatch(v -> v.getSource() == VisuelGenere.Source.MONTAGE);
+            String mode = p.getModeCarrousel() != null ? p.getModeCarrousel() : montage ? "VIDEO" : "PHOTOS";
+            if ("VIDEO".equals(mode) && !montage) {
+                return "carrousel en vidéo défilante choisi, mais la vidéo n'est pas encore montée (monte-la, ou choisis « photos »)";
+            }
+        }
         if (instagram) {
             if ("TEXTE".equals(p.getFormat())) return "Instagram demande une image ou une vidéo (format TEXTE)";
             if (visuels.findByPublicationIdInOrderByCreatedAtDesc(List.of(p.getId())).isEmpty()) {

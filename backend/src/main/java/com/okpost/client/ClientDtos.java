@@ -1,6 +1,7 @@
 package com.okpost.client;
 
 import jakarta.validation.constraints.NotBlank;
+import java.time.LocalDate;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -64,7 +65,8 @@ public final class ClientDtos {
             boolean autoPublication, String heurePublication, boolean fetesReligieuses) {}
 
     public record ClientResume(UUID id, String nom, String secteur, String ville, String logoUrl,
-                               long aValider, long validees, long aModifier) {}
+                               long aValider, long validees, long aModifier,
+                               LocalDate prochaine, java.time.Instant derniere) {}
 
     public static String urlFichier(String chemin) {
         return "/api/v1/fichiers/" + chemin;

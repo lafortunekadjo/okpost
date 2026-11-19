@@ -20,6 +20,7 @@ class ErreursMetaTest {
     void unMediaRefuseNEstPasReessaye() {
         assertThat(ErreursMeta.classer("Instagram a refusé le média : ERROR")).isEqualTo(Nature.DEFINITIVE);
         assertThat(ErreursMeta.classer("Instagram : The aspect ratio is not supported")).isEqualTo(Nature.DEFINITIVE);
+        assertThat(ErreursMeta.classer("Carrousel en vidéo défilante choisi, mais la vidéo n'est pas encore montée")).isEqualTo(Nature.DEFINITIVE);
         assertThat(ErreursMeta.classer("Instagram n'accepte que le JPEG : cette image ne peut pas être convertie")).isEqualTo(Nature.DEFINITIVE);
     }
 
