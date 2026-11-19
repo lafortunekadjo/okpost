@@ -3,7 +3,7 @@
   --vert-fonce: #166534;
   --vert-clair: #dcfce7;
   --encre: #111827;
-  --gris: #6b7280;
+  --gris: #4b5563;
   --gris-clair: #e5e7eb;
   --fond: #f6f7f4;
   --carte: #ffffff;
@@ -67,6 +67,8 @@ input[type=text], input[type=email], input[type=password], input[type=number], i
   transition: border-color .15s, box-shadow .15s;
 }
 textarea { resize: vertical; min-height: 84px; }
+a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--vert); outline-offset: 2px; }
+input[type=checkbox], input[type=radio] { accent-color: var(--vert); }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--vert); box-shadow: 0 0 0 3px rgba(21, 128, 61, .15); }
 input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--vert); vertical-align: middle; }
 
@@ -120,6 +122,10 @@ input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--vert); ver
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; }
 
 @media (max-width: 640px) {
+  /* Téléphone : zones tactiles confortables, et 16 px dans les champs pour éviter le zoom automatique d'iOS */
+  .bouton, button { min-height: 40px; }
+  input, select, textarea { font-size: 16px; }
+  .ligne { flex-wrap: wrap; }
   .page { padding: 16px 12px 48px; }
   .carte { padding: 16px; }
   h1 { font-size: 1.3rem; }

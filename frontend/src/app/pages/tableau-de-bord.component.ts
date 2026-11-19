@@ -63,10 +63,15 @@ import { DatePipe } from '@angular/common';
                 </div>
               </div>
               <div class="compteurs">
+                <span class="aide">Ce mois :</span>
                 <span class="pastille statut-A_VALIDER">{{ c.aValider }} à valider</span>
                 <span class="pastille statut-VALIDEE">{{ c.validees }} validées</span>
                 @if (c.aModifier) { <span class="pastille statut-A_MODIFIER">{{ c.aModifier }} à modifier</span> }
               </div>
+              <p class="aide infos-carte">
+                @if (c.prochaine) { Prochaine publication : {{ c.prochaine | date: 'EEE d MMM' }} } @else { Rien de prévu pour l'instant }
+                @if (c.derniere) { <br />Dernière publiée le {{ c.derniere | date: 'd MMM' }} }
+              </p>
             </a>
           }
         </div>
@@ -74,6 +79,7 @@ import { DatePipe } from '@angular/common';
     </div>
   `,
   styles: `
+    .infos-carte { margin: 8px 0 0; }
     .surveillance { border-left: 4px solid #dc2626; margin-bottom: 16px; }
     .alerte { display: grid; gap: 2px; padding: 10px 0; border-top: 1px solid var(--gris-clair); color: inherit; text-decoration: none; }
     .alerte:first-of-type { border-top: 0; }

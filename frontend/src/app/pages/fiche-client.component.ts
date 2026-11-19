@@ -133,7 +133,7 @@ const TYPES_FICHIERS = [
                 </label>
               </div>
               <p class="aide">PNG, JPG, WebP ou SVG, 5 Mo maximum.</p>
-              <app-banque-images [clientId]="id()!" />
+              <app-banque-images [clientId]="id()!" [repliable]="false" />
             }
           }
           @case ('en-ligne') {

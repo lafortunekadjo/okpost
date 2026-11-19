@@ -32,7 +32,7 @@ const FORMULES: Partial<Record<string, string>> = { ESSAI: 'Essai gratuit', SOLO
         <h2>Membres</h2>
         @for (m of membres(); track m.id) {
           <div class="ligne membre">
-            <div class="espace"><strong>{{ m.nom }}</strong> <span class="aide">{{ m.email }}</span></div>
+            <div class="espace"><strong>{{ m.nom }}</strong> <span class="aide" style="margin-left:8px">{{ m.email }}</span></div>
             <span class="pastille">{{ m.role === 'CM' ? 'Community manager' : 'Admin' }}</span>
             @if (!m.actif) { <span class="pastille">Retiré</span> }
             @else if (auth.estAdmin() && m.id !== auth.session()?.userId) {

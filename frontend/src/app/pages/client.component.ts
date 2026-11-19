@@ -1,4 +1,4 @@
-import { Component, inject, input, signal, OnInit } from '@angular/core';
+import { Component, computed, inject, input, signal, OnInit } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -32,6 +32,24 @@ import { BanqueImagesComponent } from '../shared/banque-images.component';
           <div class="info">Pour de meilleurs contenus, complète la fiche : {{ manques().join(', ') }}.</div>
         }
 
+        @if (demarrageIncomplet()) {
+          <div class="carte demarrage">
+            <h2>Pour démarrer avec ce client</h2>
+            <ol class="etapes">
+              @for (e of etapes(); track e.texte) {
+                <li [class.fait]="e.fait">
+                  <span class="coche" aria-hidden="true">{{ e.fait ? '✓' : '○' }}</span>
+                  <span class="espace">{{ e.texte }}</span>
+                  @if (!e.fait) {
+                    @if (e.lien) { <a [routerLink]="e.lien" class="bouton secondaire petit">{{ e.action }}</a> }
+                    @else { <button type="button" class="bouton secondaire petit" (click)="aller(e.ancre!)">{{ e.action }}</button> }
+                  }
+                </li>
+              }
+            </ol>
+          </div>
+        }
+
         <div class="carte">
           <h2>Calendriers</h2>
           @if (calendriers() === null) {
@@ -56,9 +74,9 @@ import { BanqueImagesComponent } from '../shared/banque-images.component';
           }
         </div>
 
-        <app-banque-images [clientId]="c.id!" />
+        <app-banque-images id="banque" [clientId]="c.id!" />
 
-        <div class="carte">
+        <div class="carte" id="reseaux">
           <h2>Réseaux connectés</h2>
           @if (messageReseaux()) { <div class="succes">{{ messageReseaux() }}</div> }
           @if (erreurReseaux()) { <div class="erreur">{{ erreurReseaux() }}</div> }
@@ -76,7 +94,7 @@ import { BanqueImagesComponent } from '../shared/banque-images.component';
               @if (cpt.erreur) { <span class="pastille statut-A_MODIFIER" [title]="cpt.erreur">À reconnecter</span> }
               @if (cpt.actif) { <span class="pastille statut-VALIDEE">Compte utilisé</span> }
               @else { <button class="bouton secondaire petit" (click)="activer(cpt.id)">Utiliser ce compte</button> }
-              <button class="bouton danger petit" (click)="delier(cpt.id)">Délier</button>
+              <button class="bouton danger petit" (click)="delier(cpt.id)">Déconnecter</button>
             </div>
           }
           <div class="ligne" style="margin-top:12px">
@@ -130,6 +148,22 @@ export class ClientComponent implements OnInit {
   calendriers = signal<CalendrierResume[] | null>(null);
   logo = signal<string | null>(null);
   manques = signal<string[]>([]);
+  etapes = computed(() => {
+    const photos = (this.client()?.assets ?? []).filter(a => a.type === 'PHOTO').length;
+    const id = this.id();
+    return [
+      { texte: 'Compléter la fiche du client (offres, ton, cibles…)', fait: this.manques().length === 0, lien: ['/clients', id, 'fiche'], ancre: '', action: 'Compléter' },
+      { texte: 'Ajouter au moins 5 photos à la banque d\'images', fait: photos >= 5, lien: null, ancre: 'banque', action: 'Ajouter des photos' },
+      { texte: 'Relier la Page Facebook du client', fait: this.comptes().length > 0, lien: null, ancre: 'reseaux', action: 'Relier' },
+      { texte: 'Créer le premier calendrier', fait: (this.calendriers() ?? []).length > 0, lien: ['/clients', id, 'calendriers', 'nouveau'], ancre: '', action: 'Créer' },
+    ];
+  });
+
+  demarrageIncomplet = computed(() => this.etapes().some(e => !e.fait));
+
+  aller(ancre: string) {
+    document.getElementById(ancre)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
   erreur = signal('');
   comptes = signal<CompteSocial[]>([]);
   connexionFacebook = signal(false);

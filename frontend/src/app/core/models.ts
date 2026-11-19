@@ -62,6 +62,7 @@ export interface CompteSocial { id: string; reseau: string; nom: string; compteE
 export interface ClientResume {
   id: string; nom: string; secteur?: string; ville?: string; logoUrl?: string;
   aValider: number; validees: number; aModifier: number;
+  prochaine?: string | null; derniere?: string | null;
 }
 
 export interface CalendrierResume {

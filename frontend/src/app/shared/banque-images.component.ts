@@ -16,7 +16,15 @@ const POIDS_MAX = 5 * 1024 * 1024;
   imports: [FormsModule],
   template: `
     <div class="carte banque">
-      <h2>Banque d'images</h2>
+      <div class="entete-banque">
+        <h2>Banque d'images</h2>
+        @if (photos().length) { <span class="aide">{{ photos().length }} photo{{ photos().length > 1 ? 's' : '' }} · {{ decrites() }} décrite{{ decrites() > 1 ? 's' : '' }}</span> }
+        @if (photos().length && repliable()) {
+          <button type="button" class="bouton secondaire petit" [attr.aria-expanded]="ouverte()" (click)="ouverte.set(!ouverte())">
+            {{ ouverte() ? 'Réduire' : 'Voir les photos' }}
+          </button>
+        }
+      </div>
       <p class="aide">Ajoute les vraies photos du client (produits, équipe, lieux, événements). OkPost les décrit, puis les réutilise dans les
         affiches quand le sujet de la publication correspond, au lieu de générer une image. Plus la banque est fournie et variée, plus les
         publications ressemblent au client.</p>
@@ -36,11 +44,11 @@ const POIDS_MAX = 5 * 1024 * 1024;
         <span class="aide">JPG, PNG ou WebP. Les photos sont réduites à {{ cote }} px et converties en JPG avant l'envoi.</span>
       </div>
 
-      @if (photos().length) {
+      @if (photos().length && (ouverte() || !repliable())) {
         <div class="barre">
           <strong>{{ photos().length }} photo{{ photos().length > 1 ? 's' : '' }}</strong>
           <span class="aide">{{ decrites() }} décrite{{ decrites() > 1 ? 's' : '' }}</span>
-          <input type="search" class="filtre" placeholder="Filtrer par mot-clé" [ngModel]="filtre()" (ngModelChange)="filtre.set($event)" />
+          <input type="search" class="filtre" placeholder="Filtrer par mot-clé" [ngModel]="filtre()" (ngModelChange)="filtre.set($event); affichees.set(12)" />
           @if (adecrire().length) {
             <button type="button" class="bouton secondaire petit" [disabled]="lot()" (click)="decrireTout()">
               {{ lot() ? 'Description en cours…' : 'Décrire les ' + adecrire().length + ' photos non décrites' }}
@@ -49,30 +57,40 @@ const POIDS_MAX = 5 * 1024 * 1024;
         </div>
 
         <div class="grille">
-          @for (a of visibles(); track a.id) {
+          @for (a of visibles(); track a.id; let i = $index) {
             <figure>
               <img [src]="a.url" [alt]="a.description || a.nomOrigine || 'Photo'" loading="lazy" />
               <p class="etat" [class.ok]="a.analyse === 'OK'" [class.ecart]="ecartee(a)">{{ etat(a) }}</p>
-              <textarea rows="2" placeholder="Ce que montre la photo" [value]="a.description ?? ''"
+              <textarea rows="2" placeholder="Ce que montre la photo" [attr.aria-label]="'Description de la photo ' + (i + 1)" [value]="a.description ?? ''"
                 (change)="maj(a, { description: valeur($event) })"></textarea>
-              <input type="text" placeholder="mots-clés, séparés par des virgules" [value]="motsAffiches(a)"
+              <input type="text" placeholder="mots-clés, séparés par des virgules" [attr.aria-label]="'Mots-clés de la photo ' + (i + 1)" [value]="motsAffiches(a)"
                 (change)="maj(a, { tags: motsCles($event) })" />
               <div class="actions">
-                <button type="button" class="bouton secondaire petit" [disabled]="a.analyse === 'EN_COURS'" (click)="decrire(a)">Décrire avec l'IA</button>
-                @if (ecartee(a)) { <button type="button" class="bouton secondaire petit" (click)="reactiver(a)">Utiliser quand même</button> }
-                <button type="button" class="bouton danger petit" (click)="supprimer(a)">Supprimer</button>
+                <button type="button" class="bouton secondaire petit" [disabled]="a.analyse === 'EN_COURS'" [attr.aria-label]="'Générer la description de la photo ' + (i + 1)" (click)="decrire(a)">Décrire avec l'IA</button>
+                @if (ecartee(a)) { <button type="button" class="bouton secondaire petit" [attr.aria-label]="'Utiliser la photo ' + (i + 1) + ' malgré tout'" (click)="reactiver(a)">Utiliser quand même</button> }
+                <button type="button" class="bouton danger petit" [attr.aria-label]="'Supprimer la photo ' + (i + 1)" (click)="supprimer(a)">Supprimer</button>
               </div>
             </figure>
           } @empty {
             <p class="aide">Aucune photo ne correspond à « {{ filtre() }} ».</p>
           }
         </div>
-      } @else if (!chargement()) {
+        @if (restantes() > 0) {
+          <div class="ligne" style="justify-content:center;margin-top:14px">
+            <button type="button" class="bouton secondaire" (click)="affichees.set(affichees() + 12)">
+              Afficher plus de photos ({{ restantes() }} restante{{ restantes() > 1 ? 's' : '' }})
+            </button>
+          </div>
+        }
+      } @else if (!chargement() && !photos().length) {
         <p class="aide" style="margin-top:12px">La banque est vide : les visuels seront générés par l'IA.</p>
       }
     </div>
   `,
   styles: [`
+    .entete-banque { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+    .entete-banque h2 { margin: 0; }
+    .entete-banque button { margin-left: auto; }
     .zone { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; padding: 18px; margin: 12px 0;
       border: 2px dashed var(--gris-clair); border-radius: 12px; text-align: center; }
     .zone.survol { border-color: var(--principal, #2563eb); background: rgba(37, 99, 235, .06); }
@@ -92,6 +110,10 @@ export class BanqueImagesComponent implements OnInit {
   private api = inject(ApiService);
 
   clientId = input.required<string>();
+  /** Repliée par défaut sur la page du client (elle peut contenir des dizaines de photos) ; ouverte dans la fiche. */
+  repliable = input(true);
+  ouverte = signal(false);
+  affichees = signal(12);
 
   photos = signal<Asset[]>([]);
   filtre = signal('');
@@ -102,12 +124,14 @@ export class BanqueImagesComponent implements OnInit {
   lot = signal(false);
   cote = COTE_MAX;
 
-  visibles = computed(() => {
+  filtrees = computed(() => {
     const f = this.sansAccents(this.filtre().trim());
     if (!f) return this.photos();
     return this.photos().filter(a =>
       this.sansAccents([a.description, a.nomOrigine, a.legende, ...(a.tags ?? [])].filter(Boolean).join(' ')).includes(f));
   });
+  visibles = computed(() => this.filtrees().slice(0, this.affichees()));
+  restantes = computed(() => Math.max(0, this.filtrees().length - this.affichees()));
   decrites = computed(() => this.photos().filter(a => !!a.description?.trim()).length);
   adecrire = computed(() => this.photos().filter(a => !a.description?.trim() && a.analyse !== 'EN_COURS'));
 
@@ -161,6 +185,7 @@ export class BanqueImagesComponent implements OnInit {
       this.envoi.update(v => (v ? { ...v, fait: v.fait + 1 } : v));
     }
     this.envoi.set(null);
+    this.ouverte.set(true);
     if (refus.length) this.erreur.set(`${refus.length} fichier${refus.length > 1 ? 's' : ''} non ajouté${refus.length > 1 ? 's' : ''} : ${refus.join(' ; ')}`);
     this.suivre();
   }

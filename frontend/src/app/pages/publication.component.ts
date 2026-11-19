@@ -73,7 +73,14 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
 
         @if (message()) { <div class="succes">{{ message() }}</div> }
 
-        <form class="carte" (ngSubmit)="enregistrer()">
+        <form class="carte" id="s-texte" (ngSubmit)="enregistrer()">
+          <nav class="ancres" aria-label="Aller à une section">
+            <span class="aide">Aller à :</span>
+            <button type="button" (click)="aller('s-texte')">Texte</button>
+            @if (pub.format === 'VIDEO') { <button type="button" (click)="aller('s-scenario')">Scénario</button> }
+            @else { <button type="button" (click)="aller('s-visuel')">Brief visuel</button> }
+            <button type="button" (click)="aller('s-medias')">Visuels et vidéos</button>
+          </nav>
           <div class="ligne-champs">
             <div class="champ"><label>Date</label><input type="date" name="date" [(ngModel)]="pub.date" /></div>
             <div class="champ"><label>Réseau</label>
@@ -94,7 +101,7 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
           <div class="champ"><label>Appel à l'action</label><input type="text" name="cta" [(ngModel)]="pub.cta" /></div>
 
           @if (pub.format === 'VIDEO') {
-            <h2>Scénario vidéo</h2>
+            <h2 id="s-scenario">Scénario vidéo</h2>
             <div class="ligne-champs">
               <div class="champ"><label>Titre</label><input type="text" name="sc-titre" [(ngModel)]="scenario.titre" /></div>
               <div class="champ"><label>Durée totale (s)</label><input type="number" name="sc-duree" [(ngModel)]="scenario.dureeTotaleS" /></div>
@@ -119,7 +126,7 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
             <button type="button" class="bouton secondaire petit" (click)="ajouterPlan()">+ Ajouter un plan</button>
             <div class="champ" style="margin-top:14px"><label>Matériel</label><app-puces [(valeurs)]="materiel" /></div>
           } @else {
-            <h2>Brief visuel</h2>
+            <h2 id="s-visuel">Brief visuel</h2>
             <div class="champ"><label>Pour le graphiste</label><textarea name="b-desc" rows="2" [(ngModel)]="brief.description"></textarea></div>
             <div class="champ">
               <div class="ligne"><label class="espace">Prompt d'image <span class="aide">à coller dans Canva, Ideogram, Midjourney…</span></label>
@@ -263,7 +270,7 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
             }
           }
 
-          <h2>Visuels et vidéos</h2>
+          <h2 id="s-medias">Visuels et vidéos</h2>
           <div class="medias">
             <div class="ligne">
               <label class="bouton secondaire" style="margin:0">
@@ -328,7 +335,13 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
     .retour:first-of-type { border-top: none; }
     .retour p { margin: 6px 0 0; }
     .plan { border: 1px solid var(--gris-clair); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
-    .actions { display: flex; border-top: 1px solid var(--gris-clair); margin-top: 20px; padding-top: 16px; }
+    /* Barre d'enregistrement toujours visible au bas de l'écran, même au milieu d'un long formulaire */
+    .actions { display: flex; position: sticky; bottom: 0; z-index: 4; background: #fff; border-top: 1px solid var(--gris-clair);
+      margin: 20px -20px -20px; padding: 12px 20px; border-radius: 0 0 12px 12px; box-shadow: 0 -6px 12px -8px rgba(17, 24, 39, .18); }
+    .ancres { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .ancres button { background: none; border: 1px solid var(--gris-clair); border-radius: 999px; padding: 2px 12px; cursor: pointer; font: inherit; font-size: .85rem; color: var(--encre); }
+    .ancres button:hover { background: var(--vert-clair); }
+    @media (max-width: 640px) { .actions { margin: 20px -16px -16px; padding: 12px 16px; } }
     .images { background: #f9fafb; border-radius: 10px; padding: 14px; margin-bottom: 16px; }
     .case-habiller { display: flex; gap: 8px; align-items: center; font-weight: 500; margin-bottom: 12px; }
     .galerie { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 12px; }
@@ -434,11 +447,16 @@ export class PublicationComponent implements OnInit {
     this.ecoute.set(false);
   }
 
+  aller(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   private afficher(p: Publication) {
     this.p.set({ ...p });
     this.hashtags = [...(p.hashtags ?? [])];
     this.brief = structuredClone(p.brief ?? { textesCarrousel: [] });
     this.brief.textesCarrousel ??= [];
+    this.brief.gabarit ??= '';
     this.scenario = structuredClone(p.scenario ?? { plans: [] });
     this.scenario.plans ??= [];
     this.materiel = [...(this.scenario.materiel ?? [])];
