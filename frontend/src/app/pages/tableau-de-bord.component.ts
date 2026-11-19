@@ -32,8 +32,8 @@ import { DatePipe } from '@angular/common';
       @if (alertes().length) {
         <section class="carte surveillance" aria-label="À surveiller">
           <h2>À surveiller <span class="pastille statut-A_MODIFIER">{{ alertes().length }}</span></h2>
-          @for (a of alertes(); track a.publicationId + a.type) {
-            <a class="alerte niveau-{{ a.niveau }}" [routerLink]="['/publications', a.publicationId]">
+          @for (a of alertes(); track (a.publicationId ?? a.clientId) + a.type + a.reseau) {
+            <a class="alerte niveau-{{ a.niveau }}" [routerLink]="a.publicationId ? ['/publications', a.publicationId] : ['/clients', a.clientId]">
               <strong>{{ a.clientNom }}</strong>
               <span class="aide">{{ libelleReseau(a.reseau) }} · {{ a.date | date: 'd MMM' }}</span>
               <span class="texte">{{ a.message }}</span>

@@ -317,24 +317,41 @@ public class PublicationAutoService {
         return (i > 1500 ? coupe.substring(0, i) : coupe) + "…";
     }
 
+    /**
+     * Une panne passagère est réessayée (après 5 min, puis 20 min, puis 1 h) ; un accès perdu ou un média refusé s'arrête
+     * tout de suite, car réessayer ne servirait à rien : le CM est prévenu et l'alerte apparaît sur le tableau de bord.
+     */
     private void echec(UUID publicationId, String message) {
+        ErreursMeta.Nature nature = ErreursMeta.classer(message);
         tx.executeWithoutResult(s -> publications.findById(publicationId).ifPresent(p -> {
-            p.setTentatives(p.getTentatives() + 1);
+            int tentatives = nature == ErreursMeta.Nature.TEMPORAIRE ? p.getTentatives() + 1 : TENTATIVES_MAX;
+            p.setTentatives(tentatives);
             p.setErreurPublication(message);
-            // Nouvel essai 10 minutes plus tard, jusqu'à 3 tentatives
-            p.setPublicationPrevue(Instant.now().plus(Duration.ofMinutes(10)));
+            p.setPublicationPrevue(Instant.now().plus(ErreursMeta.delai(tentatives)));
             publications.save(p);
-            if (p.getTentatives() >= TENTATIVES_MAX) prevenirCm(p, message);
+            if (nature == ErreursMeta.Nature.ACCES) marquerCompteAReconnecter(p);
+            if (tentatives >= TENTATIVES_MAX) prevenirCm(p, message, nature);
         }));
     }
 
-    private void prevenirCm(Publication p, String message) {
+    private void marquerCompteAReconnecter(Publication p) {
+        Client c = clientDe(p);
+        if (c == null) return;
+        comptes.findFirstByClientIdAndReseauAndActifTrue(c.getId(), p.getReseau()).ifPresent(compte -> {
+            compte.setErreur("L'accès de " + libelle(p.getReseau()) + " a été refusé lors d'une publication : reconnecte le compte.");
+            comptes.save(compte);
+        });
+    }
+
+    private void prevenirCm(Publication p, String message, ErreursMeta.Nature nature) {
         Client c = clientDe(p);
         if (c == null || c.getCmId() == null) return;
+        String conseil = nature == ErreursMeta.Nature.ACCES
+                ? "\n\nLe compte doit probablement être reconnecté : fiche du client, rubrique « Réseaux connectés », puis « Relier »."
+                : nature == ErreursMeta.Nature.DEFINITIVE ? "\n\nLe média ou le texte est refusé : modifie la publication, puis reprogramme-la." : "";
         utilisateurs.findById(c.getCmId()).ifPresent(cm -> mail.envoyer(cm.getEmail(),
                 "Publication non publiée pour " + c.getNom(),
-                "La publication du " + p.getDatePrevue() + " n'a pas pu être publiée sur " + libelle(p.getReseau()) + " après "
-                        + TENTATIVES_MAX + " essais.\n\nRaison : " + message,
+                "La publication du " + p.getDatePrevue() + " n'a pas pu être publiée sur " + libelle(p.getReseau()) + ".\n\nRaison : " + message + conseil,
                 props.urlPublique() + "/publications/" + p.getId(), "Voir la publication"));
     }
 

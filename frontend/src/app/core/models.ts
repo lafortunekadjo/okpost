@@ -16,9 +16,9 @@ export interface Musique { id: string; nom: string; taille: number; }
 
 /** Ce qui demande l'attention du CM : publication échouée, sans heure, en retard ou non programmée. */
 export interface Alerte {
-  type: 'ECHEC' | 'SANS_HEURE' | 'EN_RETARD' | 'NON_PROGRAMMEE' | string;
+  type: 'ECHEC' | 'SANS_HEURE' | 'EN_RETARD' | 'NON_PROGRAMMEE' | 'JETON' | string;
   niveau: 'ERREUR' | 'ATTENTION' | string;
-  publicationId: string; clientId: string; clientNom: string; reseau: string; date: string; message: string;
+  publicationId?: string | null; clientId: string; clientNom: string; reseau: string; date: string; message: string;
 }
 
 export interface Asset { id: string; type: string; url: string; nomOrigine?: string; legende?: string;
@@ -57,7 +57,7 @@ export interface Client {
   fetesReligieuses?: boolean;
 }
 
-export interface CompteSocial { id: string; reseau: string; nom: string; compteExterneId: string; actif: boolean; }
+export interface CompteSocial { id: string; reseau: string; nom: string; compteExterneId: string; actif: boolean; erreur?: string | null; }
 
 export interface ClientResume {
   id: string; nom: string; secteur?: string; ville?: string; logoUrl?: string;

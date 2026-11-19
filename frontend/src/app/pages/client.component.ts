@@ -73,6 +73,7 @@ import { BanqueImagesComponent } from '../shared/banque-images.component';
             <div class="ligne compte">
               <span class="reseau reseau-{{ cpt.reseau }}"></span>
               <strong class="espace">{{ cpt.nom }} <span class="aide">{{ cpt.reseau === 'INSTAGRAM' ? 'Instagram' : 'Facebook' }}</span></strong>
+              @if (cpt.erreur) { <span class="pastille statut-A_MODIFIER" [title]="cpt.erreur">À reconnecter</span> }
               @if (cpt.actif) { <span class="pastille statut-VALIDEE">Compte utilisé</span> }
               @else { <button class="bouton secondaire petit" (click)="activer(cpt.id)">Utiliser ce compte</button> }
               <button class="bouton danger petit" (click)="delier(cpt.id)">Délier</button>

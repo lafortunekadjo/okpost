@@ -49,6 +49,16 @@ public class CompteSocial extends BaseEntity {
     public void setJetonChiffre(String jetonChiffre) { this.jetonChiffre = jetonChiffre; }
     public boolean isActif() { return actif; }
     public void setActif(boolean actif) { this.actif = actif; }
+    @Column(length = 400)
+    private String erreur;
+
+    @Column(name = "verifie_le")
+    private Instant verifieLe;
+
+    public String getErreur() { return erreur; }
+    public void setErreur(String erreur) { this.erreur = erreur; }
+    public Instant getVerifieLe() { return verifieLe; }
+    public void setVerifieLe(Instant verifieLe) { this.verifieLe = verifieLe; }
     public Instant getExpireLe() { return expireLe; }
     public void setExpireLe(Instant expireLe) { this.expireLe = expireLe; }
 }

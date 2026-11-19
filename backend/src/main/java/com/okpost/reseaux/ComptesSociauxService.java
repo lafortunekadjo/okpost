@@ -21,7 +21,7 @@ import java.util.UUID;
 @Service
 public class ComptesSociauxService {
 
-    public record CompteVue(UUID id, String reseau, String nom, String compteExterneId, boolean actif) {}
+    public record CompteVue(UUID id, String reseau, String nom, String compteExterneId, boolean actif, String erreur) {}
 
     public static final String FACEBOOK = "FACEBOOK";
     public static final String INSTAGRAM = "INSTAGRAM";
@@ -124,6 +124,7 @@ public class ComptesSociauxService {
             compte.setCompteExterneId(p.id());
             compte.setNom(p.nom());
             compte.setJetonChiffre(chiffreur.chiffrer(p.jeton()));
+            compte.setErreur(null);
             if (!dejaActif && pages.size() == 1) compte.setActif(true);
             comptes.save(compte);
             meta.compteInstagram(p.id(), p.jeton()).ifPresent(ig -> enregistrerInstagram(c, ig, p.jeton(), pages.size() == 1));
@@ -161,6 +162,6 @@ public class ComptesSociauxService {
     }
 
     static CompteVue vue(CompteSocial c) {
-        return new CompteVue(c.getId(), c.getReseau(), c.getNom(), c.getCompteExterneId(), c.isActif());
+        return new CompteVue(c.getId(), c.getReseau(), c.getNom(), c.getCompteExterneId(), c.isActif(), c.getErreur());
     }
 }

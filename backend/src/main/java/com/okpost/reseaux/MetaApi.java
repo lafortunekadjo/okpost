@@ -70,6 +70,11 @@ public class MetaApi {
         return PERMISSIONS + (instagramActif() ? PERMISSIONS_INSTAGRAM : "");
     }
 
+    /** Le jeton fonctionne-t-il encore ? Lève une MetaException s'il est expiré, révoqué ou sans permission. */
+    public void verifierJeton(String compteId, String jeton) {
+        get("/{c}?fields=id&access_token={t}", compteId, jeton);
+    }
+
     public boolean oauthConfigure() {
         return config != null && notBlank(config.appId()) && notBlank(config.appSecret());
     }

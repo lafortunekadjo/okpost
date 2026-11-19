@@ -11,4 +11,5 @@ public interface CompteSocialRepository extends JpaRepository<CompteSocial, UUID
     List<CompteSocial> findByClientIdAndReseau(UUID clientId, String reseau);
     Optional<CompteSocial> findFirstByClientIdAndReseauAndActifTrue(UUID clientId, String reseau);
     Optional<CompteSocial> findByIdAndClientId(UUID id, UUID clientId);
+    List<CompteSocial> findByWorkspaceId(UUID workspaceId);
 }

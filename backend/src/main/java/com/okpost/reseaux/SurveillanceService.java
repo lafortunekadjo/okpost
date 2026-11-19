@@ -38,9 +38,12 @@ public class SurveillanceService {
     private final CalendrierRepository calendriers;
     private final ClientRepository clients;
     private final PublicationAutoService auto;
+    private final CompteSocialRepository comptes;
 
     public SurveillanceService(PublicationRepository publications, CalendrierRepository calendriers,
-                               ClientRepository clients, PublicationAutoService auto) {
+                               ClientRepository clients, PublicationAutoService auto,
+                               CompteSocialRepository comptes) {
+        this.comptes = comptes;
         this.publications = publications;
         this.calendriers = calendriers;
         this.clients = clients;
@@ -82,6 +85,16 @@ public class SurveillanceService {
             if (raison != null) {
                 alertes.add(alerte("NON_PROGRAMMEE", "ATTENTION", p, c, "Validée mais non programmée : " + raison + "."));
             }
+        }
+
+        // Comptes dont l'accès est perdu : les publications prévues dessus ne partiront pas
+        for (CompteSocial compte : comptes.findByWorkspaceId(workspaceId)) {
+            if (compte.getErreur() == null) continue;
+            Client c = clients.findById(compte.getClientId()).orElse(null);
+            if (c == null) continue;
+            alertes.add(new Alerte("JETON", "ERREUR", null, c.getId(), c.getNom(), compte.getReseau(), LocalDate.now(),
+                    "Le compte " + PublicationAutoService.libelle(compte.getReseau()) + " « " + compte.getNom()
+                            + " » doit être reconnecté : ouvre la fiche du client, rubrique « Réseaux connectés », puis « Relier »."));
         }
 
         alertes.sort(Comparator.comparing((Alerte a) -> "ERREUR".equals(a.niveau()) ? 0 : 1).thenComparing(Alerte::date));
