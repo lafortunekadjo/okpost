@@ -11,6 +11,9 @@ export interface SessionUtilisateur {
 
 export interface Offre { nom: string; description?: string; prix?: string; }
 
+/** Piste de la bibliothèque de musiques du serveur. */
+export interface Musique { id: string; nom: string; taille: number; }
+
 export interface Asset { id: string; type: string; url: string; nomOrigine?: string; legende?: string;
   description?: string; tags?: string[]; analyse?: 'AUCUNE' | 'EN_COURS' | 'OK' | 'ECHEC' | string; }
 

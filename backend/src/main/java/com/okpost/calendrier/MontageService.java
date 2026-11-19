@@ -53,9 +53,12 @@ public class MontageService {
     private final AbonnementService abonnements;
     private final StockageFichiers stockage;
     private final String ffmpeg;
+    private final MusiqueService musiques;
 
     public MontageService(VisuelGenereRepository visuels, CalendrierService calendriers, AbonnementService abonnements,
-                          StockageFichiers stockage, @Value("${okpost.ffmpeg:ffmpeg}") String ffmpeg) {
+                          StockageFichiers stockage, MusiqueService musiques,
+                          @Value("${okpost.ffmpeg:ffmpeg}") String ffmpeg) {
+        this.musiques = musiques;
         this.visuels = visuels;
         this.calendriers = calendriers;
         this.abonnements = abonnements;
@@ -64,7 +67,7 @@ public class MontageService {
     }
 
     public VisuelVue monter(Session s, UUID publicationId, Integer secondesDemandees, String transitionDemandee,
-                            MultipartFile musique) {
+                            MultipartFile musique, String musiqueId) {
         abonnements.exigerEcriture(s.workspaceId());
         Publication p = calendriers.chargerPublication(s, publicationId);
         List<VisuelGenere> images = imagesDuCarrousel(visuels.findByPublicationIdInOrderByCreatedAtDesc(List.of(p.getId())));
@@ -80,6 +83,10 @@ public class MontageService {
         if (musique != null && !musique.isEmpty() && musique.getSize() > MAX_MUSIQUE) {
             throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "Musique trop lourde (15 Mo maximum)");
         }
+
+        // Piste de la bibliothèque, sauf si un fichier a été joint à la demande
+        MusiqueService.Piste piste = (musique == null || musique.isEmpty()) && musiqueId != null && !musiqueId.isBlank()
+                ? musiques.resoudre(musiqueId) : null;
 
         Path dossier = null;
         try {
@@ -101,6 +108,8 @@ public class MontageService {
                 try (InputStream in = musique.getInputStream()) {
                     Files.copy(in, audio);
                 }
+            } else if (piste != null) {
+                audio = piste.chemin();
             }
             Path sortie = dossier.resolve("montage.mp4");
             List<String> commande = commande(ffmpeg, trames, audio, secondes, transition, sortie);
@@ -120,7 +129,7 @@ public class MontageService {
             v.setTaille(Files.size(sortie));
             v.setNomOrigine("carrousel-" + images.size() + "-visuels.mp4");
             v.setPrompt(images.size() + " visuels, " + secondes + " s chacun, transition " + transitionDemandee
-                    + (audio != null ? ", avec musique" : ""));
+                    + (audio != null ? ", avec musique" + (piste != null ? " « " + piste.nom() + " »" : "") : ""));
             return VisuelService.vue(visuels.save(v));
         } catch (IOException e) {
             throw new ApiException(HttpStatus.INTERNAL_SERVER_ERROR, "Montage impossible : " + e.getMessage());

@@ -5,12 +5,13 @@ import { ApiService, messageErreur } from '../core/api.service';
 import { AuthService } from '../core/auth.service';
 import { Abonnement, Consommation, EtatIa, Membre } from '../core/models';
 import { CatalogueEvenementsComponent } from './catalogue-evenements.component';
+import { BibliothequeMusiquesComponent } from '../shared/bibliotheque-musiques.component';
 
 const FORMULES: Partial<Record<string, string>> = { ESSAI: 'Essai gratuit', SOLO: 'Solo', PRO: 'Pro', AGENCE: 'Agence' };
 
 @Component({
   selector: 'app-reglages',
-  imports: [FormsModule, DatePipe, DecimalPipe, CatalogueEvenementsComponent],
+  imports: [FormsModule, DatePipe, DecimalPipe, CatalogueEvenementsComponent, BibliothequeMusiquesComponent],
   template: `
     <div class="page page-etroite">
       <div class="entete-page"><h1>Réglages</h1></div>
@@ -89,6 +90,7 @@ const FORMULES: Partial<Record<string, string>> = { ESSAI: 'Essai gratuit', SOLO
         </div>
       }
       @if (auth.estSuperAdmin()) { <app-catalogue-evenements /> }
+      @if (auth.estSuperAdmin()) { <app-bibliotheque-musiques /> }
     </div>
   `,
   styles: `

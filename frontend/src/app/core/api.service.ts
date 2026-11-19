@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import {
-  Abonnement, Asset, Calendrier, CalendrierResume, Client, ClientResume, Consommation, EtatIa,
+  Abonnement, Asset, Musique, Calendrier, CalendrierResume, Client, ClientResume, Consommation, EtatIa,
   CompteSocial, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
   PropositionEvenement, TempsFortSuggere, EvenementCatalogue, EvaluationCalendrier, LigneSynthese, NotesPublication,
   BilanPage, Recommandations,
@@ -51,11 +51,20 @@ export class ApiService {
         diapositive: diapositive ?? null, gabarit: affiche?.gabarit || null, chiffre: affiche?.chiffre || null,
         texte: affiche?.texte || null, cta: affiche?.cta || null, photo: affiche?.photo || null });
   }
-  monterCarrousel(id: string, secondes: number, transition: string, musique?: File | null) {
+  musiques() { return this.http.get<Musique[]>(`${this.base}/musiques`); }
+  ajouterMusique(fichier: File) {
+    const f = new FormData();
+    f.append('fichier', fichier);
+    return this.http.post<Musique>(`${this.base}/musiques`, f);
+  }
+  supprimerMusique(id: string) { return this.http.delete<void>(`${this.base}/musiques/${id}`); }
+  ecouterMusique(id: string) { return this.http.get(`${this.base}/musiques/${id}/ecoute`, { responseType: 'blob' }); }
+  monterCarrousel(id: string, secondes: number, transition: string, musique?: File | null, musiqueId?: string | null) {
     const f = new FormData();
     f.append('secondes', String(secondes));
     f.append('transition', transition);
     if (musique) f.append('musique', musique);
+    if (musiqueId) f.append('musiqueId', musiqueId);
     return this.http.post<Visuel>(`${this.base}/publications/${id}/montage`, f);
   }
   modeCarrousel(id: string, mode: 'VIDEO' | 'PHOTOS') {

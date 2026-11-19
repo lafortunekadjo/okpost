@@ -5,7 +5,7 @@ import { HttpEventType } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { ApiService, messageErreur } from '../core/api.service';
 import {
-  BriefVisuel, LIBELLES_FORMAT, LIBELLES_RESEAU, LIBELLES_STATUT, Publication, RESEAUX, ScenarioVideo, StatutPublication,
+  BriefVisuel, LIBELLES_FORMAT, LIBELLES_RESEAU, LIBELLES_STATUT, Musique, Publication, RESEAUX, ScenarioVideo, StatutPublication,
 } from '../core/models';
 import { PucesComponent } from '../shared/puces.component';
 
@@ -233,7 +233,19 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
                       <select name="m-transition" [(ngModel)]="transitionMontage">
                         <option value="fondu">Fondu</option><option value="glissement">Glissement</option><option value="zoom">Zoom</option>
                       </select></div>
-                    <div class="champ"><label>Musique <span class="aide">facultative, MP3 ou M4A, 15 Mo</span></label>
+                    <div class="champ"><label>Musique <span class="aide">facultative</span></label>
+                      @if (musiques().length) {
+                        <div class="ligne">
+                          <select name="m-musique" [(ngModel)]="musiqueId">
+                            <option value="">Aucune musique</option>
+                            @for (m of musiques(); track m.id) { <option [value]="m.id">{{ m.nom }}</option> }
+                          </select>
+                          @if (musiqueId) {
+                            <button type="button" class="bouton secondaire petit" (click)="ecouterMusique()">{{ ecoute() ? 'Arrêter' : 'Écouter' }}</button>
+                          }
+                        </div>
+                        <span class="aide">ou ton propre fichier (MP3 ou M4A, 15 Mo) ; il remplace la musique choisie ci-dessus :</span>
+                      }
                       <input type="file" accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/wav,audio/ogg" (change)="choisirMusique($event)" /></div>
                   </div>
                   <p class="aide">Utilise une musique libre de droits ou dont le client a les droits : Facebook peut couper le son d’un Reel sinon.</p>
@@ -368,6 +380,11 @@ export class PublicationComponent implements OnInit {
   secondesMontage = 3;
   transitionMontage = 'fondu';
   musique: File | null = null;
+  musiques = signal<Musique[]>([]);
+  musiqueId = '';
+  ecoute = signal(false);
+  private lecteur = new Audio();
+  private adresseLecture: string | null = null;
 
   hashtags: string[] = [];
   materiel: string[] = [];
@@ -391,7 +408,30 @@ export class PublicationComponent implements OnInit {
       },
       error: () => {},
     });
+    this.api.musiques().subscribe({ next: l => this.musiques.set(l), error: () => {} });
+    this.lecteur.onended = () => this.ecoute.set(false);
     this.api.publication(this.id()).subscribe({ next: p => this.afficher(p), error: e => this.erreur.set(messageErreur(e)) });
+  }
+
+  /** Écoute la piste choisie (chargée avec la session, donc via un blob). */
+  ecouterMusique() {
+    if (this.ecoute()) { this.arreterLecture(); return; }
+    if (!this.musiqueId) return;
+    this.api.ecouterMusique(this.musiqueId).subscribe({
+      next: blob => {
+        this.arreterLecture();
+        this.adresseLecture = URL.createObjectURL(blob);
+        this.lecteur.src = this.adresseLecture;
+        this.lecteur.play().then(() => this.ecoute.set(true)).catch(() => this.erreur.set('Lecture impossible dans ce navigateur'));
+      },
+      error: e => this.erreur.set(messageErreur(e)),
+    });
+  }
+
+  private arreterLecture() {
+    this.lecteur.pause();
+    if (this.adresseLecture) { URL.revokeObjectURL(this.adresseLecture); this.adresseLecture = null; }
+    this.ecoute.set(false);
   }
 
   private afficher(p: Publication) {
@@ -582,7 +622,8 @@ export class PublicationComponent implements OnInit {
     if (!p) return;
     this.montageEnCours.set(true);
     this.erreur.set('');
-    this.api.monterCarrousel(p.id, this.secondesMontage, this.transitionMontage, this.musique).subscribe({
+    this.arreterLecture();
+    this.api.monterCarrousel(p.id, this.secondesMontage, this.transitionMontage, this.musique, this.musiqueId).subscribe({
       next: v => {
         const actuel = this.p()!;
         this.p.set({ ...actuel, visuels: [v, ...(actuel.visuels ?? [])], modeCarrousel: 'VIDEO' });

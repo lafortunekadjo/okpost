@@ -118,8 +118,9 @@ public class CalendrierController {
             @org.springframework.web.bind.annotation.RequestParam(value = "secondes", required = false) Integer secondes,
             @org.springframework.web.bind.annotation.RequestParam(value = "transition", required = false) String transition,
             @org.springframework.web.bind.annotation.RequestParam(value = "musique", required = false)
-            org.springframework.web.multipart.MultipartFile musique) {
-        return montage.monter(Session.courante(), id, secondes, transition, musique);
+            org.springframework.web.multipart.MultipartFile musique,
+            @org.springframework.web.bind.annotation.RequestParam(value = "musiqueId", required = false) String musiqueId) {
+        return montage.monter(Session.courante(), id, secondes, transition, musique, musiqueId);
     }
 
     /** Carrousel sur Facebook : vidéo défilante (VIDEO) ou plusieurs photos dans une publication (PHOTOS). */
