@@ -8,3 +8,4 @@ deploy/.env
 .vscode/
 *.log
 backend/doc/
+backend/config/
