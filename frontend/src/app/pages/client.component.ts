@@ -62,8 +62,13 @@ import { BanqueImagesComponent } from '../shared/banque-images.component';
           <h2>Réseaux connectés</h2>
           @if (messageReseaux()) { <div class="succes">{{ messageReseaux() }}</div> }
           @if (erreurReseaux()) { <div class="erreur">{{ erreurReseaux() }}</div> }
-          <p class="aide">Relie la Page Facebook du client : son compte Instagram professionnel, s'il est lié à la Page, est relié en même temps.
-            Les publications validées pourront se publier toutes seules sur les deux. TikTok et LinkedIn viendront ensuite.</p>
+          @if (instagramDisponible()) {
+            <p class="aide">Relie la Page Facebook du client : son compte Instagram professionnel, s'il est lié à la Page, est relié en même temps.
+              Les publications validées pourront se publier toutes seules sur les deux. TikTok et LinkedIn viendront ensuite.</p>
+          } @else {
+            <p class="aide">Relie la Page Facebook du client : les publications validées pourront se publier toutes seules.
+              Instagram, TikTok et LinkedIn viendront ensuite.</p>
+          }
           @for (cpt of comptes(); track cpt.id) {
             <div class="ligne compte">
               <span class="reseau reseau-{{ cpt.reseau }}"></span>
@@ -127,6 +132,7 @@ export class ClientComponent implements OnInit {
   erreur = signal('');
   comptes = signal<CompteSocial[]>([]);
   connexionFacebook = signal(false);
+  instagramDisponible = signal(false);
   modeJeton = signal(false);
   messageReseaux = signal('');
   erreurReseaux = signal('');
@@ -159,7 +165,7 @@ export class ClientComponent implements OnInit {
 
   chargerComptes() {
     this.api.comptesSociaux(this.id()).subscribe({
-      next: r => { this.comptes.set(r.comptes); this.connexionFacebook.set(r.connexionFacebookDisponible); },
+      next: r => { this.comptes.set(r.comptes); this.connexionFacebook.set(r.connexionFacebookDisponible); this.instagramDisponible.set(!!r.instagramDisponible); },
       error: () => {},
     });
   }

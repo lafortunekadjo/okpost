@@ -15,7 +15,7 @@ public record OkpostProperties(
         String cleChiffrement) {
 
     /** Application Meta (Facebook / Instagram) pour relier les Pages et publier. */
-    public record Meta(String appId, String appSecret, String version) {}
+    public record Meta(String appId, String appSecret, String version, boolean instagram) {}
 
     public record Jwt(String secret, int accesMinutes, int rafraichissementJours) {}
 

@@ -63,7 +63,8 @@ public class ReseauxController {
 
     @GetMapping("/clients/{id}/comptes-sociaux")
     public Map<String, Object> lister(@PathVariable UUID id) {
-        return Map.of("comptes", comptes.lister(Session.courante(), id), "connexionFacebookDisponible", meta.oauthConfigure());
+        return Map.of("comptes", comptes.lister(Session.courante(), id), "connexionFacebookDisponible", meta.oauthConfigure(),
+                "instagramDisponible", meta.instagramActif());
     }
 
     @GetMapping("/clients/{id}/comptes-sociaux/facebook/connexion")

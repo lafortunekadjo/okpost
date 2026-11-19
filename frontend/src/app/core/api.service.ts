@@ -87,7 +87,7 @@ export class ApiService {
   revoquerLien(lienId: string) { return this.http.delete<void>(`${this.base}/liens-validation/${lienId}`); }
 
   comptesSociaux(clientId: string) {
-    return this.http.get<{ comptes: CompteSocial[]; connexionFacebookDisponible: boolean }>(`${this.base}/clients/${clientId}/comptes-sociaux`);
+    return this.http.get<{ comptes: CompteSocial[]; connexionFacebookDisponible: boolean; instagramDisponible?: boolean }>(`${this.base}/clients/${clientId}/comptes-sociaux`);
   }
   urlConnexionFacebook(clientId: string) {
     return this.http.get<{ url: string }>(`${this.base}/clients/${clientId}/comptes-sociaux/facebook/connexion`);

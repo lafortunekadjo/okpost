@@ -23,8 +23,8 @@ import java.util.List;
 @Component
 public class MetaApi {
 
-    public static final String PERMISSIONS = "pages_show_list,pages_read_engagement,pages_manage_posts,read_insights,"
-            + "pages_read_user_content,instagram_basic,instagram_content_publish";
+    public static final String PERMISSIONS = "pages_show_list,pages_read_engagement,pages_manage_posts,read_insights,pages_read_user_content";
+    public static final String PERMISSIONS_INSTAGRAM = ",instagram_basic,instagram_content_publish";
 
     public record Page(String id, String nom, String jeton) {}
 
@@ -61,6 +61,15 @@ public class MetaApi {
         this.graphVideo = RestClient.builder().requestFactory(f).baseUrl("https://graph-video.facebook.com/" + v).build();
     }
 
+    /** Instagram demande des permissions que l'app Meta doit proposer : sinon Facebook refuse toute la connexion. */
+    public boolean instagramActif() {
+        return config != null && config.instagram();
+    }
+
+    public String permissions() {
+        return PERMISSIONS + (instagramActif() ? PERMISSIONS_INSTAGRAM : "");
+    }
+
     public boolean oauthConfigure() {
         return config != null && notBlank(config.appId()) && notBlank(config.appSecret());
     }
@@ -71,7 +80,7 @@ public class MetaApi {
                 .queryParam("client_id", config.appId())
                 .queryParam("redirect_uri", redirection)
                 .queryParam("state", etat)
-                .queryParam("scope", PERMISSIONS)
+                .queryParam("scope", permissions())
                 .queryParam("response_type", "code")
                 .encode().build().toUriString();
     }
@@ -253,6 +262,7 @@ public class MetaApi {
 
     /** Compte Instagram professionnel lié à la Page (vide s'il n'y en a pas, ou si la permission instagram_basic manque). */
     public java.util.Optional<CompteInstagram> compteInstagram(String pageId, String jetonPage) {
+        if (!instagramActif()) return java.util.Optional.empty();
         try {
             JsonNode r = get("/{p}?fields={f}&access_token={t}", pageId, "instagram_business_account{id,username}", jetonPage);
             JsonNode ig = r.path("instagram_business_account");

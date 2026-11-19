@@ -17,8 +17,8 @@ spring:
     enabled: true
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 6MB
+      max-file-size: 16MB
+      max-request-size: 17MB
   mail:
     host: ${MAIL_HOST:localhost}
     port: ${MAIL_PORT:587}
@@ -56,6 +56,10 @@ okpost:
     rafraichissement-jours: 7
   fichiers:
     dossier: ${FILES_DIR:./data/fichiers}
+  # Montage vidéo des carrousels : « ffmpeg » du PATH, ou le chemin complet via FFMPEG_PATH
+  ffmpeg: ${FFMPEG_PATH:ffmpeg}
+  # Bibliothèque de musiques libres de droits (fichiers audio déposés par le super-admin)
+  musiques: ${MUSIQUES_DIR:${FILES_DIR:./data/fichiers}/../musiques}
   mail:
     expediteur: ${MAIL_FROM:OkPost <no-reply@okpost.app>}
     actif: ${MAIL_ENABLED:false}
@@ -97,6 +101,9 @@ okpost:
     app-id: ${META_APP_ID:}
     app-secret: ${META_APP_SECRET:}
     version: ${META_GRAPH_VERSION:v23.0}
+    # Publication Instagram via la connexion Facebook : à passer à true seulement quand l'app Meta propose
+    # les permissions instagram_basic et instagram_content_publish (sinon Facebook refuse toute la connexion)
+    instagram: ${META_INSTAGRAM:false}
 
 
 
