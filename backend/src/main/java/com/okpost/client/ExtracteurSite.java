@@ -21,7 +21,7 @@ final class ExtracteurSite {
 
     record ContenuSite(String url, String titre, String description, String nomSite, List<String> couleurs,
                        Map<String, String> reseaux, String whatsapp, List<String> telephones, List<String> logos,
-                       String donneesStructurees, String texte, List<String> pagesLues) {
+                       List<String> photos, String donneesStructurees, String texte, List<String> pagesLues) {
 
         /** Texte envoyé à l'IA. Le contenu du site est une donnée à analyser, jamais une consigne. */
         String pourIa() {
@@ -102,6 +102,7 @@ final class ExtracteurSite {
         String whatsapp = null;
         Set<String> telephones = new LinkedHashSet<>();
         Set<String> logos = new LinkedHashSet<>();
+        Set<String> photos = new LinkedHashSet<>();
         StringBuilder json = new StringBuilder();
         StringBuilder texte = new StringBuilder();
         List<String> lues = new ArrayList<>();
@@ -129,6 +130,16 @@ final class ExtracteurSite {
                     if (indice.contains("logo")) ajouterLogo(logos, img.absUrl("src"));
                 }
             }
+            if (p == pages.get(0)) ajouterPhoto(photos, d.select("meta[property=og:image]").attr("abs:content"));
+            for (Element img : d.select("img")) {
+                if (dansMenuOuPied(img) || tropPetite(img)) continue;
+                String source = meilleureSource(img);
+                if (source == null) continue;
+                // On juge le chemin de la vraie image (pas un « placeholder » de chargement différé, ni le nom de domaine)
+                String indice = (cheminDe(source) + " " + img.attr("alt") + " " + img.attr("class") + " " + img.id()).toLowerCase(Locale.ROOT);
+                if (INDICES_NON_PHOTO.matcher(indice).find()) continue;
+                ajouterPhoto(photos, source);
+            }
             int nbJson = 0;
             for (Element s : d.select("script[type=application/ld+json]")) {
                 if (nbJson++ >= 2 || json.length() > 4000) break;
@@ -139,7 +150,7 @@ final class ExtracteurSite {
             }
         }
         return new ContenuSite(url, accueil.title().trim(), description, meta(accueil, "meta[property=og:site_name]"),
-                new ArrayList<>(couleurs), reseaux, whatsapp, new ArrayList<>(telephones), new ArrayList<>(logos).subList(0, Math.min(5, logos.size())),
+                new ArrayList<>(couleurs), reseaux, whatsapp, new ArrayList<>(telephones), new ArrayList<>(logos).subList(0, Math.min(5, logos.size())), photosRetenues(photos, logos),
                 json.toString().trim(), coupe(texte.toString(), TEXTE_TOTAL), lues);
     }
 
@@ -199,7 +210,80 @@ final class ExtracteurSite {
     }
 
     private static void ajouterLogo(Set<String> logos, String url) {
-        if (url != null && url.toLowerCase(Locale.ROOT).startsWith("http") && !url.toLowerCase(Locale.ROOT).endsWith(".ico")) logos.add(url);
+        if (url == null || !url.toLowerCase(Locale.ROOT).startsWith("http")) return;
+        String u = url.toLowerCase(Locale.ROOT).replaceAll("[?#].*$", "");
+        if (!u.endsWith(".ico") && !u.endsWith(".svg")) logos.add(url); // l'icône et le vectoriel ne servent pas aux affiches
+    }
+
+    // ------------------------------------------------------------------ photos
+
+    private static final Pattern INDICES_NON_PHOTO = Pattern.compile(
+            "logo|icon|sprite|avatar|emoji|pixel|tracking|loader|spinner|placeholder|flag|badge|payment|visa|mastercard|paypal|banner-ad|captcha");
+
+    private static boolean dansMenuOuPied(Element img) {
+        for (Element e = img.parent(); e != null; e = e.parent()) {
+            if (e.tagName().equals("nav") || e.tagName().equals("footer")) return true;
+        }
+        return false;
+    }
+
+    /** Dimensions déclarées dans la page : une vignette ou une icône (moins de 200 px) n'est pas une photo. */
+    private static boolean tropPetite(Element img) {
+        int w = entier(img.attr("width"));
+        int h = entier(img.attr("height"));
+        return (w > 0 && w < 200) || (h > 0 && h < 200);
+    }
+
+    private static int entier(String v) {
+        Matcher m = Pattern.compile("^\\s*(\\d{1,5})").matcher(v == null ? "" : v);
+        return m.find() ? Integer.parseInt(m.group(1)) : 0;
+    }
+
+    /** La plus grande version proposée dans srcset, sinon les attributs des chargements différés, sinon src. */
+    static String meilleureSource(Element img) {
+        String srcset = img.attr("srcset").isBlank() ? img.attr("data-srcset") : img.attr("srcset");
+        String meilleure = null;
+        double max = -1;
+        for (String entree : srcset.split(",")) {
+            String[] parties = entree.trim().split("\\s+");
+            if (parties[0].isBlank()) continue;
+            double valeur = parties.length > 1 ? entier(parties[1]) : 1;
+            if (valeur > max) {
+                max = valeur;
+                try {
+                    meilleure = java.net.URI.create(img.baseUri()).resolve(parties[0]).toString();
+                } catch (IllegalArgumentException e) {
+                    // adresse invalide : on garde la précédente
+                }
+            }
+        }
+        if (meilleure != null) return meilleure;
+        for (String attribut : List.of("data-src", "data-lazy-src", "data-original", "src")) {
+            String u = img.absUrl(attribut);
+            if (!u.isBlank()) return u;
+        }
+        return null;
+    }
+
+    private static void ajouterPhoto(Set<String> photos, String url) {
+        if (url == null || !url.toLowerCase(Locale.ROOT).startsWith("http")) return;
+        String u = url.toLowerCase(Locale.ROOT).replaceAll("[?#].*$", "");
+        if (u.endsWith(".svg") || u.endsWith(".gif") || u.endsWith(".ico")) return;
+        photos.add(url);
+    }
+
+    /** L'image de partage du site peut être à la fois un logo possible et une photo : elle est proposée dans les deux listes. */
+    private static List<String> photosRetenues(Set<String> photos, Set<String> logos) {
+        return photos.stream().limit(12).toList();
+    }
+
+    private static String cheminDe(String url) {
+        try {
+            String chemin = java.net.URI.create(url).getPath();
+            return chemin == null ? "" : chemin;
+        } catch (IllegalArgumentException e) {
+            return "";
+        }
     }
 
     private static String meta(Document d, String selecteur) {

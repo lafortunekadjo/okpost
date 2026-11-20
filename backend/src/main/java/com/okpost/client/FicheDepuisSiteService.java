@@ -36,7 +36,7 @@ public class FicheDepuisSiteService {
                                 String ville, String pays, String zone, String adresse, String horaires, String langue,
                                 String ton, Boolean tutoiement, List<Client.Offre> offres, List<String> cibles,
                                 List<String> couleurs, String domaine, Map<String, String> reseaux, String whatsapp,
-                                List<String> logos, List<String> sources, List<String> avertissements) {}
+                                List<String> logos, List<String> photos, List<String> sources, List<String> avertissements) {}
 
     private static final int ANALYSES_PAR_HEURE = 15;
 
@@ -51,10 +51,12 @@ public class FicheDepuisSiteService {
         this.abonnements = abonnements;
     }
 
-    public FicheProposee proposer(Session s, String url) {
+    /** @param seulementImages ne cherche que le logo et les photos du site, sans appeler l'IA (rapide et gratuit) */
+    public FicheProposee proposer(Session s, String url, boolean seulementImages) {
         abonnements.exigerEcriture(s.workspaceId());
         limiter(s.workspaceId());
         ContenuSite site = lecteur.lire(url);
+        if (seulementImages) return assembler(site, null);
         FicheSite ia;
         try {
             ia = selecteur.pour(s.workspaceId()).analyserSite(s.workspaceId(), site.pourIa());
@@ -110,7 +112,7 @@ public class FicheDepuisSiteService {
                 annee, max(f.ville(), 100), max(f.pays(), 100), max(f.zone(), 255), max(f.adresse(), 255), max(f.horaires(), 255),
                 langue, max(f.ton(), 255), f.tutoiement(), offres, cibles,
                 couleurs.stream().limit(3).toList(), domaine(site.url()), site.reseaux(), site.whatsapp(),
-                site.logos(), site.pagesLues(), avertissements);
+                site.logos(), site.photos(), site.pagesLues(), avertissements);
     }
 
     /** exemple.com : adresse sans protocole, sans « www. » ni chemin. */

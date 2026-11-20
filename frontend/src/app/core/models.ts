@@ -30,7 +30,7 @@ export interface FicheProposee {
   ville?: string | null; pays?: string | null; zone?: string | null; adresse?: string | null; horaires?: string | null;
   langue?: 'fr' | 'en' | null; ton?: string | null; tutoiement?: boolean | null;
   offres: Offre[]; cibles: string[]; couleurs: string[]; domaine?: string | null; reseaux: Record<string, string>;
-  whatsapp?: string | null; logos: string[]; sources: string[]; avertissements: string[];
+  whatsapp?: string | null; logos: string[]; photos: string[]; sources: string[]; avertissements: string[];
 }
 
 export interface Client {

@@ -119,6 +119,29 @@ public class ClientService {
         return assets.save(a);
     }
 
+    /** Enregistre une image déjà téléchargée et préparée (import depuis le site web d'un client). */
+    @Transactional
+    public ClientAsset ajouterOctets(Session s, UUID clientId, ClientAsset.Type type, String legende, byte[] octets, String nomOrigine) {
+        abonnements.exigerEcriture(s.workspaceId());
+        charger(s, clientId);
+        if (octets == null || octets.length == 0) throw ApiException.requeteInvalide("Fichier vide");
+        if (octets.length > 5L * 1024 * 1024) throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "Fichier trop lourd (5 Mo maximum)");
+        TypeImage t = TypeImage.detecter(octets);
+        if (t == null || (t == TypeImage.SVG && type == ClientAsset.Type.PHOTO)) {
+            throw new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Formats acceptés : PNG, JPG ou WebP");
+        }
+        String chemin = stockage.enregistrer(new ByteArrayInputStream(octets), t.extension);
+        ClientAsset a = new ClientAsset();
+        a.setClientId(clientId);
+        a.setType(type);
+        a.setChemin(chemin);
+        a.setNomOrigine(nomOrigine);
+        a.setMime(t.mime);
+        a.setTaille(octets.length);
+        a.setLegende(legende);
+        return assets.save(a);
+    }
+
     /** Corrige la description ou les mots-clés d'une photo (la recherche de la banque s'appuie dessus). */
     @Transactional
     public ClientAsset modifierFichier(Session s, UUID clientId, UUID assetId, ClientDtos.AssetModif m) {

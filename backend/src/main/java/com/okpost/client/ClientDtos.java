@@ -69,7 +69,11 @@ public final class ClientDtos {
                                LocalDate prochaine, java.time.Instant derniere) {}
 
     /** Adresse du site web à lire pour pré-remplir la fiche. */
-    public record DemandeSite(@jakarta.validation.constraints.NotBlank @Size(max = 255) String url) {}
+    public record DemandeSite(@jakarta.validation.constraints.NotBlank @Size(max = 255) String url, Boolean seulementImages) {}
+
+    /** Image du site d'un client à importer : un logo ou une photo pour la banque d'images. */
+    public record DemandeImportImage(@jakarta.validation.constraints.NotBlank @Size(max = 2000) String url,
+                                     @jakarta.validation.constraints.NotNull ClientAsset.Type type) {}
 
     public static String urlFichier(String chemin) {
         return "/api/v1/fichiers/" + chemin;

@@ -51,7 +51,14 @@ export class ApiService {
         diapositive: diapositive ?? null, gabarit: affiche?.gabarit || null, chiffre: affiche?.chiffre || null,
         texte: affiche?.texte || null, cta: affiche?.cta || null, photo: affiche?.photo || null });
   }
-  analyserSite(url: string) { return this.http.post<FicheProposee>(`${this.base}/clients/analyser-site`, { url }); }
+  /** seulementImages : ne cherche que le logo et les photos (sans IA, rapide). */
+  analyserSite(url: string, seulementImages = false) {
+    return this.http.post<FicheProposee>(`${this.base}/clients/analyser-site`, { url, seulementImages });
+  }
+  /** Importe dans la fiche une image du site du client : logo, ou photo pour la banque d'images. */
+  importerImage(clientId: string, url: string, type: 'PHOTO' | 'LOGO_COULEUR') {
+    return this.http.post<Asset>(`${this.base}/clients/${clientId}/assets/depuis-url`, { url, type });
+  }
   surveillance() { return this.http.get<Alerte[]>(`${this.base}/surveillance`); }
   musiques() { return this.http.get<Musique[]>(`${this.base}/musiques`); }
   ajouterMusique(fichier: File) {

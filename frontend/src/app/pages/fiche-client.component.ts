@@ -1,4 +1,5 @@
-import { Component, inject, input, signal, OnInit } from '@angular/core';
+import { Component, computed, inject, input, signal, OnInit } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService, messageErreur } from '../core/api.service';
@@ -43,6 +44,9 @@ const TYPES_FICHIERS = [
           <button type="button" class="bouton" [disabled]="lectureSite() || !(siteUrl || c.domaine)" (click)="lireSite()">
             {{ lectureSite() ? 'Lecture du site… (30 s au plus)' : 'Lire le site' }}
           </button>
+          @if (id()) {
+            <button type="button" class="bouton secondaire" [disabled]="lectureSite() || !(siteUrl || c.domaine)" (click)="chercherImages()">Chercher les images</button>
+          }
         </div>
         <label class="case" style="margin-top:8px"><input type="checkbox" name="ecraser" [(ngModel)]="ecraser" /> Remplacer aussi les champs déjà remplis</label>
         @if (resumeSite(); as r) {
@@ -54,6 +58,43 @@ const TYPES_FICHIERS = [
             @if (r.ignores.length) { <br /><span class="aide">Déjà remplis, non modifiés : {{ r.ignores.join(', ') }}.</span> }
           </div>
           @for (a of r.avertissements; track a) { <div class="info" style="margin-top:8px">{{ a }}</div> }
+        }
+
+        @if (logosTrouves().length || photosTrouvees().length) {
+          <div class="images-site">
+            <h3>Images trouvées sur le site</h3>
+            @if (!id()) {
+              <div class="info">Enregistre d'abord la fiche : tu pourras ensuite importer le logo et les photos (bouton « Chercher les images »).</div>
+            }
+            @if (logosTrouves().length) {
+              <p class="aide"><strong>Logo</strong> : choisis la bonne version.</p>
+              <div class="vignettes">
+                @for (u of logosTrouves(); track u) {
+                  <label class="vignette">
+                    <input type="radio" name="logo-site" [checked]="logoChoisi() === u" (change)="logoChoisi.set(u)" aria-label="Utiliser cette image comme logo" />
+                    <img [src]="u" alt="Logo possible" referrerpolicy="no-referrer" loading="lazy" (error)="ecarter(u)" />
+                  </label>
+                }
+                <label class="vignette aucun"><input type="radio" name="logo-site" [checked]="!logoChoisi()" (change)="logoChoisi.set(null)" /> Aucun</label>
+              </div>
+            }
+            @if (photosTrouvees().length) {
+              <p class="aide" style="margin-top:12px"><strong>Photos</strong> pour la banque d'images : {{ nbPhotosChoisies() }} sélectionnée{{ nbPhotosChoisies() > 1 ? 's' : '' }}.</p>
+              <div class="vignettes">
+                @for (u of photosTrouvees(); track u; let i = $index) {
+                  <label class="vignette">
+                    <input type="checkbox" [checked]="photosChoisies().has(u)" (change)="basculerPhoto(u)" [attr.aria-label]="'Importer la photo ' + (i + 1)" />
+                    <img [src]="u" alt="Photo du site" referrerpolicy="no-referrer" loading="lazy" (error)="ecarter(u)" />
+                  </label>
+                }
+              </div>
+            }
+            <p class="aide" style="margin-top:10px">N'importe que des images que le client t'autorise à utiliser. Les photos sont réduites, converties en JPG puis décrites par l'IA.</p>
+            <button type="button" class="bouton" [disabled]="!id() || importEnCours() || (!logoChoisi() && !nbPhotosChoisies())" (click)="importerImages()">
+              {{ importEnCours() ? 'Import en cours… ' + progression() : 'Importer la sélection' }}
+            </button>
+            @if (resumeImport()) { <div class="succes" style="margin-top:10px">{{ resumeImport() }}</div> }
+          </div>
         }
       </section>
 
@@ -185,6 +226,13 @@ const TYPES_FICHIERS = [
     .offre { border: 1px solid var(--gris-clair); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
     .nuance { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1px solid rgba(0,0,0,.1); }
     .couleur { width: 48px; height: 38px; padding: 2px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+    .images-site { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--gris-clair); }
+    .vignettes { display: flex; flex-wrap: wrap; gap: 10px; }
+    .vignette { position: relative; border: 1px solid var(--gris-clair); border-radius: 8px; padding: 4px; cursor: pointer; background: #fff; }
+    .vignette img { display: block; width: 104px; height: 78px; object-fit: contain; border-radius: 4px; background: #f3f4f6; }
+    .vignette input { position: absolute; top: 8px; left: 8px; z-index: 1; }
+    .vignette.aucun { display: flex; align-items: center; gap: 6px; padding: 8px 12px; }
+    .vignette.aucun input { position: static; }
     .assistant-site { border-left: 4px solid var(--vert); margin-bottom: 16px; }
     .fichiers { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-bottom: 12px; }
     figure { margin: 0; border: 1px solid var(--gris-clair); border-radius: 10px; padding: 8px; text-align: center; }
@@ -209,6 +257,14 @@ export class FicheClientComponent implements OnInit {
   ecraser = false;
   lectureSite = signal(false);
   resumeSite = signal<{ remplis: string[]; ignores: string[]; avertissements: string[] } | null>(null);
+  logosTrouves = signal<string[]>([]);
+  photosTrouvees = signal<string[]>([]);
+  logoChoisi = signal<string | null>(null);
+  photosChoisies = signal<Set<string>>(new Set());
+  importEnCours = signal(false);
+  progression = signal('');
+  resumeImport = signal('');
+  nbPhotosChoisies = computed(() => this.photosChoisies().size);
   erreur = signal('');
   message = signal('');
 
@@ -302,10 +358,79 @@ export class FicheClientComponent implements OnInit {
     this.api.analyserSite(url).subscribe({
       next: proposition => {
         this.resumeSite.set(this.appliquerProposition(proposition));
+        this.memoriserImages(proposition);
         this.lectureSite.set(false);
       },
       error: e => { this.erreur.set(messageErreur(e)); this.lectureSite.set(false); window.scrollTo({ top: 0 }); },
     });
+  }
+
+  /** Cherche seulement le logo et les photos du site (sans IA : rapide et gratuit). */
+  chercherImages() {
+    const url = (this.siteUrl || this.c.domaine || '').trim();
+    if (!url) return;
+    this.lectureSite.set(true);
+    this.erreur.set('');
+    this.api.analyserSite(url, true).subscribe({
+      next: p => {
+        this.memoriserImages(p);
+        this.lectureSite.set(false);
+        if (!p.logos?.length && !p.photos?.length) this.erreur.set('Aucune image exploitable trouvée sur ce site.');
+      },
+      error: e => { this.erreur.set(messageErreur(e)); this.lectureSite.set(false); window.scrollTo({ top: 0 }); },
+    });
+  }
+
+  private memoriserImages(p: FicheProposee) {
+    this.logosTrouves.set(p.logos ?? []);
+    this.photosTrouvees.set(p.photos ?? []);
+    this.logoChoisi.set(p.logos?.[0] ?? null);
+    this.photosChoisies.set(new Set(p.photos ?? []));
+    this.resumeImport.set('');
+  }
+
+  /** Une image qui ne se charge pas (lien cassé, accès refusé) est retirée de la liste. */
+  ecarter(url: string) {
+    this.logosTrouves.update(l => l.filter(u => u !== url));
+    this.photosTrouvees.update(l => l.filter(u => u !== url));
+    if (this.logoChoisi() === url) this.logoChoisi.set(null);
+    this.photosChoisies.update(s => { const n = new Set(s); n.delete(url); return n; });
+  }
+
+  basculerPhoto(url: string) {
+    this.photosChoisies.update(s => { const n = new Set(s); if (n.has(url)) n.delete(url); else n.add(url); return n; });
+  }
+
+  /** Importe le logo et les photos choisis, une image à la fois (progression visible, une erreur n'arrête pas les autres). */
+  async importerImages() {
+    const id = this.id();
+    if (!id) return;
+    const taches: { url: string; type: 'PHOTO' | 'LOGO_COULEUR' }[] = [];
+    const logo = this.logoChoisi();
+    if (logo) taches.push({ url: logo, type: 'LOGO_COULEUR' });
+    [...this.photosChoisies()].forEach(url => taches.push({ url, type: 'PHOTO' }));
+    this.importEnCours.set(true);
+    this.erreur.set('');
+    this.resumeImport.set('');
+    let reussies = 0;
+    const refus: string[] = [];
+    for (let i = 0; i < taches.length; i++) {
+      this.progression.set(`${i + 1} / ${taches.length}`);
+      try {
+        const asset = await firstValueFrom(this.api.importerImage(id, taches[i].url, taches[i].type));
+        this.assets.update(l => [...l, asset]);
+        this.ecarter(taches[i].url);
+        reussies++;
+      } catch (e) {
+        refus.push(messageErreur(e));
+      }
+    }
+    this.importEnCours.set(false);
+    this.progression.set('');
+    const raisons = [...new Set(refus)].slice(0, 3).join(' ; ');
+    this.resumeImport.set(`${reussies} image${reussies > 1 ? 's' : ''} importée${reussies > 1 ? 's' : ''}`
+      + (reussies ? ' : le logo est dans l\'onglet « Identité visuelle », les photos sont dans la banque d\'images (elles se décrivent toutes seules).' : '.')
+      + (refus.length ? ` ${refus.length} image${refus.length > 1 ? 's' : ''} refusée${refus.length > 1 ? 's' : ''} : ${raisons}.` : ''));
   }
 
   private appliquerProposition(p: FicheProposee) {

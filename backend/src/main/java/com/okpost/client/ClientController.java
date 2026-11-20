@@ -31,10 +31,12 @@ public class ClientController {
     private final TableauDeBord tableau;
     private final AnalyseurPhoto analyseur;
     private final FicheDepuisSiteService ficheDepuisSite;
+    private final ImportImageService importImage;
 
     public ClientController(ClientService service, TableauDeBord tableau, AnalyseurPhoto analyseur,
-                            FicheDepuisSiteService ficheDepuisSite) {
+                            FicheDepuisSiteService ficheDepuisSite, ImportImageService importImage) {
         this.ficheDepuisSite = ficheDepuisSite;
+        this.importImage = importImage;
         this.service = service;
         this.tableau = tableau;
         this.analyseur = analyseur;
@@ -43,7 +45,7 @@ public class ClientController {
     /** Propose une fiche à partir du site web (rien n'est enregistré : l'utilisateur relit puis enregistre). */
     @PostMapping("/analyser-site")
     public FicheDepuisSiteService.FicheProposee analyserSite(@Valid @RequestBody ClientDtos.DemandeSite d) {
-        return ficheDepuisSite.proposer(Session.courante(), d.url());
+        return ficheDepuisSite.proposer(Session.courante(), d.url(), Boolean.TRUE.equals(d.seulementImages()));
     }
 
     @GetMapping
@@ -85,6 +87,13 @@ public class ClientController {
             analyseur.analyser(a.getId());
         }
         return AssetVue.de(a);
+    }
+
+    /** Importe dans la fiche une image trouvée sur le site du client (logo, ou photo pour la banque d'images). */
+    @PostMapping("/{id}/assets/depuis-url")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AssetVue importerImage(@PathVariable UUID id, @Valid @RequestBody ClientDtos.DemandeImportImage d) {
+        return AssetVue.de(importImage.importer(Session.courante(), id, d.type(), d.url()));
     }
 
     @PatchMapping("/{id}/assets/{assetId}")
