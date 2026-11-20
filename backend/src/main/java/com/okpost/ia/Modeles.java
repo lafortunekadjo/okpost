@@ -104,4 +104,29 @@ public final class Modeles {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record TexteRegenere(String texte) {}
+
+    /** Fiche client déduite du site web. Chaque champ absent ou incertain vaut null (ou une liste vide). */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record FicheSite(
+            @JsonPropertyDescription("Nom commercial de l'entreprise ou de la marque") String nom,
+            @JsonPropertyDescription("Secteur d'activité en quelques mots (ex. Restauration, Santé, Sport amateur)") String secteur,
+            @JsonPropertyDescription("Description de l'activité en 2 à 4 phrases, factuelle, 600 caractères au plus") String description,
+            @JsonPropertyDescription("Slogan de l'entreprise, s'il existe sur le site") String slogan,
+            @JsonPropertyDescription("Année de création, si elle est indiquée") Integer anneeCreation,
+            String ville,
+            String pays,
+            @JsonPropertyDescription("Zone d'intervention ou de livraison, si elle est indiquée") String zone,
+            @JsonPropertyDescription("Adresse postale, si elle est indiquée") String adresse,
+            @JsonPropertyDescription("Horaires d'ouverture, si indiqués") String horaires,
+            @JsonPropertyDescription("fr ou en : langue principale du site") String langue,
+            @JsonPropertyDescription("Ton de communication déduit du site, en quelques mots (ex. chaleureux, professionnel, jeune)") String ton,
+            @JsonPropertyDescription("true si le site tutoie ses visiteurs, false s'il les vouvoie, null si on ne peut pas le dire") Boolean tutoiement,
+            @JsonPropertyDescription("3 à 8 produits ou services principaux") List<OffreSite> offres,
+            @JsonPropertyDescription("2 à 5 publics visés") List<String> cibles,
+            @JsonPropertyDescription("Couleurs de la marque en hexadécimal #RRGGBB, déduites du site, 3 au plus") List<String> couleurs) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record OffreSite(String nom,
+                            @JsonPropertyDescription("Description courte, une phrase") String description,
+                            @JsonPropertyDescription("Prix tel qu'il est écrit sur le site, sinon null") String prix) {}
 }

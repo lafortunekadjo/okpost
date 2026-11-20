@@ -24,6 +24,15 @@ export interface Alerte {
 export interface Asset { id: string; type: string; url: string; nomOrigine?: string; legende?: string;
   description?: string; tags?: string[]; analyse?: 'AUCUNE' | 'EN_COURS' | 'OK' | 'ECHEC' | string; }
 
+/** Fiche proposée à partir du site web d'un client (rien n'est enregistré : l'utilisateur relit puis enregistre). */
+export interface FicheProposee {
+  nom?: string | null; secteur?: string | null; description?: string | null; slogan?: string | null; anneeCreation?: number | null;
+  ville?: string | null; pays?: string | null; zone?: string | null; adresse?: string | null; horaires?: string | null;
+  langue?: 'fr' | 'en' | null; ton?: string | null; tutoiement?: boolean | null;
+  offres: Offre[]; cibles: string[]; couleurs: string[]; domaine?: string | null; reseaux: Record<string, string>;
+  whatsapp?: string | null; logos: string[]; sources: string[]; avertissements: string[];
+}
+
 export interface Client {
   id?: string;
   nom: string;

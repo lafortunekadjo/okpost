@@ -30,11 +30,20 @@ public class ClientController {
     private final ClientService service;
     private final TableauDeBord tableau;
     private final AnalyseurPhoto analyseur;
+    private final FicheDepuisSiteService ficheDepuisSite;
 
-    public ClientController(ClientService service, TableauDeBord tableau, AnalyseurPhoto analyseur) {
+    public ClientController(ClientService service, TableauDeBord tableau, AnalyseurPhoto analyseur,
+                            FicheDepuisSiteService ficheDepuisSite) {
+        this.ficheDepuisSite = ficheDepuisSite;
         this.service = service;
         this.tableau = tableau;
         this.analyseur = analyseur;
+    }
+
+    /** Propose une fiche à partir du site web (rien n'est enregistré : l'utilisateur relit puis enregistre). */
+    @PostMapping("/analyser-site")
+    public FicheDepuisSiteService.FicheProposee analyserSite(@Valid @RequestBody ClientDtos.DemandeSite d) {
+        return ficheDepuisSite.proposer(Session.courante(), d.url());
     }
 
     @GetMapping

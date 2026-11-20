@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService, messageErreur } from '../core/api.service';
 import { ConfirmationService } from '../core/confirmation.service';
-import { Asset, Client, RESEAUX, LIBELLES_RESEAU } from '../core/models';
+import { Asset, Client, FicheProposee, RESEAUX, LIBELLES_RESEAU } from '../core/models';
 import { PucesComponent } from '../shared/puces.component';
 import { BanqueImagesComponent } from '../shared/banque-images.component';
 
@@ -32,6 +32,30 @@ const TYPES_FICHIERS = [
 
       @if (erreur()) { <div class="erreur">{{ erreur() }}</div> }
       @if (message()) { <div class="succes">{{ message() }}</div> }
+
+      <section class="carte assistant-site" aria-label="Remplir la fiche depuis le site web">
+        <h2>Gagne du temps : remplis la fiche depuis le site</h2>
+        <p class="aide">Colle l'adresse du site du client : OkPost lit ses pages et propose une fiche (description, offres, cibles, ton, couleurs, réseaux, coordonnées…).
+          Tu relis et corriges avant d'enregistrer.</p>
+        <div class="ligne">
+          <input type="text" class="espace" name="site-analyse" placeholder="exemple.com" aria-label="Adresse du site web du client"
+                 [ngModel]="siteUrl || c.domaine || ''" (ngModelChange)="siteUrl = $event" (keydown.enter)="$event.preventDefault(); lireSite()" />
+          <button type="button" class="bouton" [disabled]="lectureSite() || !(siteUrl || c.domaine)" (click)="lireSite()">
+            {{ lectureSite() ? 'Lecture du site… (30 s au plus)' : 'Lire le site' }}
+          </button>
+        </div>
+        <label class="case" style="margin-top:8px"><input type="checkbox" name="ecraser" [(ngModel)]="ecraser" /> Remplacer aussi les champs déjà remplis</label>
+        @if (resumeSite(); as r) {
+          <div class="succes" style="margin-top:12px">
+            @if (r.remplis.length) {
+              <strong>{{ r.remplis.length }} champ{{ r.remplis.length > 1 ? 's' : '' }} rempli{{ r.remplis.length > 1 ? 's' : '' }}</strong> : {{ r.remplis.join(', ') }}.
+              Parcours les onglets pour vérifier, puis enregistre.
+            } @else { Rien de nouveau à ajouter : les champs trouvés sont déjà remplis. }
+            @if (r.ignores.length) { <br /><span class="aide">Déjà remplis, non modifiés : {{ r.ignores.join(', ') }}.</span> }
+          </div>
+          @for (a of r.avertissements; track a) { <div class="info" style="margin-top:8px">{{ a }}</div> }
+        }
+      </section>
 
       <div class="onglets" role="tablist">
         @for (o of onglets; track o.id) {
@@ -161,6 +185,7 @@ const TYPES_FICHIERS = [
     .offre { border: 1px solid var(--gris-clair); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
     .nuance { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1px solid rgba(0,0,0,.1); }
     .couleur { width: 48px; height: 38px; padding: 2px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+    .assistant-site { border-left: 4px solid var(--vert); margin-bottom: 16px; }
     .fichiers { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-bottom: 12px; }
     figure { margin: 0; border: 1px solid var(--gris-clair); border-radius: 10px; padding: 8px; text-align: center; }
     figure img { width: 100%; height: 90px; object-fit: contain; background: repeating-conic-gradient(#f3f4f6 0% 25%, #fff 0% 50%) 50% / 16px 16px; border-radius: 6px; }
@@ -180,6 +205,10 @@ export class FicheClientComponent implements OnInit {
   envoi = signal(false);
   envoiFichier = signal(false);
   modifie = signal(false);
+  siteUrl = '';
+  ecraser = false;
+  lectureSite = signal(false);
+  resumeSite = signal<{ remplis: string[]; ignores: string[]; avertissements: string[] } | null>(null);
   erreur = signal('');
   message = signal('');
 
@@ -261,6 +290,64 @@ export class FicheClientComponent implements OnInit {
       next: a => { this.assets.update(l => [...l, a]); this.envoiFichier.set(false); champ.value = ''; },
       error: e => { this.erreur.set(messageErreur(e)); this.envoiFichier.set(false); champ.value = ''; },
     });
+  }
+
+  /** Lit le site du client et pré-remplit la fiche : les champs déjà remplis ne sont écrasés que si la case est cochée. */
+  lireSite() {
+    const url = (this.siteUrl || this.c.domaine || '').trim();
+    if (!url) return;
+    this.lectureSite.set(true);
+    this.erreur.set('');
+    this.resumeSite.set(null);
+    this.api.analyserSite(url).subscribe({
+      next: proposition => {
+        this.resumeSite.set(this.appliquerProposition(proposition));
+        this.lectureSite.set(false);
+      },
+      error: e => { this.erreur.set(messageErreur(e)); this.lectureSite.set(false); window.scrollTo({ top: 0 }); },
+    });
+  }
+
+  private appliquerProposition(p: FicheProposee) {
+    const remplis: string[] = [];
+    const ignores: string[] = [];
+    const fiche = this.c as unknown as Record<string, unknown>;
+    const vide = (v: unknown) => v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
+    const poser = (libelle: string, cle: string, valeur: unknown) => {
+      if (vide(valeur)) return;
+      if (!vide(fiche[cle]) && !this.ecraser) { ignores.push(libelle); return; }
+      fiche[cle] = valeur;
+      remplis.push(libelle);
+    };
+    poser('nom', 'nom', p.nom);
+    poser('secteur', 'secteur', p.secteur);
+    poser('description', 'description', p.description);
+    poser('slogan', 'slogan', p.slogan);
+    poser('année de création', 'anneeCreation', p.anneeCreation);
+    poser('ville', 'ville', p.ville);
+    poser('pays', 'pays', p.pays);
+    poser('zone', 'zone', p.zone);
+    poser('adresse', 'adresse', p.adresse);
+    poser('horaires', 'horaires', p.horaires);
+    poser('ton', 'ton', p.ton);
+    poser('offres', 'offres', p.offres);
+    poser('cibles', 'cibles', p.cibles);
+    poser('couleurs', 'couleurs', p.couleurs);
+    poser('site web', 'domaine', p.domaine);
+    poser('WhatsApp', 'whatsapp', p.whatsapp);
+    // La langue et le tutoiement ont déjà une valeur par défaut : on ne les change que pour un nouveau client ou si la case est cochée
+    if (p.langue && p.langue !== this.c.langue && (this.ecraser || !this.id())) { this.c.langue = p.langue; remplis.push('langue'); }
+    if (typeof p.tutoiement === 'boolean' && p.tutoiement !== this.c.tutoiement && (this.ecraser || (p.tutoiement && !this.c.tutoiement))) {
+      this.c.tutoiement = p.tutoiement;
+      remplis.push('tutoiement');
+    }
+    const nouveauxReseaux = Object.entries(p.reseaux ?? {}).filter(([r, lien]) => lien && (this.ecraser || !this.c.reseaux[r]));
+    if (nouveauxReseaux.length) {
+      nouveauxReseaux.forEach(([r, lien]) => (this.c.reseaux[r] = lien));
+      remplis.push('réseaux sociaux');
+    }
+    if (remplis.length) this.modifie.set(true);
+    return { remplis, ignores, avertissements: p.avertissements ?? [] };
   }
 
   logos(): Asset[] {

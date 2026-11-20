@@ -68,6 +68,9 @@ public final class ClientDtos {
                                long aValider, long validees, long aModifier,
                                LocalDate prochaine, java.time.Instant derniere) {}
 
+    /** Adresse du site web à lire pour pré-remplir la fiche. */
+    public record DemandeSite(@jakarta.validation.constraints.NotBlank @Size(max = 255) String url) {}
+
     public static String urlFichier(String chemin) {
         return "/api/v1/fichiers/" + chemin;
     }

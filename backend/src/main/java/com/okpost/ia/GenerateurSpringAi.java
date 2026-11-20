@@ -121,6 +121,13 @@ public class GenerateurSpringAi implements GenerateurIA {
     }
 
     @Override
+    public Modeles.FicheSite analyserSite(UUID ws, String contenuSite) {
+        String user = prompts.rendre("site", Map.of("contenu", contenuSite));
+        return appelerJson(ws, "site", modeleRedaction, prompts.rendre("site-systeme", Map.of()), user, Modeles.FicheSite.class,
+                r -> List.of());
+    }
+
+    @Override
     public Modeles.Recommandations recommandations(UUID ws, String fiche, String bilan) {
         String user = prompts.rendre("bilan", Map.of("bilan", bilan));
         return appelerJson(ws, "bilan", modeleStrategie, systeme(fiche), user, Modeles.Recommandations.class,

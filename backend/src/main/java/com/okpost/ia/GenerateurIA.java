@@ -34,5 +34,10 @@ public interface GenerateurIA {
         throw new GenerationException("Recommandations non disponibles avec ce fournisseur");
     }
 
+    /** Déduit une fiche client du texte d'un site web (déjà extrait et nettoyé). */
+    default com.okpost.ia.Modeles.FicheSite analyserSite(UUID workspaceId, String contenuSite) {
+        throw new GenerationException("Lecture de site non disponible avec ce fournisseur");
+    }
+
     String regenererChamp(UUID workspaceId, String ficheClient, String langue, String publication, String champ, String consigne);
 }

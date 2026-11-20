@@ -27,6 +27,12 @@
 
     <dependencyManagement>
         <dependencies>
+        <!-- Lecture du site web d'un client pour pré-remplir sa fiche -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.24.1</version>
+        </dependency>
             <dependency>
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
@@ -38,6 +44,12 @@
     </dependencyManagement>
 
     <dependencies>
+        <!-- Lecture du site web d'un client pour pré-remplir sa fiche -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.24.1</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
