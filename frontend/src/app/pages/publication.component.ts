@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpEventType } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { ApiService, messageErreur } from '../core/api.service';
+import { ConfirmationService } from '../core/confirmation.service';
 import {
   BriefVisuel, LIBELLES_FORMAT, LIBELLES_RESEAU, LIBELLES_STATUT, Musique, Publication, RESEAUX, ScenarioVideo, StatutPublication,
 } from '../core/models';
@@ -66,7 +67,7 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
                 <button class="bouton secondaire petit" [disabled]="actionAuto()" (click)="programmer()">Programmer</button>
                 <button class="bouton petit" [disabled]="actionAuto()" (click)="publierMaintenant()">Publier maintenant</button>
               </div>
-              <p class="aide" style="margin:6px 0 0">Sans date choisie : jour prévu, à l'heure par défaut de la fiche client.</p>
+              <p class="aide" style="margin:6px 0 0">Sans heure choisie : l'heure prévue pour cette publication, sinon l'heure par défaut de la fiche client.</p>
             }
           </div>
         }
@@ -83,6 +84,7 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
           </nav>
           <div class="ligne-champs">
             <div class="champ"><label>Date</label><input type="date" name="date" [(ngModel)]="pub.date" /></div>
+            <div class="champ"><label>Heure <span class="aide">heure du client</span></label><input type="time" name="heure" [(ngModel)]="pub.heure" /></div>
             <div class="champ"><label>Réseau</label>
               <select name="reseau" [(ngModel)]="pub.reseau">@for (r of reseaux; track r) { <option [value]="r">{{ libellesReseau[r] }}</option> }</select></div>
             <div class="champ"><label>Format</label>
@@ -369,6 +371,7 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
 })
 export class PublicationComponent implements OnInit {
   private api = inject(ApiService);
+  private confirmation = inject(ConfirmationService);
   id = input.required<string>();
 
   p = signal<Publication | null>(null);
@@ -488,7 +491,7 @@ export class PublicationComponent implements OnInit {
     this.erreur.set('');
     const patch: Partial<Publication> = {
       date: p.date, reseau: p.reseau, format: p.format, statut: p.statut, idee: p.idee, legende: p.legende ?? '',
-      cta: p.cta ?? '', hashtags: this.hashtags, version: p.version,
+      cta: p.cta ?? '', hashtags: this.hashtags, version: p.version, heure: p.heure ?? '',
     };
     if (p.format === 'VIDEO') {
       patch.scenario = { ...this.scenario, materiel: this.materiel };
@@ -663,9 +666,11 @@ export class PublicationComponent implements OnInit {
     if (p) this.lancer(this.api.annulerProgrammation(p.id));
   }
 
-  publierMaintenant() {
+  async publierMaintenant() {
     const p = this.p();
-    if (!p || !confirm(p.reseau === 'INSTAGRAM' ? 'Publier maintenant sur le compte Instagram du client ?' : 'Publier maintenant sur la Page Facebook du client ?')) return;
+    if (!p || !(await this.confirmation.demander({
+      titre: p.reseau === 'INSTAGRAM' ? 'Publier maintenant sur le compte Instagram du client ?' : 'Publier maintenant sur la Page Facebook du client ?',
+      message: `La publication est envoyée tout de suite, sans attendre l'heure prévue.`, confirmer: 'Publier maintenant' }))) return;
     this.lancer(this.api.publierMaintenant(p.id));
   }
 
@@ -707,9 +712,9 @@ export class PublicationComponent implements OnInit {
     });
   }
 
-  supprimerImage(visuelId: string) {
+  async supprimerImage(visuelId: string) {
     const p = this.p();
-    if (!p || !confirm('Supprimer cette image ?')) return;
+    if (!p || !(await this.confirmation.demander({ titre: 'Supprimer cette image ?', confirmer: 'Supprimer', danger: true }))) return;
     this.api.supprimerImage(p.id, visuelId).subscribe({
       next: () => this.p.set({ ...p, visuels: (p.visuels ?? []).filter(v => v.id !== visuelId) }),
       error: e => this.erreur.set(messageErreur(e)),

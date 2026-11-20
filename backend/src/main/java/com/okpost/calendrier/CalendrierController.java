@@ -155,8 +155,8 @@ public class CalendrierController {
         String texte = ia.regenererChamp(s.workspaceId(), FicheTexte.de(client), cal.getLangue(), resume,
                 "legende".equals(r.champ()) ? "légende" : "appel à l'action", r.consigne());
         PublicationPatch patch = "legende".equals(r.champ())
-                ? new PublicationPatch(null, null, null, null, null, null, texte, null, null, null, null, null, null)
-                : new PublicationPatch(null, null, null, null, null, null, null, null, texte, null, null, null, null);
+                ? new PublicationPatch(null, null, null, null, null, null, texte, null, null, null, null, null, null, null)
+                : new PublicationPatch(null, null, null, null, null, null, null, null, texte, null, null, null, null, null);
         return service.modifier(s, id, patch);
     }
 }

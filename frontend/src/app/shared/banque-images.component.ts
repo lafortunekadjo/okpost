@@ -2,6 +2,7 @@ import { Component, OnInit, computed, inject, input, signal } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import { concatMap, delay, firstValueFrom, from } from 'rxjs';
 import { ApiService, messageErreur } from '../core/api.service';
+import { ConfirmationService } from '../core/confirmation.service';
 import { Asset } from '../core/models';
 
 const COTE_MAX = 2000;
@@ -108,6 +109,7 @@ const POIDS_MAX = 5 * 1024 * 1024;
 })
 export class BanqueImagesComponent implements OnInit {
   private api = inject(ApiService);
+  private confirmation = inject(ConfirmationService);
 
   clientId = input.required<string>();
   /** Repliée par défaut sur la page du client (elle peut contenir des dizaines de photos) ; ouverte dans la fiche. */
@@ -295,8 +297,8 @@ export class BanqueImagesComponent implements OnInit {
     }), 4000);
   }
 
-  supprimer(a: Asset) {
-    if (!confirm('Supprimer cette photo de la banque ?')) return;
+  async supprimer(a: Asset) {
+    if (!(await this.confirmation.demander({ titre: 'Supprimer cette photo de la banque ?', confirmer: 'Supprimer', danger: true }))) return;
     this.api.supprimerFichier(this.clientId(), a.id).subscribe({
       next: () => this.photos.update(l => l.filter(x => x.id !== a.id)),
       error: e => this.erreur.set(messageErreur(e)),

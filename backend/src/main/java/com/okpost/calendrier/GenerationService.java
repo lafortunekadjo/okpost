@@ -185,6 +185,7 @@ public class GenerationService {
                 p.setFormat("TIKTOK".equals(p.getReseau()) ? "VIDEO" : format);
                 p.setPilier(i.pilier());
                 p.setIdee(NettoyageTextes.idee(i.idee()));
+                p.setHeurePrevue(NettoyageTextes.heureIa(i.heure()));
                 p.setObjectif(i.objectif() == null ? null : i.objectif().toUpperCase(Locale.ROOT));
                 p.setTempsFort(i.tempsFort());
                 p.setStatut(StatutPublication.IDEE);

@@ -25,8 +25,8 @@ class ValidationReponsesTest {
     @Test
     void refuseUneDateHorsPeriodeEtUnReseauNonDemande() {
         GrilleGeneree g = new GrilleGeneree("s", List.of("p"), List.of(
-                new IdeeGeneree(LocalDate.of(2026, 12, 2), "FACEBOOK", "IMAGE", "p", "idée", "VENTE", null),
-                new IdeeGeneree(LocalDate.of(2026, 11, 3), "LINKEDIN", "IMAGE", "p", "idée", "VENTE", null)));
+                new IdeeGeneree(LocalDate.of(2026, 12, 2), "FACEBOOK", "IMAGE", "p", "idée", "VENTE", null, null),
+                new IdeeGeneree(LocalDate.of(2026, 11, 3), "LINKEDIN", "IMAGE", "p", "idée", "VENTE", null, null)));
         List<String> erreurs = GenerateurSpringAi.validerGrille(g, demande);
         assertThat(erreurs).hasSize(2);
     }
@@ -34,7 +34,7 @@ class ValidationReponsesTest {
     @Test
     void accepteUneGrilleValide() {
         GrilleGeneree g = new GrilleGeneree("s", List.of("p"), List.of(
-                new IdeeGeneree(LocalDate.of(2026, 11, 3), "facebook", "carrousel", "p", "idée", "VENTE", null)));
+                new IdeeGeneree(LocalDate.of(2026, 11, 3), "facebook", "carrousel", "p", "idée", "VENTE", null, null)));
         assertThat(GenerateurSpringAi.validerGrille(g, demande)).isEmpty();
     }
 
@@ -44,9 +44,9 @@ class ValidationReponsesTest {
                 List.of("FACEBOOK"), Map.of("FACEBOOK", 3), null, null, "fr", List.of(), List.of());
         assertThat(deuxSemaines.attendus()).containsEntry("FACEBOOK", 6);
         GrilleGeneree uneSemaine = new GrilleGeneree("s", List.of("p"), List.of(
-                new IdeeGeneree(LocalDate.of(2026, 11, 2), "FACEBOOK", "IMAGE", "p", "a", "VENTE", null),
-                new IdeeGeneree(LocalDate.of(2026, 11, 4), "FACEBOOK", "IMAGE", "p", "b", "VENTE", null),
-                new IdeeGeneree(LocalDate.of(2026, 11, 6), "FACEBOOK", "IMAGE", "p", "c", "VENTE", null)));
+                new IdeeGeneree(LocalDate.of(2026, 11, 2), "FACEBOOK", "IMAGE", "p", "a", "VENTE", null, null),
+                new IdeeGeneree(LocalDate.of(2026, 11, 4), "FACEBOOK", "IMAGE", "p", "b", "VENTE", null, null),
+                new IdeeGeneree(LocalDate.of(2026, 11, 6), "FACEBOOK", "IMAGE", "p", "c", "VENTE", null, null)));
         assertThat(GenerateurSpringAi.validerGrille(uneSemaine, deuxSemaines)).hasSize(1);
     }
 

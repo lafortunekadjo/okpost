@@ -2,6 +2,7 @@ import { Component, inject, input, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService, messageErreur } from '../core/api.service';
+import { ConfirmationService } from '../core/confirmation.service';
 import { Asset, Client, RESEAUX, LIBELLES_RESEAU } from '../core/models';
 import { PucesComponent } from '../shared/puces.component';
 import { BanqueImagesComponent } from '../shared/banque-images.component';
@@ -170,6 +171,7 @@ const TYPES_FICHIERS = [
 })
 export class FicheClientComponent implements OnInit {
   private api = inject(ApiService);
+  private confirmation = inject(ConfirmationService);
   private router = inject(Router);
 
   id = input<string>();
@@ -265,9 +267,9 @@ export class FicheClientComponent implements OnInit {
     return this.assets().filter(a => a.type !== 'PHOTO');
   }
 
-  supprimerFichier(a: Asset) {
+  async supprimerFichier(a: Asset) {
     const id = this.id();
-    if (!id || !confirm('Supprimer ce fichier ?')) return;
+    if (!id || !(await this.confirmation.demander({ titre: 'Supprimer ce fichier ?', confirmer: 'Supprimer', danger: true }))) return;
     this.api.supprimerFichier(id, a.id).subscribe({
       next: () => this.assets.update(l => l.filter(x => x.id !== a.id)),
       error: e => this.erreur.set(messageErreur(e)),

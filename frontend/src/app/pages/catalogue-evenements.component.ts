@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService, messageErreur } from '../core/api.service';
+import { ConfirmationService } from '../core/confirmation.service';
 import { EvenementCatalogue } from '../core/models';
 
 const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
@@ -87,6 +88,7 @@ const CATEGORIES: Record<string, string> = {
 })
 export class CatalogueEvenementsComponent {
   private api = inject(ApiService);
+  private confirmation = inject(ConfirmationService);
   private datePipe = new DatePipe('fr-FR');
   evenements = signal<EvenementCatalogue[]>([]);
   erreur = signal('');
@@ -130,8 +132,8 @@ export class CatalogueEvenementsComponent {
     });
   }
 
-  supprimer(e: EvenementCatalogue) {
-    if (!confirm(`Supprimer « ${e.nom} » du catalogue ?`)) return;
+  async supprimer(e: EvenementCatalogue) {
+    if (!(await this.confirmation.demander({ titre: `Supprimer « ${e.nom} » du catalogue ?`, confirmer: 'Supprimer', danger: true }))) return;
     this.api.supprimerEvenement(e.id).subscribe({
       next: () => this.evenements.update(l => l.filter(x => x.id !== e.id)),
       error: err => this.erreur.set(messageErreur(err)),

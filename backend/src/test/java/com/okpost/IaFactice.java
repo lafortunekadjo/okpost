@@ -28,7 +28,7 @@ public class IaFactice implements GenerateurIA {
         for (var date = d.debut(); !date.isAfter(d.fin()); date = date.plusDays(2)) {
             String reseau = d.reseaux().get(i % d.reseaux().size());
             String format = "TIKTOK".equals(reseau) ? "VIDEO" : (i % 3 == 0 ? "CARROUSEL" : "IMAGE");
-            idees.add(new IdeeGeneree(date, reseau, format, "Éducation", "Idée " + i, "NOTORIETE", null));
+            idees.add(new IdeeGeneree(date, reseau, format, "Éducation", "Idée " + i, "NOTORIETE", null, "18:30"));
             i++;
         }
         return new GrilleGeneree("Stratégie de test", List.of("Éducation", "Offre"), idees);

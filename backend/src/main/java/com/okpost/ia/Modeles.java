@@ -48,7 +48,8 @@ public final class Modeles {
             String pilier,
             @JsonPropertyDescription("L'idée de la publication en une phrase concrète") String idee,
             @JsonPropertyDescription("NOTORIETE, ENGAGEMENT, VENTE, CONFIANCE ou RECRUTEMENT") String objectif,
-            @JsonPropertyDescription("Fête ou journée liée, sinon null") String tempsFort) {}
+            @JsonPropertyDescription("Fête ou journée liée, sinon null") String tempsFort,
+            @JsonPropertyDescription("Heure de publication locale du client, au format HH:mm, entre 06:00 et 22:00, adaptée au réseau et au public") String heure) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Recommandations(

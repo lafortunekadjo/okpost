@@ -72,6 +72,10 @@ public class Publication extends BaseEntity {
     @Column(name = "publication_prevue")
     private java.time.Instant publicationPrevue;
 
+    /** Heure locale du client (HH:mm) à laquelle publier ; vide = heure par défaut du client. */
+    @Column(name = "heure_prevue", length = 5)
+    private String heurePrevue;
+
     @Column(name = "publiee_le")
     private java.time.Instant publieeLe;
 
@@ -119,6 +123,8 @@ public class Publication extends BaseEntity {
     public StatutPublication getStatut() { return statut; }
     public void setStatut(StatutPublication statut) { this.statut = statut; }
     public int getVersion() { return version; }
+    public String getHeurePrevue() { return heurePrevue; }
+    public void setHeurePrevue(String heurePrevue) { this.heurePrevue = heurePrevue; }
     public java.time.Instant getPublicationPrevue() { return publicationPrevue; }
     public void setPublicationPrevue(java.time.Instant publicationPrevue) { this.publicationPrevue = publicationPrevue; }
     public java.time.Instant getPublieeLe() { return publieeLe; }

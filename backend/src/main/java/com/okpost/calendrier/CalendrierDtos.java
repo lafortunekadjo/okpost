@@ -44,7 +44,7 @@ public final class CalendrierDtos {
                                  boolean detailGenere, String statut, int version, List<RetourVue> retours,
                                  List<VisuelVue> visuels, java.time.Instant publicationPrevue,
                                  java.time.Instant publieeLe, String lienPost, String erreurPublication,
-                                 String modeCarrousel) {}
+                                 String modeCarrousel, String heure) {}
 
     public record VisuelVue(UUID id, String url, String prompt, String ratio, String modele, java.time.Instant date,
                             String type, String source, String nomOrigine, Integer diapositive) {}
@@ -68,7 +68,7 @@ public final class CalendrierDtos {
     public record PublicationPatch(LocalDate date, String reseau, String format, String pilier, String idee,
                                    String objectif, String legende, List<String> hashtags, String cta,
                                    BriefVisuel brief, ScenarioVideo scenario, StatutPublication statut,
-                                   Integer version) {}
+                                   Integer version, String heure) {}
 
     public record Regeneration(@NotNull @Pattern(regexp = "legende|cta|tout") String champ,
                                @Size(max = 1000) String consigne) {}

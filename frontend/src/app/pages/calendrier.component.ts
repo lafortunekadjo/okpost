@@ -3,6 +3,7 @@ import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiService, messageErreur } from '../core/api.service';
+import { ConfirmationService } from '../core/confirmation.service';
 import {
   Calendrier, LIBELLES_FORMAT, LIBELLES_RESEAU, LIBELLES_STATUT, LienValidation, Publication, RESEAUX, StatutPublication,
 } from '../core/models';
@@ -135,6 +136,7 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
                     <input type="checkbox" [checked]="selection().has(p.id)" (change)="basculer(p.id)" [attr.aria-label]="'Sélectionner ' + p.idee" />
                     <a [routerLink]="['/publications', p.id]" [title]="libellesReseau[p.reseau] + ' · ' + p.idee">
                       <span class="reseau reseau-{{ p.reseau }}"></span>{{ libellesFormat[p.format] }}
+                      @if (p.heure) { <span class="heure">{{ p.heure }}</span> }
                       <span class="pastille statut-{{ p.statut }}">{{ libellesStatut[p.statut] }}</span>
                       <span class="idee">{{ p.idee }}</span>
                     </a>
@@ -152,7 +154,7 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
                 <a [routerLink]="['/publications', p.id]" class="corps">
                   <div class="ligne">
                     <strong>{{ p.date | date: 'EEE d MMM' }}</strong>
-                    <span><span class="reseau reseau-{{ p.reseau }}"></span>{{ libellesReseau[p.reseau] }} · {{ libellesFormat[p.format] }}</span>
+                    <span><span class="reseau reseau-{{ p.reseau }}"></span>{{ libellesReseau[p.reseau] }} · {{ libellesFormat[p.format] }}@if (p.heure) { · {{ p.heure }} }</span>
                     @if (p.pilier) { <span class="aide">{{ p.pilier }}</span> }
                     <span class="espace"></span>
                     <span class="pastille statut-{{ p.statut }}">{{ libellesStatut[p.statut] }}{{ p.statut === 'PROGRAMMEE' && p.publicationPrevue ? ' · ' + (p.publicationPrevue | date: 'd MMM HH:mm') : '' }}</span>
@@ -213,6 +215,7 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
     .case { background: #fff; border-radius: 8px; min-height: 110px; padding: 6px; box-shadow: var(--ombre); }
     .case.hors { background: transparent; box-shadow: none; opacity: .5; }
     .num { font-size: .8rem; font-weight: 700; color: var(--gris); margin-bottom: 4px; }
+    .heure { font-weight: 600; color: var(--gris); margin-left: 4px; }
     .legende { display: flex; gap: 14px; flex-wrap: wrap; margin: -4px 0 12px; }
     .elt-legende { display: inline-flex; align-items: center; gap: 4px; }
     .mini input[type=checkbox] { width: 16px; height: 16px; margin: 1px 0 0; flex: none; }
@@ -239,6 +242,7 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
 })
 export class CalendrierComponent implements OnInit {
   private api = inject(ApiService);
+  private confirmation = inject(ConfirmationService);
   private destroy = inject(DestroyRef);
 
   id = input.required<string>();
@@ -412,8 +416,8 @@ export class CalendrierComponent implements OnInit {
     });
   }
 
-  revoquer(l: LienValidation) {
-    if (!confirm("Révoquer ce lien ? Le client ne pourra plus l'ouvrir.")) return;
+  async revoquer(l: LienValidation) {
+    if (!(await this.confirmation.demander({ titre: 'Révoquer ce lien ?', message: `Le client ne pourra plus l'ouvrir.`, confirmer: 'Révoquer', danger: true }))) return;
     this.api.revoquerLien(l.id).subscribe({
       next: () => this.liens.update(x => x.map(y => (y.id === l.id ? { ...y, revoque: true } : y))),
       error: e => this.erreur.set(messageErreur(e)),
@@ -424,8 +428,8 @@ export class CalendrierComponent implements OnInit {
     this.api.relancer(this.id()).subscribe({ next: () => this.charger(), error: e => this.erreur.set(messageErreur(e)) });
   }
 
-  supprimer(c: Calendrier) {
-    if (!confirm('Supprimer ce calendrier et toutes ses publications ?')) return;
+  async supprimer(c: Calendrier) {
+    if (!(await this.confirmation.demander({ titre: 'Supprimer ce calendrier ?', message: 'Toutes ses publications seront supprimées. Cette action est définitive.', confirmer: 'Supprimer', danger: true }))) return;
     this.api.supprimerCalendrier(c.id).subscribe({
       next: () => history.back(),
       error: e => this.erreur.set(messageErreur(e)),

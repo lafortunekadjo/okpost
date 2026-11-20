@@ -22,4 +22,24 @@ class NettoyageTextesTest {
         assertThat(NettoyageTextes.idee(null)).isNull();
         assertThat(NettoyageTextes.idee("")).isEmpty();
     }
+
+    @Test
+    void normaliseLesHeures() {
+        assertThat(NettoyageTextes.heure("9:05")).isEqualTo("09:05");
+        assertThat(NettoyageTextes.heure("18h30")).isEqualTo("18:30");
+        assertThat(NettoyageTextes.heure(" 07:00 ")).isEqualTo("07:00");
+        assertThat(NettoyageTextes.heure("25:00")).isNull();
+        assertThat(NettoyageTextes.heure("18:75")).isNull();
+        assertThat(NettoyageTextes.heure("soir")).isNull();
+        assertThat(NettoyageTextes.heure(null)).isNull();
+    }
+
+    @Test
+    void l_heureProposeeParLIaDoitEtrePlausible() {
+        assertThat(NettoyageTextes.heureIa("12:30")).isEqualTo("12:30");
+        assertThat(NettoyageTextes.heureIa("6:00")).isEqualTo("06:00");
+        assertThat(NettoyageTextes.heureIa("03:15")).isNull();
+        assertThat(NettoyageTextes.heureIa("23:30")).isNull();
+        assertThat(NettoyageTextes.heureIa("n'importe quoi")).isNull();
+    }
 }

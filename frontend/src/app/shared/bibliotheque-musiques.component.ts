@@ -1,6 +1,7 @@
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiService, messageErreur } from '../core/api.service';
+import { ConfirmationService } from '../core/confirmation.service';
 import { Musique } from '../core/models';
 
 /** Bibliothèque de musiques libres de droits (super-admin) : déposées une fois, choisies ensuite dans chaque carrousel. */
@@ -42,6 +43,7 @@ import { Musique } from '../core/models';
 })
 export class BibliothequeMusiquesComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
+  private confirmation = inject(ConfirmationService);
 
   pistes = signal<Musique[]>([]);
   erreur = signal('');
@@ -108,8 +110,8 @@ export class BibliothequeMusiquesComponent implements OnInit, OnDestroy {
     this.enLecture.set(null);
   }
 
-  supprimer(m: Musique) {
-    if (!confirm(`Supprimer « ${m.nom} » de la bibliothèque ?`)) return;
+  async supprimer(m: Musique) {
+    if (!(await this.confirmation.demander({ titre: `Supprimer « ${m.nom} » de la bibliothèque ?`, confirmer: 'Supprimer', danger: true }))) return;
     if (this.enLecture() === m.id) this.arreter();
     this.api.supprimerMusique(m.id).subscribe({
       next: () => this.pistes.update(l => l.filter(x => x.id !== m.id)),

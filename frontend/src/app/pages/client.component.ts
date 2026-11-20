@@ -3,6 +3,7 @@ import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ApiService, messageErreur } from '../core/api.service';
+import { ConfirmationService } from '../core/confirmation.service';
 import { CalendrierResume, Client, CompteSocial, LIBELLES_RESEAU } from '../core/models';
 import { BanqueImagesComponent } from '../shared/banque-images.component';
 
@@ -142,6 +143,7 @@ import { BanqueImagesComponent } from '../shared/banque-images.component';
 })
 export class ClientComponent implements OnInit {
   private api = inject(ApiService);
+  private confirmation = inject(ConfirmationService);
   private router = inject(Router);
   id = input.required<string>();
   client = signal<Client | null>(null);
@@ -224,8 +226,8 @@ export class ClientComponent implements OnInit {
     this.api.activerCompte(this.id(), compteId).subscribe({ next: l => this.comptes.set(l), error: e => this.erreurReseaux.set(messageErreur(e)) });
   }
 
-  delier(compteId: string) {
-    if (!confirm('Délier cette Page ? Les publications programmées ne pourront plus partir.')) return;
+  async delier(compteId: string) {
+    if (!(await this.confirmation.demander({ titre: 'Déconnecter ce compte ?', message: 'Les publications programmées sur ce compte ne pourront plus partir.', confirmer: 'Déconnecter', danger: true }))) return;
     this.api.supprimerCompte(this.id(), compteId).subscribe({
       next: () => this.comptes.update(l => l.filter(x => x.id !== compteId)),
       error: e => this.erreurReseaux.set(messageErreur(e)),
@@ -245,8 +247,8 @@ export class ClientComponent implements OnInit {
     return r.map(x => LIBELLES_RESEAU[x] ?? x).join(', ');
   }
 
-  archiver(c: Client) {
-    if (!confirm(`Archiver ${c.nom} ? La fiche et ses calendriers ne seront plus affichés.`)) return;
+  async archiver(c: Client) {
+    if (!(await this.confirmation.demander({ titre: `Archiver ${c.nom} ?`, message: 'La fiche et ses calendriers ne seront plus affichés.', confirmer: 'Archiver', danger: true }))) return;
     this.api.archiverClient(c.id!).subscribe({ next: () => this.router.navigateByUrl('/'), error: e => this.erreur.set(messageErreur(e)) });
   }
 }

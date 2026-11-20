@@ -102,6 +102,8 @@ export interface Publication {
   retours?: Retour[];
   visuels?: Visuel[];
   publicationPrevue?: string;
+  /** Heure locale prévue (HH:mm) ; vide = heure par défaut du client. */
+  heure?: string | null;
   publieeLe?: string;
   lienPost?: string;
   erreurPublication?: string;

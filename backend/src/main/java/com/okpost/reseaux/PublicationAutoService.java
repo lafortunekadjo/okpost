@@ -373,13 +373,19 @@ public class PublicationAutoService {
                 .collect(Collectors.joining("\n\n"));
     }
 
-    static Instant heureParDefaut(Publication p, Client c) {
-        LocalTime heure;
+    private static LocalTime analyserHeure(String h) {
         try {
-            heure = LocalTime.parse(c.getHeurePublication());
+            return h == null || h.isBlank() ? null : LocalTime.parse(h.trim());
         } catch (RuntimeException e) {
-            heure = LocalTime.of(18, 0);
+            return null;
         }
+    }
+
+    static Instant heureParDefaut(Publication p, Client c) {
+        // L'heure propre à la publication d'abord, puis l'heure par défaut du client, puis 18 h
+        LocalTime heure = analyserHeure(p.getHeurePrevue());
+        if (heure == null) heure = analyserHeure(c.getHeurePublication());
+        if (heure == null) heure = LocalTime.of(18, 0);
         ZoneId zone;
         try {
             zone = ZoneId.of(c.getFuseau());

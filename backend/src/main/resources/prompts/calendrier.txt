@@ -17,4 +17,5 @@ Contraintes :
 - Chaque idée est concrète et spécifique au client (pas de « publication inspirante » générique).
 - Place les publications liées à un temps fort le jour même ou dans les jours qui précèdent (annonce, préparation), jamais après la date sauf pour un remerciement ou un bilan. Indique ce temps fort dans le champ tempsFort.
 - Un temps fort marqué « date approximative » : publie la veille ou le jour, sans écrire la date exacte dans l'idée.
+- heure : propose pour chaque publication une heure de publication (format HH:mm, entre 06:00 et 22:00, dans le fuseau du client), choisie selon le réseau et les habitudes du public : par exemple Facebook à la pause de midi ou en fin de journée, Instagram en soirée, LinkedIn en matinée ou à midi un jour de semaine, TikTok en soirée. Varie les heures d'une publication à l'autre au lieu de répéter toujours la même.
 - Classe les publications par date.

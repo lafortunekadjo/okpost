@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService, messageErreur } from '../core/api.service';
+import { ConfirmationService } from '../core/confirmation.service';
 import { AuthService } from '../core/auth.service';
 import { Abonnement, Consommation, EtatIa, Membre } from '../core/models';
 import { CatalogueEvenementsComponent } from './catalogue-evenements.component';
@@ -103,6 +104,7 @@ const FORMULES: Partial<Record<string, string>> = { ESSAI: 'Essai gratuit', SOLO
 })
 export class ReglagesComponent {
   private api = inject(ApiService);
+  private confirmation = inject(ConfirmationService);
   auth = inject(AuthService);
 
   membres = signal<Membre[]>([]);
@@ -142,8 +144,8 @@ export class ReglagesComponent {
     });
   }
 
-  retirer(m: Membre) {
-    if (!confirm(`Retirer ${m.nom} ?`)) return;
+  async retirer(m: Membre) {
+    if (!(await this.confirmation.demander({ titre: `Retirer ${m.nom} ?`, message: 'Cette personne ne pourra plus se connecter à OkPost.', confirmer: 'Retirer', danger: true }))) return;
     this.api.retirerMembre(m.id).subscribe({
       next: () => this.membres.update(l => l.map(x => (x.id === m.id ? { ...x, actif: false } : x))),
       error: e => this.erreur.set(messageErreur(e)),

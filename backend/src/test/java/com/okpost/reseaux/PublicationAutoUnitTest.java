@@ -42,4 +42,26 @@ class PublicationAutoUnitTest {
         assertThat(chiffre).doesNotContain("EAAB");
         assertThat(c.dechiffrer(chiffre)).isEqualTo("EAAB-jeton-de-page");
     }
+
+    @Test
+    void lHeureDeLaPublicationPrimeSurCelleDuClient() {
+        Publication p = new Publication();
+        p.setDatePrevue(LocalDate.of(2026, 11, 5));
+        p.setHeurePrevue("12:30");
+        Client c = new Client();
+        c.setHeurePublication("18:00");
+        c.setFuseau("Africa/Douala");
+        assertThat(PublicationAutoService.heureParDefaut(p, c)).isEqualTo(Instant.parse("2026-11-05T11:30:00Z"));
+    }
+
+    @Test
+    void uneHeureInvalideRetombeSurLHeureDuClient() {
+        Publication p = new Publication();
+        p.setDatePrevue(LocalDate.of(2026, 11, 5));
+        p.setHeurePrevue("bientôt");
+        Client c = new Client();
+        c.setHeurePublication("18:00");
+        c.setFuseau("Africa/Douala");
+        assertThat(PublicationAutoService.heureParDefaut(p, c)).isEqualTo(Instant.parse("2026-11-05T17:00:00Z"));
+    }
 }

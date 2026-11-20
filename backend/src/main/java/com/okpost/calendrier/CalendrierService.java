@@ -168,7 +168,17 @@ public class CalendrierService {
         if (m.version() != null && m.version() != p.getVersion()) {
             throw new ApiException(HttpStatus.CONFLICT, "Cette publication a été modifiée entre-temps. Recharge la page.");
         }
-        if (m.date() != null) p.setDatePrevue(m.date());
+        boolean horaireModifie = false;
+        if (m.date() != null) {
+            horaireModifie = !m.date().equals(p.getDatePrevue());
+            p.setDatePrevue(m.date());
+        }
+        if (m.heure() != null) {
+            String heure = m.heure().isBlank() ? null : NettoyageTextes.heure(m.heure());
+            if (heure == null && !m.heure().isBlank()) throw ApiException.requeteInvalide("Heure invalide : utilise le format HH:mm (ex. 18:30)");
+            horaireModifie |= !java.util.Objects.equals(heure, p.getHeurePrevue());
+            p.setHeurePrevue(heure);
+        }
         if (m.reseau() != null) {
             String r = m.reseau().toUpperCase(Locale.ROOT);
             if (!RESEAUX.contains(r)) throw ApiException.requeteInvalide("Réseau invalide");
@@ -204,6 +214,10 @@ public class CalendrierService {
             // Une publication corrigée repasse en brouillon, prête à être renvoyée en validation.
             p.setStatut(StatutPublication.BROUILLON);
         }
+        // Une publication déjà programmée suit sa nouvelle date ou sa nouvelle heure
+        if (horaireModifie && p.getStatut() == StatutPublication.PROGRAMMEE && p.getPublicationPrevue() != null) {
+            publicationAuto.programmer(p, clients.charger(s, charger(s, p.getCalendrierId()).getClientId()), null);
+        }
         publications.saveAndFlush(p);
         return vue(p, retoursPar(List.of(p.getId())).getOrDefault(p.getId(), List.of()),
                 visuelsPar(List.of(p.getId())).getOrDefault(p.getId(), List.of()));
@@ -236,6 +250,6 @@ public class CalendrierService {
                 p.getPilier(), p.getIdee(), p.getObjectif(), p.getTempsFort(), p.getLegende(), p.getHashtags(),
                 p.getCta(), p.getBrief(), p.getScenario(), p.isDetailGenere(), p.getStatut().name(), p.getVersion(),
                 retours, images, p.getPublicationPrevue(), p.getPublieeLe(), p.getLienPost(), p.getErreurPublication(),
-                p.getModeCarrousel());
+                p.getModeCarrousel(), p.getHeurePrevue());
     }
 }
