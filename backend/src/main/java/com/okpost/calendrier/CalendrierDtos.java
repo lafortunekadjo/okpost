@@ -44,7 +44,7 @@ public final class CalendrierDtos {
                                  boolean detailGenere, String statut, int version, List<RetourVue> retours,
                                  List<VisuelVue> visuels, java.time.Instant publicationPrevue,
                                  java.time.Instant publieeLe, String lienPost, String erreurPublication,
-                                 String modeCarrousel, String heure) {}
+                                 String modeCarrousel, String heure, String heureMotif) {}
 
     public record VisuelVue(UUID id, String url, String prompt, String ratio, String modele, java.time.Instant date,
                             String type, String source, String nomOrigine, Integer diapositive) {}

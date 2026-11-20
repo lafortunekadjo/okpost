@@ -76,6 +76,10 @@ public class Publication extends BaseEntity {
     @Column(name = "heure_prevue", length = 5)
     private String heurePrevue;
 
+    /** Pourquoi cette heure a été choisie (historique de la Page, habitudes du réseau, ajustement). */
+    @Column(name = "heure_motif", length = 250)
+    private String heureMotif;
+
     @Column(name = "publiee_le")
     private java.time.Instant publieeLe;
 
@@ -123,6 +127,8 @@ public class Publication extends BaseEntity {
     public StatutPublication getStatut() { return statut; }
     public void setStatut(StatutPublication statut) { this.statut = statut; }
     public int getVersion() { return version; }
+    public String getHeureMotif() { return heureMotif; }
+    public void setHeureMotif(String heureMotif) { this.heureMotif = heureMotif; }
     public String getHeurePrevue() { return heurePrevue; }
     public void setHeurePrevue(String heurePrevue) { this.heurePrevue = heurePrevue; }
     public java.time.Instant getPublicationPrevue() { return publicationPrevue; }

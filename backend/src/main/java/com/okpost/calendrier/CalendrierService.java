@@ -177,6 +177,7 @@ public class CalendrierService {
             String heure = m.heure().isBlank() ? null : NettoyageTextes.heure(m.heure());
             if (heure == null && !m.heure().isBlank()) throw ApiException.requeteInvalide("Heure invalide : utilise le format HH:mm (ex. 18:30)");
             horaireModifie |= !java.util.Objects.equals(heure, p.getHeurePrevue());
+            if (!java.util.Objects.equals(heure, p.getHeurePrevue())) p.setHeureMotif(null);
             p.setHeurePrevue(heure);
         }
         if (m.reseau() != null) {
@@ -250,6 +251,6 @@ public class CalendrierService {
                 p.getPilier(), p.getIdee(), p.getObjectif(), p.getTempsFort(), p.getLegende(), p.getHashtags(),
                 p.getCta(), p.getBrief(), p.getScenario(), p.isDetailGenere(), p.getStatut().name(), p.getVersion(),
                 retours, images, p.getPublicationPrevue(), p.getPublieeLe(), p.getLienPost(), p.getErreurPublication(),
-                p.getModeCarrousel(), p.getHeurePrevue());
+                p.getModeCarrousel(), p.getHeurePrevue(), p.getHeureMotif());
     }
 }

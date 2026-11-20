@@ -167,6 +167,14 @@ public class AnalysePageService {
         t.append("Engagement moyen par format : ").append(liste(s.engagementParType(), s.parType())).append(".\n");
         t.append("Engagement moyen par jour : ").append(classement(s.engagementParJour())).append(".\n");
         t.append("Engagement moyen par créneau horaire : ").append(classement(s.engagementParCreneau())).append(".\n");
+        Heures h = heures(posts, zone);
+        t.append("Engagement moyen par heure de publication (heure du client) : ").append(h.texte()).append(".\n");
+        if (h.fiable() && !h.meilleures().isEmpty()) {
+            t.append("Meilleures heures de publication : ").append(listeHeures(h.meilleures())).append(".\n");
+            if (!h.aEviter().isEmpty()) t.append("Heures peu porteuses : ").append(listeHeures(h.aEviter())).append(".\n");
+        } else {
+            t.append("Historique trop court pour fixer des heures de publication fiables (moins de 10 publications, ou heures trop peu représentées).\n");
+        }
         t.append("Les 5 publications qui ont le mieux marché :\n");
         posts.stream().sorted(Comparator.comparingDouble(this::score).reversed()).limit(5)
                 .forEach(p -> t.append("- ").append(lignePost(resume(p))).append('\n'));
@@ -174,7 +182,7 @@ public class AnalysePageService {
         posts.stream().filter(p -> !p.message().isBlank()).limit(20)
                 .forEach(p -> t.append("- ").append(extrait(p.message(), 110)).append('\n'));
         t.append("Utilise cet historique pour : reprendre les sujets et formats qui marchent sous un angle nouveau, "
-                + "éviter les répétitions, garder le ton réel de la Page, et privilégier les jours et créneaux les plus porteurs.");
+                + "éviter les répétitions, garder le ton réel de la Page, privilégier les jours et créneaux les plus porteurs, et fixer l'heure de chaque publication d'après les meilleures heures ci-dessus.");
         return t.toString();
     }
 
@@ -210,6 +218,60 @@ public class AnalysePageService {
     }
 
     // ------------------------------------------------------------------ Calculs
+
+    /** Engagement par heure de publication : les heures qui marchent, celles qu'il faut éviter, et si les données sont assez nombreuses. */
+    record Heures(List<Integer> meilleures, List<Integer> aEviter, boolean fiable, String texte) {}
+
+    static Heures heures(List<PostPage> posts, ZoneId zone) {
+        Map<Integer, List<Integer>> parHeure = new java.util.TreeMap<>();
+        for (PostPage p : posts) {
+            parHeure.computeIfAbsent(p.date().atZone(zone).getHour(), k -> new ArrayList<>()).add(p.engagement());
+        }
+        double moyenne = posts.stream().mapToInt(PostPage::engagement).average().orElse(0);
+        boolean fiable = posts.size() >= 10 && moyenne > 0;
+        Function<Map.Entry<Integer, List<Integer>>, Double> moyenneHeure =
+                e -> e.getValue().stream().mapToInt(Integer::intValue).average().orElse(0);
+        String texte = parHeure.entrySet().stream()
+                .sorted(Comparator.comparing(moyenneHeure).reversed())
+                .map(e -> e.getKey() + " h → " + Math.round(moyenneHeure.apply(e)) + " (" + e.getValue().size() + " pub.)")
+                .collect(Collectors.joining(" ; "));
+        List<Integer> meilleures = !fiable ? List.of() : parHeure.entrySet().stream()
+                .filter(e -> e.getValue().size() >= 2 && moyenneHeure.apply(e) >= moyenne)
+                .sorted(Comparator.comparing(moyenneHeure).reversed()).limit(3).map(Map.Entry::getKey).toList();
+        List<Integer> aEviter = !fiable ? List.of() : parHeure.entrySet().stream()
+                .filter(e -> e.getValue().size() >= 2 && moyenneHeure.apply(e) < moyenne * 0.5)
+                .sorted(Comparator.comparing(moyenneHeure)).limit(3).map(Map.Entry::getKey).toList();
+        return new Heures(meilleures, aEviter, fiable, texte);
+    }
+
+    private static String listeHeures(List<Integer> heures) {
+        return heures.stream().sorted().map(h -> h + " h").collect(Collectors.joining(", "));
+    }
+
+    /** Heures recommandées et à éviter, relues dans le texte d'analyse gardé sur le calendrier. */
+    public record HeuresRecommandees(List<Integer> meilleures, List<Integer> aEviter) {
+        /** L'heure recommandée la plus proche de celle demandée. */
+        public int plusProche(int heure) {
+            return meilleures.stream().min(Comparator.comparingInt(h -> Math.abs(h - heure))).orElse(heure);
+        }
+    }
+
+    public static HeuresRecommandees heuresDepuisAnalyse(String analyse) {
+        return new HeuresRecommandees(lireHeures(analyse, "Meilleures heures de publication : "),
+                lireHeures(analyse, "Heures peu porteuses : "));
+    }
+
+    private static List<Integer> lireHeures(String analyse, String debut) {
+        if (analyse == null) return List.of();
+        int i = analyse.indexOf(debut);
+        if (i < 0) return List.of();
+        int fin = analyse.indexOf('.', i);
+        String ligne = analyse.substring(i + debut.length(), fin < 0 ? analyse.length() : fin);
+        List<Integer> heures = new ArrayList<>();
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d{1,2}) h").matcher(ligne);
+        while (m.find()) heures.add(Integer.parseInt(m.group(1)));
+        return heures;
+    }
 
     static Statistiques statistiques(List<PostPage> posts, ZoneId zone) {
         int reactions = posts.stream().mapToInt(PostPage::reactions).sum();

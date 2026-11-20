@@ -35,4 +35,11 @@ final class NettoyageTextes {
         int minutes = Integer.parseInt(propre.substring(0, 2)) * 60 + Integer.parseInt(propre.substring(3));
         return minutes >= 6 * 60 && minutes <= 22 * 60 + 30 ? propre : null;
     }
+
+    /** Motif d'une heure : une phrase courte, sans retours à la ligne, 250 caractères au plus. */
+    static String motif(String m) {
+        if (m == null || m.isBlank()) return null;
+        String propre = m.trim().replaceAll("\\s+", " ");
+        return propre.length() > 250 ? propre.substring(0, 247) + "…" : propre;
+    }
 }

@@ -104,6 +104,8 @@ export interface Publication {
   publicationPrevue?: string;
   /** Heure locale prévue (HH:mm) ; vide = heure par défaut du client. */
   heure?: string | null;
+  /** Pourquoi cette heure a été choisie. */
+  heureMotif?: string | null;
   publieeLe?: string;
   lienPost?: string;
   erreurPublication?: string;

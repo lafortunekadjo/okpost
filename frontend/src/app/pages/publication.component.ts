@@ -84,7 +84,8 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
           </nav>
           <div class="ligne-champs">
             <div class="champ"><label>Date</label><input type="date" name="date" [(ngModel)]="pub.date" /></div>
-            <div class="champ"><label>Heure <span class="aide">heure du client</span></label><input type="time" name="heure" [(ngModel)]="pub.heure" /></div>
+            <div class="champ"><label>Heure <span class="aide">heure du client</span></label><input type="time" name="heure" [(ngModel)]="pub.heure" />
+              @if (pub.heureMotif) { <span class="aide">{{ pub.heureMotif }}</span> }</div>
             <div class="champ"><label>Réseau</label>
               <select name="reseau" [(ngModel)]="pub.reseau">@for (r of reseaux; track r) { <option [value]="r">{{ libellesReseau[r] }}</option> }</select></div>
             <div class="champ"><label>Format</label>

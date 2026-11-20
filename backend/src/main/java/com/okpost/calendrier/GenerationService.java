@@ -175,6 +175,10 @@ public class GenerationService {
                 cal.setPiliers(new ArrayList<>(grille.piliers()));
             }
             calendriers.save(cal);
+            // Heures recommandées par l'analyse de la Page (vides s'il n'y a pas d'historique exploitable)
+            com.okpost.analyse.AnalysePageService.HeuresRecommandees reco =
+                    com.okpost.analyse.AnalysePageService.heuresDepuisAnalyse(cal.getAnalysePage());
+            int rotation = 0;
             for (IdeeGeneree i : grille.publications()) {
                 Publication p = new Publication();
                 p.setWorkspaceId(cal.getWorkspaceId());
@@ -185,7 +189,22 @@ public class GenerationService {
                 p.setFormat("TIKTOK".equals(p.getReseau()) ? "VIDEO" : format);
                 p.setPilier(i.pilier());
                 p.setIdee(NettoyageTextes.idee(i.idee()));
-                p.setHeurePrevue(NettoyageTextes.heureIa(i.heure()));
+                String heure = NettoyageTextes.heureIa(i.heure());
+                String motif = NettoyageTextes.motif(i.heureMotif());
+                if (!reco.meilleures().isEmpty()) {
+                    if (heure == null) {
+                        // Pas d'heure exploitable de l'IA : on prend les meilleures heures de la Page, à tour de rôle
+                        heure = String.format(Locale.ROOT, "%02d:00", reco.meilleures().get(rotation++ % reco.meilleures().size()));
+                        motif = "Une des meilleures heures de la Page d'après son historique";
+                    } else if (reco.aEviter().contains(Integer.parseInt(heure.substring(0, 2)))) {
+                        // Heure que l'historique déconseille : on la ramène à la meilleure heure la plus proche
+                        int ancienne = Integer.parseInt(heure.substring(0, 2));
+                        heure = String.format(Locale.ROOT, "%02d:00", reco.plusProche(ancienne));
+                        motif = "Heure ajustée d'après l'historique de la Page (" + ancienne + " h était peu porteuse)";
+                    }
+                }
+                p.setHeurePrevue(heure);
+                p.setHeureMotif(heure == null ? null : motif);
                 p.setObjectif(i.objectif() == null ? null : i.objectif().toUpperCase(Locale.ROOT));
                 p.setTempsFort(i.tempsFort());
                 p.setStatut(StatutPublication.IDEE);
