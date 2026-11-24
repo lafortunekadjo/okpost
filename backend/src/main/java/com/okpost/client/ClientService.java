@@ -214,7 +214,7 @@ public class ClientService {
         c.setTutoiement(Boolean.TRUE.equals(f.tutoiement()));
         c.setMotsAEviter(f.motsAEviter());
         c.setExemples(f.exemples());
-        c.setOffres(f.offres() == null ? new ArrayList<>() : new ArrayList<>(f.offres()));
+        c.setOffres(nettoyerOffres(f.offres()));
         c.setCibles(f.cibles() == null ? new ArrayList<>() : new ArrayList<>(f.cibles()));
         c.setConcurrents(f.concurrents() == null ? new ArrayList<>() : new ArrayList<>(f.concurrents()));
         c.setCouleurs(f.couleurs() == null ? new ArrayList<>() : new ArrayList<>(f.couleurs()));
@@ -226,6 +226,35 @@ public class ClientService {
         if (f.heurePublication() != null) c.setHeurePublication(f.heurePublication());
         if (f.fetesReligieuses() != null) c.setFetesReligieuses(f.fetesReligieuses());
         if (f.typeActivite() != null) c.setTypeActivite(f.typeActivite());
+    }
+
+    static final int OFFRES_MAX = 300;
+
+    /** Catalogue plafonné et nettoyé : les textes viennent d'un formulaire ou d'un import et finissent dans les prompts de l'IA. */
+    static List<Client.Offre> nettoyerOffres(List<Client.Offre> offres) {
+        List<Client.Offre> propres = new ArrayList<>();
+        if (offres == null) return propres;
+        for (Client.Offre o : offres) {
+            if (o == null || o.nom() == null || o.nom().isBlank()) continue;
+            if (propres.size() >= OFFRES_MAX) break;
+            propres.add(new Client.Offre(texte(o.nom(), 150), texte(o.description(), 500), texte(o.prix(), 100), texte(o.variantes(), 255),
+                    o.photos() == null || o.photos().isEmpty() ? null : o.photos().stream().filter(java.util.Objects::nonNull).distinct().limit(10).toList(),
+                    texte(o.categorie(), 60), mots(o.tailles()), mots(o.couleurs()), o.disponible()));
+        }
+        return propres;
+    }
+
+    private static String texte(String t, int max) {
+        if (t == null) return null;
+        String v = t.trim().replaceAll("[\\p{Cntrl}&&[^\\n]]", "");
+        if (v.isEmpty()) return null;
+        return v.length() > max ? v.substring(0, max) : v;
+    }
+
+    private static List<String> mots(List<String> valeurs) {
+        if (valeurs == null) return null;
+        List<String> l = valeurs.stream().map(v -> texte(v, 20)).filter(java.util.Objects::nonNull).distinct().limit(20).toList();
+        return l.isEmpty() ? null : l;
     }
 
     /** Détection du format par les premiers octets, pas par l'extension déclarée. */

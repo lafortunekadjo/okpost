@@ -9,7 +9,12 @@ export interface SessionUtilisateur {
   role: Role;
 }
 
-export interface Offre { nom: string; description?: string; prix?: string; variantes?: string; photos?: string[]; }
+export interface Offre {
+  nom: string; description?: string; prix?: string; variantes?: string; photos?: string[];
+  categorie?: string; tailles?: string[]; couleurs?: string[]; disponible?: boolean;
+}
+
+export interface ResultatCatalogue { produits: Offre[]; avertissements: string[]; photosRattachees: number; }
 
 export type TypeActivite = 'SERVICES' | 'PRODUITS' | 'MIXTE';
 

@@ -133,6 +133,26 @@ const TYPES_FICHIERS = [
           @case ('offres') {
             <p class="aide">Produits ou services. Les prix indiqués ici sont les seuls que l'IA pourra citer.
               @if (c.typeActivite !== 'SERVICES') { Pour chaque produit, rattache ses vraies photos : les publications montreront le vrai article, jamais une image inventée par l'IA. }</p>
+            @if (c.typeActivite !== 'SERVICES') {
+              <div class="import-catalogue">
+                <strong>Importer un catalogue</strong>
+                <p class="aide">Depuis Excel ou Google Sheets : enregistre ton tableau en CSV (colonnes : nom, prix, description, categorie, tailles, couleurs, stock, photo).
+                  Pour rattacher les photos, ajoute-les d'abord à la banque d'images puis écris leur nom de fichier dans la colonne photo.
+                  Les produits importés s'ajoutent à la liste (un produit du même nom est mis à jour) : relis, puis enregistre la fiche.</p>
+                <div class="ligne" style="gap:10px;flex-wrap:wrap">
+                  <input type="file" accept=".csv,text/csv,text/plain" (change)="importerCatalogue($event)" [disabled]="!id() || importCatalogue()" aria-label="Fichier CSV du catalogue" />
+                  <button type="button" class="bouton secondaire petit" (click)="telechargerModele()">Télécharger un modèle</button>
+                </div>
+                @if (!id()) { <p class="aide">Enregistre d'abord la fiche pour pouvoir importer.</p> }
+                @if (importCatalogue()) { <p class="aide">Lecture du fichier…</p> }
+                @if (resumeCatalogue(); as r) {
+                  <div [class]="r.erreur ? 'erreur' : 'succes'" role="status" style="margin-top:8px">{{ r.texte }}
+                    @for (w of r.avertissements; track $index) { <br />· {{ w }} }
+                  </div>
+                }
+              </div>
+            }
+            @if (c.offres.length > 1) { <p class="aide">{{ c.offres.length }} élément(s) dans le catalogue.</p> }
             @for (o of c.offres; track $index) {
               <div class="offre">
                 <div class="ligne-champs">
@@ -141,23 +161,46 @@ const TYPES_FICHIERS = [
                 </div>
                 <div class="champ"><label>Description</label><textarea rows="2" [name]="'offre-desc-' + $index" [(ngModel)]="o.description"></textarea></div>
                 @if (c.typeActivite !== 'SERVICES') {
-                  <div class="champ"><label>Variantes <span class="aide">tailles, couleurs… (facultatif)</span></label>
-                    <input type="text" [name]="'offre-var-' + $index" [(ngModel)]="o.variantes" placeholder="Tailles 85 à 100 ; noir, nude" /></div>
+                  <div class="ligne-champs">
+                    <div class="champ"><label>Catégorie <span class="aide">facultatif</span></label>
+                      <input type="text" [name]="'offre-cat-' + $index" [(ngModel)]="o.categorie" placeholder="Soutiens-gorge" /></div>
+                    <div class="champ"><label>Disponibilité</label>
+                      <select [name]="'offre-dispo-' + $index" [ngModel]="o.disponible === false ? 'non' : 'oui'" (ngModelChange)="o.disponible = $event === 'non' ? false : undefined">
+                        <option value="oui">En stock</option>
+                        <option value="non">En rupture</option>
+                      </select></div>
+                  </div>
+                  <div class="ligne-champs">
+                    <div class="champ"><label>Tailles <span class="aide">séparées par des virgules</span></label>
+                      <input type="text" [name]="'offre-tailles-' + $index" [ngModel]="enTexte(o.tailles)" (change)="definirListe(o, 'tailles', $any($event.target).value)" placeholder="85, 90, 95, 100" /></div>
+                    <div class="champ"><label>Couleurs <span class="aide">séparées par des virgules</span></label>
+                      <input type="text" [name]="'offre-couleurs-' + $index" [ngModel]="enTexte(o.couleurs)" (change)="definirListe(o, 'couleurs', $any($event.target).value)" placeholder="noir, nude, rouge" /></div>
+                  </div>
+                  <div class="champ"><label>Autres précisions <span class="aide">facultatif (matière, entretien…)</span></label>
+                    <input type="text" [name]="'offre-var-' + $index" [(ngModel)]="o.variantes" /></div>
                   <div class="champ"><label>Photos du produit</label>
                     @if (!id()) {
                       <p class="aide">Enregistre d'abord la fiche et ajoute des photos à la banque d'images (onglet Identité visuelle) pour les rattacher ici.</p>
                     } @else if (!photosBanque().length) {
                       <p class="aide">La banque d'images est vide : ajoute les photos du client (onglet Identité visuelle), puis reviens ici.</p>
                     } @else {
-                      <div class="vignettes">
-                        @for (a of photosBanque(); track a.id) {
-                          <label class="vignette">
-                            <input type="checkbox" [checked]="o.photos?.includes(a.id)" (change)="basculerPhotoProduit(o, a.id)" [attr.aria-label]="'Rattacher cette photo à ' + (o.nom || 'ce produit')" />
-                            <img [src]="a.url" [alt]="a.legende || a.description || 'Photo'" loading="lazy" />
-                          </label>
-                        }
+                      <div class="photos-produit">
+                        @for (ph of photosDe(o); track ph.id) { <img class="mini" [src]="ph.url" [alt]="ph.legende || ph.description || 'Photo du produit'" loading="lazy" /> }
+                        @if (!o.photos?.length) { <span class="aide">Aucune photo choisie.</span> }
+                        <button type="button" class="bouton secondaire petit" (click)="photosOuvert.set(photosOuvert() === $index ? null : $index)">
+                          {{ photosOuvert() === $index ? 'Fermer' : 'Choisir les photos' }}
+                        </button>
                       </div>
-                      @if (!o.photos?.length) { <p class="aide" style="margin-top:6px">Aucune photo choisie pour ce produit.</p> }
+                      @if (photosOuvert() === $index) {
+                        <div class="vignettes" style="margin-top:8px">
+                          @for (a of photosBanque(); track a.id) {
+                            <label class="vignette">
+                              <input type="checkbox" [checked]="o.photos?.includes(a.id)" (change)="basculerPhotoProduit(o, a.id)" [attr.aria-label]="'Rattacher cette photo à ' + (o.nom || 'ce produit')" />
+                              <img [src]="a.url" [alt]="a.legende || a.description || 'Photo'" loading="lazy" />
+                            </label>
+                          }
+                        </div>
+                      }
                     }
                   </div>
                 }
@@ -265,6 +308,9 @@ const TYPES_FICHIERS = [
   `,
   styles: `
     .offre { border: 1px solid var(--gris-clair); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+    .import-catalogue { border: 1px dashed var(--gris-clair); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+    .photos-produit { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .mini { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid var(--gris-clair); }
     .nuance { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1px solid rgba(0,0,0,.1); }
     .couleur { width: 48px; height: 38px; padding: 2px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
     .images-site { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--gris-clair); }
@@ -292,6 +338,83 @@ export class FicheClientComponent implements OnInit {
   onglet = signal<Onglet>('identite');
   assets = signal<Asset[]>([]);
   photosBanque = computed(() => this.assets().filter(a => a.type === 'PHOTO'));
+
+  importCatalogue = signal(false);
+  resumeCatalogue = signal<{ texte: string; avertissements: string[]; erreur: boolean } | null>(null);
+  photosOuvert = signal<number | null>(null);
+
+  enTexte(l?: string[]) {
+    return (l ?? []).join(', ');
+  }
+
+  definirListe(o: Offre, champ: 'tailles' | 'couleurs', texte: string) {
+    const l = [...new Set(texte.split(/[;,|]/).map(t => t.trim()).filter(Boolean))].slice(0, 20);
+    o[champ] = l.length ? l : undefined;
+    this.modifie.set(true);
+  }
+
+  photosDe(o: Offre) {
+    const ids = new Set(o.photos ?? []);
+    return this.photosBanque().filter(a => ids.has(a.id));
+  }
+
+  /** Lit un catalogue CSV et le fusionne dans la liste : un produit du même nom est mis à jour, les autres sont ajoutés. Rien n'est enregistré. */
+  importerCatalogue(ev: Event) {
+    const champ = ev.target as HTMLInputElement;
+    const fichier = champ.files?.[0];
+    const id = this.id();
+    if (!fichier || !id) return;
+    if (fichier.size > 1024 * 1024) {
+      this.resumeCatalogue.set({ texte: 'Fichier trop lourd (1 Mo maximum).', avertissements: [], erreur: true });
+      champ.value = '';
+      return;
+    }
+    this.importCatalogue.set(true);
+    this.resumeCatalogue.set(null);
+    this.api.importerCatalogue(id, fichier).subscribe({
+      next: r => {
+        let ajoutes = 0;
+        let misAJour = 0;
+        for (const p of r.produits) {
+          const cle = p.nom.trim().toLowerCase();
+          const i = this.c.offres.findIndex(o => (o.nom ?? '').trim().toLowerCase() === cle);
+          if (i >= 0) {
+            const ancien = this.c.offres[i];
+            this.c.offres[i] = { ...ancien, ...p, photos: p.photos?.length ? p.photos : ancien.photos };
+            misAJour++;
+          } else {
+            this.c.offres.push(p);
+            ajoutes++;
+          }
+        }
+        this.modifie.set(true);
+        this.importCatalogue.set(false);
+        champ.value = '';
+        this.resumeCatalogue.set({
+          texte: `${ajoutes} produit(s) ajouté(s), ${misAJour} mis à jour, ${r.photosRattachees} photo(s) rattachée(s). Relis la liste puis enregistre la fiche.`,
+          avertissements: r.avertissements, erreur: false,
+        });
+      },
+      error: e => {
+        this.importCatalogue.set(false);
+        champ.value = '';
+        this.resumeCatalogue.set({ texte: messageErreur(e), avertissements: [], erreur: true });
+      },
+    });
+  }
+
+  /** Modèle de tableau à remplir (CSV avec BOM pour qu'Excel affiche bien les accents). */
+  telechargerModele() {
+    const csv = '\uFEFFnom;prix;description;categorie;tailles;couleurs;stock;photo\n'
+      + 'Soutien-gorge Émeraude;12 000 FCFA;Dentelle sans armatures;Soutiens-gorge;"85, 90, 95, 100";"noir, nude";oui;emeraude.jpg\n'
+      + 'Culotte Rosé;5 000 FCFA;Coton doux;Culottes;"S, M, L";rose;non;rose.jpg\n';
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const lien = document.createElement('a');
+    lien.href = url;
+    lien.download = 'modele-catalogue.csv';
+    lien.click();
+    URL.revokeObjectURL(url);
+  }
 
   basculerPhotoProduit(o: Offre, assetId: string) {
     const l = new Set(o.photos ?? []);

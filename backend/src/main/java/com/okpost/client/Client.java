@@ -19,9 +19,18 @@ import java.util.UUID;
 public class Client extends BaseEntity {
 
     /** photos : identifiants de photos de la banque d'images du client, pour que les publications montrent le vrai produit. */
-    public record Offre(String nom, String description, String prix, String variantes, List<UUID> photos) {
+    /**
+     * Produit ou service du catalogue. tailles et couleurs sont des listes (une valeur par taille ou couleur) ; disponible vaut null
+     * quand rien n'est précisé (considéré en stock) et false en rupture ; variantes reste un texte libre pour les autres précisions.
+     */
+    public record Offre(String nom, String description, String prix, String variantes, List<UUID> photos,
+                        String categorie, List<String> tailles, List<String> couleurs, Boolean disponible) {
         public Offre(String nom, String description, String prix) {
-            this(nom, description, prix, null, null);
+            this(nom, description, prix, null, null, null, null, null, null);
+        }
+
+        public Offre(String nom, String description, String prix, String variantes, List<UUID> photos) {
+            this(nom, description, prix, variantes, photos, null, null, null, null);
         }
     }
 

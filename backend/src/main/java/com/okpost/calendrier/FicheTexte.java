@@ -30,13 +30,22 @@ public final class FicheTexte {
         ligne(sb, "Horaires", c.getHoraires());
         if (c.getOffres() != null && !c.getOffres().isEmpty()) {
             sb.append("Offres :\n");
+            int affichees = 0;
             for (Client.Offre o : c.getOffres()) {
+                if (affichees++ >= OFFRES_DANS_LE_PROMPT) break;
                 sb.append("  - ").append(o.nom());
                 if (o.prix() != null && !o.prix().isBlank()) sb.append(" — ").append(o.prix());
                 if (o.description() != null && !o.description().isBlank()) sb.append(" : ").append(o.description());
+                if (o.categorie() != null && !o.categorie().isBlank()) sb.append(" [catégorie : ").append(o.categorie().trim()).append(']');
+                if (o.tailles() != null && !o.tailles().isEmpty()) sb.append(" [tailles : ").append(String.join(", ", o.tailles())).append(']');
+                if (o.couleurs() != null && !o.couleurs().isEmpty()) sb.append(" [couleurs : ").append(String.join(", ", o.couleurs())).append(']');
                 if (o.variantes() != null && !o.variantes().isBlank()) sb.append(" [variantes : ").append(o.variantes().trim()).append(']');
+                if (Boolean.FALSE.equals(o.disponible())) sb.append(" [EN RUPTURE]");
                 if (c.vendDesProduits()) sb.append(o.photos() != null && !o.photos().isEmpty() ? " [photo du produit disponible]" : " [pas de photo du produit]");
                 sb.append('\n');
+            }
+            if (c.getOffres().size() > OFFRES_DANS_LE_PROMPT) {
+                sb.append("  … et ").append(c.getOffres().size() - OFFRES_DANS_LE_PROMPT).append(" autres produits (ne cite que ceux de la liste ci-dessus)\n");
             }
         }
         liste(sb, "Cibles", c.getCibles());
@@ -59,6 +68,9 @@ public final class FicheTexte {
         return sb.toString();
     }
 
+    /** Un catalogue de plusieurs centaines de produits ne tient pas dans un prompt : les premiers sont cités. */
+    static final int OFFRES_DANS_LE_PROMPT = 40;
+
     static final String REGLES_BOUTIQUE = """
 
             RÈGLES POUR UNE ENTREPRISE QUI VEND DES PRODUITS
@@ -66,6 +78,8 @@ public final class FicheTexte {
             - Pour une publication sur un produit dont la photo est disponible, choisis le gabarit PRODUIT. La photo réelle du produit sera utilisée : n'invente ni son apparence ni ses couleurs.
             - Si le produit n'a pas de photo, le promptImage ne montre JAMAIS le produit lui-même (ni vêtement, ni article) : seulement une ambiance, un lieu ou un geste, sans corps dénudé ni pose suggestive.
             - Prix, tailles, couleurs et disponibilités : uniquement ceux de la liste « Offres ». Ne promets ni remise, ni stock, ni délai qui n'y figurent pas.
+            - Un produit marqué [EN RUPTURE] n'est jamais présenté comme disponible : tu peux annoncer son retour seulement si la fiche le dit, ou l'ignorer.
+            - Quand tailles ou couleurs sont listées, tu peux les citer (« du 85 au 100 », « en noir et nude ») mais jamais en inventer.
             - Varie les angles : nouveauté, conseil de taille ou d'entretien, produit en situation, confiance et confort, promotion réelle, dernières pièces, livraison et paiement, coulisses de la boutique, réponse à une question fréquente.
             - Appel à l'action : la commande se fait par message. Si un numéro WhatsApp est renseigné, utilise « Commander sur WhatsApp » ou « Écris-nous sur WhatsApp ».
             - Ton élégant et respectueux, conforme aux règles des réseaux sociaux : pour les produits intimes ou de lingerie, parle de matière, de confort, de coupe, de taille et de confiance en soi, sans vocabulaire ni mise en scène suggestifs.

@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http
 import { Injectable, inject } from '@angular/core';
 import {
   Abonnement, Alerte, Asset, FicheProposee, Musique, ResultatDuplication, Calendrier, CalendrierResume, Client, ClientResume, Consommation, EtatIa,
-  AdminCompte, AdminJournal, AdminTotaux, CompteSocial, ContactValidation, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
+  AdminCompte, AdminJournal, AdminTotaux, ResultatCatalogue, CompteSocial, ContactValidation, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
   PropositionEvenement, TempsFortSuggere, EvenementCatalogue, EvaluationCalendrier, LigneSynthese, NotesPublication,
   BilanPage, Recommandations,
 } from './models';
@@ -148,6 +148,12 @@ export class ApiService {
     return this.http.put<void>(`${this.base}/public/validation/${jeton}/publications/${pubId}/legende`, { legende, commentaire }, this.enteteCode(code));
   }
 
+  /** Lit un catalogue CSV : renvoie les produits à relire, rien n'est enregistré. */
+  importerCatalogue(clientId: string, fichier: File) {
+    const f = new FormData();
+    f.append('fichier', fichier);
+    return this.http.post<ResultatCatalogue>(`${this.base}/clients/${clientId}/catalogue/importer`, f);
+  }
   adminComptes() { return this.http.get<{ totaux: AdminTotaux; comptes: AdminCompte[] }>(`${this.base}/admin/comptes`); }
   adminJournal(f: { espace?: string; action?: string; page?: number }) {
     const params: Record<string, string> = { page: String(f.page ?? 0) };
