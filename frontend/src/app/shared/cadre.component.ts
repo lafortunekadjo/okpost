@@ -13,6 +13,7 @@ import { LogoComponent } from './logo.component';
         <nav>
           <a routerLink="/" routerLinkActive="actif" [routerLinkActiveOptions]="{ exact: true }">Clients</a>
           <a routerLink="/reglages" routerLinkActive="actif">Réglages</a>
+          @if (auth.estSuperAdmin()) { <a routerLink="/admin" routerLinkActive="actif">Administration</a> }
         </nav>
         <span class="espace"></span>
         <span class="nom">{{ auth.session()?.nom }}</span>

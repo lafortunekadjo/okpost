@@ -27,10 +27,13 @@ public class AuthService {
     private final PasswordEncoder encodeur;
     private final JwtService jwt;
     private final OkpostProperties props;
+    private final com.okpost.admin.JournalService journal;
 
     public AuthService(UtilisateurRepository utilisateurs, WorkspaceRepository workspaces,
                        RefreshTokenRepository rafraichissements, AbonnementService abonnements,
-                       PasswordEncoder encodeur, JwtService jwt, OkpostProperties props) {
+                       PasswordEncoder encodeur, JwtService jwt, OkpostProperties props,
+                       com.okpost.admin.JournalService journal) {
+        this.journal = journal;
         this.utilisateurs = utilisateurs;
         this.workspaces = workspaces;
         this.rafraichissements = rafraichissements;
@@ -58,6 +61,7 @@ public class AuthService {
         utilisateurs.save(u);
 
         abonnements.creerEssai(ws.getId());
+        journal.enregistrer(ws.getId(), u.getId(), null, com.okpost.admin.Actions.INSCRIPTION, nomEspace, u.getEmail());
         return emettre(u);
     }
 
@@ -80,11 +84,13 @@ public class AuthService {
                 u.setTentativesEchouees(0);
             }
             utilisateurs.save(u);
+            journal.enregistrer(u.getWorkspaceId(), u.getId(), null, com.okpost.admin.Actions.CONNEXION_ECHEC, u.getEmail(), "Mot de passe incorrect");
             throw identifiantsInvalides();
         }
         u.setTentativesEchouees(0);
         u.setBloqueJusqu(null);
         utilisateurs.save(u);
+        journal.enregistrer(u.getWorkspaceId(), u.getId(), null, com.okpost.admin.Actions.CONNEXION, u.getEmail(), null);
         return emettre(u);
     }
 

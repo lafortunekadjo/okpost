@@ -92,6 +92,21 @@ export interface ScenarioVideo { titre?: string; dureeTotaleS?: number; accroche
 
 export interface Retour { decision: string; commentaire?: string; legendeProposee?: string; legendeOrigine?: string; date: string; par?: string; }
 
+export interface AdminCompte {
+  id: string; nom: string; creeLe: string; emailAdmin?: string; membres: number; clients: number; calendriers: number;
+  publications: number; publiees: number; imagesMois: number; appelsIaMois: number; formule?: string; statutAbonnement?: string;
+  finAbonnement?: string; derniereConnexion?: string;
+}
+
+export interface AdminTotaux {
+  comptes: number; clients: number; calendriers: number; publications: number; publieesMois: number;
+  appelsIaMois: number; echecsIaMois: number; imagesMois: number; echecsPublication7j: number;
+}
+
+export interface AdminLigne { date: string; action: string; libelle: string; espace?: string; espaceId?: string; auteur?: string; cible?: string; detail?: string; }
+
+export interface AdminJournal { total: number; page: number; taille: number; lignes: AdminLigne[]; actions: Record<string, string>; }
+
 export interface ContactValidation { id: string; nom: string; actif: boolean; derniereUtilisation?: string; creeLe?: string; }
 
 export interface Visuel {

@@ -51,13 +51,15 @@ public class ValidationService {
     private final com.okpost.calendrier.VisuelGenereRepository visuels;
     private final com.okpost.reseaux.PublicationAutoService publicationAuto;
     private final CodesValidationService codes;
+    private final com.okpost.admin.JournalService journal;
 
     public ValidationService(com.okpost.calendrier.VisuelGenereRepository visuels,
                              @org.springframework.context.annotation.Lazy com.okpost.reseaux.PublicationAutoService publicationAuto, LienValidationRepository liens, RetourClientRepository retours,
                              PublicationRepository publications, CalendrierRepository calendriers,
                              CalendrierService calendrierService, ClientRepository clients,
                              ClientService clientService, UtilisateurRepository utilisateurs, MailService mail,
-                             OkpostProperties props, CodesValidationService codes) {
+                             OkpostProperties props, CodesValidationService codes, com.okpost.admin.JournalService journal) {
+        this.journal = journal;
         this.codes = codes;
         this.liens = liens;
         this.retours = retours;
@@ -112,6 +114,8 @@ public class ValidationService {
         l.setPublications(List.copyOf(demandes));
         l.setEmailDestinataire(email);
         liens.save(l);
+        journal.enregistrer(s, com.okpost.admin.Actions.LIEN_VALIDATION, cal.getPeriodeDebut() + " → " + cal.getPeriodeFin(),
+                demandes.size() + " publication(s)" + (email == null || email.isBlank() ? "" : " · envoyé à " + email));
         if (email != null && !email.isBlank()) {
             envoyerEmailLien(l, email);
         }
@@ -166,6 +170,8 @@ public class ValidationService {
         l.setPublications(ids);
         l.setEmailDestinataire(email);
         liens.save(l);
+        journal.enregistrer(s, com.okpost.admin.Actions.LIEN_PARTAGE, cal.getPeriodeDebut() + " → " + cal.getPeriodeFin(),
+                ids.size() + " publication(s)" + (email == null || email.isBlank() ? "" : " · envoyé à " + email));
         if (email != null && !email.isBlank()) {
             envoyerEmailLien(l, email);
         }
@@ -250,6 +256,7 @@ public class ValidationService {
         p.setStatut(decision == RetourClient.Decision.OK ? StatutPublication.VALIDEE : StatutPublication.A_MODIFIER);
         publications.save(p);
         enregistrerRetour(l, p, decision, commentaire, null, null, ipHash, validateur);
+        journaliserRetour(p, decision, validateur);
         notifier(l, p, decision, commentaire, validateur);
         programmerSiAuto(p);
     }
@@ -264,6 +271,7 @@ public class ValidationService {
         p.setStatut(StatutPublication.VALIDEE);
         publications.save(p);
         enregistrerRetour(l, p, RetourClient.Decision.MODIFIEE, commentaire, legende.trim(), origine, ipHash, validateur);
+        journaliserRetour(p, RetourClient.Decision.MODIFIEE, validateur);
         notifier(l, p, RetourClient.Decision.MODIFIEE, commentaire, validateur);
         programmerSiAuto(p);
     }
@@ -296,6 +304,16 @@ public class ValidationService {
             throw ApiException.requeteInvalide("Cette publication est déjà programmée ou publiée");
         }
         return p;
+    }
+
+    private void journaliserRetour(Publication p, RetourClient.Decision d, java.util.Optional<CodesValidationService.Validateur> validateur) {
+        String quoi = switch (d) {
+            case OK -> "validée";
+            case A_MODIFIER -> "modification demandée";
+            case MODIFIEE -> "légende corrigée";
+        };
+        journal.enregistrer(p.getWorkspaceId(), null, validateur.map(v -> v.nom() + " (client)").orElse("Client (lien de validation)"),
+                com.okpost.admin.Actions.VALIDATION_CLIENT, p.getReseau() + " du " + p.getDatePrevue(), quoi);
     }
 
     /** Personne qui décide, d'après son code (vide si le client n'exige pas de code). */

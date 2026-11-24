@@ -28,8 +28,11 @@ public class ClientService {
     private final StockageFichiers stockage;
     private final AbonnementService abonnements;
 
+    private final com.okpost.admin.JournalService journal;
+
     public ClientService(ClientRepository clients, ClientAssetRepository assets, StockageFichiers stockage,
-                         AbonnementService abonnements) {
+                         AbonnementService abonnements, com.okpost.admin.JournalService journal) {
+        this.journal = journal;
         this.clients = clients;
         this.assets = assets;
         this.stockage = stockage;
@@ -66,7 +69,9 @@ public class ClientService {
         c.setWorkspaceId(s.workspaceId());
         c.setCmId(s.role() == Role.CM ? s.userId() : (f.cmId() != null ? f.cmId() : s.userId()));
         appliquer(c, f);
-        return clients.save(c);
+        Client cree = clients.save(c);
+        journal.enregistrer(s, com.okpost.admin.Actions.CLIENT_CREE, cree.getNom(), null);
+        return cree;
     }
 
     @Transactional
@@ -85,6 +90,7 @@ public class ClientService {
         Client c = charger(s, id);
         c.setArchive(true);
         clients.save(c);
+        journal.enregistrer(s, com.okpost.admin.Actions.CLIENT_ARCHIVE, c.getNom(), null);
     }
 
     @Transactional

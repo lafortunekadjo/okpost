@@ -33,8 +33,11 @@ public class MembresController {
     private final UtilisateurRepository utilisateurs;
     private final AbonnementService abonnements;
     private final PasswordEncoder encodeur;
+    private final com.okpost.admin.JournalService journal;
 
-    public MembresController(UtilisateurRepository utilisateurs, AbonnementService abonnements, PasswordEncoder encodeur) {
+    public MembresController(UtilisateurRepository utilisateurs, AbonnementService abonnements, PasswordEncoder encodeur,
+                             com.okpost.admin.JournalService journal) {
+        this.journal = journal;
         this.utilisateurs = utilisateurs;
         this.abonnements = abonnements;
         this.encodeur = encodeur;
@@ -66,7 +69,9 @@ public class MembresController {
         u.setEmail(n.email().trim().toLowerCase());
         u.setMotDePasseHash(encodeur.encode(n.motDePasseProvisoire()));
         u.setRole(Role.CM);
-        return vue(utilisateurs.save(u));
+        Utilisateur cree = utilisateurs.save(u);
+        journal.enregistrer(s, com.okpost.admin.Actions.MEMBRE_INVITE, cree.getNom(), cree.getEmail());
+        return vue(cree);
     }
 
     @DeleteMapping("/{id}")

@@ -16,3 +16,10 @@ export const inviteGuard: CanActivateFn = () => {
   if (auth.connecte()) return router.parseUrl('/');
   return auth.rafraichir().pipe(map(ok => (ok ? router.parseUrl('/') : true)));
 };
+
+/** Espace réservé au super-admin : les autres sont renvoyés à l'accueil (le serveur refuse de toute façon). */
+export const superAdminGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  return auth.estSuperAdmin() ? true : router.parseUrl('/');
+};

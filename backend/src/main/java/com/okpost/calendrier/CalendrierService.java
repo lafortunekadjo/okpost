@@ -45,11 +45,14 @@ public class CalendrierService {
     private final com.okpost.reseaux.PublicationAutoService publicationAuto;
     private final com.okpost.client.StockageFichiers stockage;
 
+    private final com.okpost.admin.JournalService journal;
+
     public CalendrierService(CalendrierRepository calendriers, PublicationRepository publications,
                              RetourClientRepository retours, ClientService clients, AbonnementService abonnements,
                              ApplicationEventPublisher evenements, VisuelGenereRepository visuels,
                              @org.springframework.context.annotation.Lazy com.okpost.reseaux.PublicationAutoService publicationAuto,
-                             com.okpost.client.StockageFichiers stockage) {
+                             com.okpost.client.StockageFichiers stockage, com.okpost.admin.JournalService journal) {
+        this.journal = journal;
         this.stockage = stockage;
         this.visuels = visuels;
         this.publicationAuto = publicationAuto;
@@ -102,6 +105,8 @@ public class CalendrierService {
         c.setLangue(n.langue() != null ? n.langue() : client.getLangue());
         c.setStatutGeneration(StatutGeneration.EN_ATTENTE);
         calendriers.save(c);
+        journal.enregistrer(s, com.okpost.admin.Actions.CALENDRIER_CREE, client.getNom(),
+                n.debut() + " → " + n.fin() + " · " + String.join(", ", rythme.keySet()));
         evenements.publishEvent(new GenerationService.GenerationDemandee(c.getId(), null));
         return c;
     }

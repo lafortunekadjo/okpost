@@ -57,10 +57,14 @@ public class PublicationAutoService {
     private final UtilisateurRepository utilisateurs;
     private final OkpostProperties props;
 
+    private final com.okpost.admin.JournalService journal;
+
     public PublicationAutoService(PublicationRepository publications, CalendrierRepository calendriers,
                                   ClientRepository clients, CompteSocialRepository comptes, VisuelGenereRepository visuels,
                                   StockageFichiers stockage, MetaApi meta, Chiffreur chiffreur, TransactionTemplate tx,
-                                  MailService mail, UtilisateurRepository utilisateurs, OkpostProperties props) {
+                                  MailService mail, UtilisateurRepository utilisateurs, OkpostProperties props,
+                                  com.okpost.admin.JournalService journal) {
+        this.journal = journal;
         this.publications = publications;
         this.calendriers = calendriers;
         this.clients = clients;
@@ -234,6 +238,8 @@ public class PublicationAutoService {
                 p.setLienPost(r.lien());
                 p.setErreurPublication(null);
                 publications.save(p);
+                journal.enregistrer(p.getWorkspaceId(), null, "OkPost (automatique)", com.okpost.admin.Actions.PUBLICATION_PUBLIEE,
+                        p.getReseau() + " du " + p.getDatePrevue(), r.lien());
             }));
             log.info("Publication {} : publiée ({})", publicationId, r.lien());
         } catch (RuntimeException e) {
@@ -338,7 +344,11 @@ public class PublicationAutoService {
             p.setPublicationPrevue(Instant.now().plus(ErreursMeta.delai(tentatives)));
             publications.save(p);
             if (nature == ErreursMeta.Nature.ACCES) marquerCompteAReconnecter(p);
-            if (tentatives >= TENTATIVES_MAX) prevenirCm(p, message, nature);
+            if (tentatives >= TENTATIVES_MAX) {
+                journal.enregistrer(p.getWorkspaceId(), null, "OkPost (automatique)", com.okpost.admin.Actions.PUBLICATION_ECHEC,
+                        p.getReseau() + " du " + p.getDatePrevue(), message);
+                prevenirCm(p, message, nature);
+            }
         }));
     }
 

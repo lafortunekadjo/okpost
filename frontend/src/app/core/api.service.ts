@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http
 import { Injectable, inject } from '@angular/core';
 import {
   Abonnement, Alerte, Asset, FicheProposee, Musique, ResultatDuplication, Calendrier, CalendrierResume, Client, ClientResume, Consommation, EtatIa,
-  CompteSocial, ContactValidation, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
+  AdminCompte, AdminJournal, AdminTotaux, CompteSocial, ContactValidation, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
   PropositionEvenement, TempsFortSuggere, EvenementCatalogue, EvaluationCalendrier, LigneSynthese, NotesPublication,
   BilanPage, Recommandations,
 } from './models';
@@ -146,6 +146,14 @@ export class ApiService {
   }
   modifierLegendePortail(jeton: string, pubId: string, legende: string, commentaire?: string, code?: string | null) {
     return this.http.put<void>(`${this.base}/public/validation/${jeton}/publications/${pubId}/legende`, { legende, commentaire }, this.enteteCode(code));
+  }
+
+  adminComptes() { return this.http.get<{ totaux: AdminTotaux; comptes: AdminCompte[] }>(`${this.base}/admin/comptes`); }
+  adminJournal(f: { espace?: string; action?: string; page?: number }) {
+    const params: Record<string, string> = { page: String(f.page ?? 0) };
+    if (f.espace) params['espace'] = f.espace;
+    if (f.action) params['action'] = f.action;
+    return this.http.get<AdminJournal>(`${this.base}/admin/journal`, { params });
   }
 
   contactsValidation(clientId: string) { return this.http.get<ContactValidation[]>(`${this.base}/clients/${clientId}/contacts-validation`); }

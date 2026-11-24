@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { connecteGuard, inviteGuard } from './core/guards';
+import { connecteGuard, inviteGuard, superAdminGuard } from './core/guards';
 import { CadreComponent } from './shared/cadre.component';
 
 export const routes: Routes = [
@@ -34,6 +34,7 @@ export const routes: Routes = [
       { path: 'calendriers/:id/evaluation', loadComponent: () => import('./pages/evaluation.component').then(m => m.EvaluationComponent) },
       { path: 'calendriers/:id', loadComponent: () => import('./pages/calendrier.component').then(m => m.CalendrierComponent) },
       { path: 'publications/:id', loadComponent: () => import('./pages/publication.component').then(m => m.PublicationComponent) },
+      { path: 'admin', canActivate: [superAdminGuard], loadComponent: () => import('./pages/admin.component').then(m => m.AdminComponent) },
       { path: 'reglages', loadComponent: () => import('./pages/reglages.component').then(m => m.ReglagesComponent) },
     ],
   },
