@@ -103,7 +103,19 @@ public class VisuelService {
         // Photo de fond : la banque du client d'abord (vraies photos, gratuit, instantané), l'IA si rien ne correspond.
         String mode = saisie == null || saisie.photo() == null ? "AUTO" : saisie.photo().toUpperCase(java.util.Locale.ROOT);
         ClientAsset deLaBanque = null;
-        if (habiller && !"IA".equals(mode)) {
+        Client.Offre produit = habiller ? produitMisEnAvant(client, p.getBrief()) : null;
+        if (produit != null) {
+            contenu = avecProduit(contenu, produit);
+        }
+        if (habiller && !"IA".equals(mode) && produit != null) {
+            // Publication sur un produit précis : sa vraie photo d'abord, jamais l'image d'un autre article
+            deLaBanque = photoProduit(client, produit, p.getId()).orElse(null);
+            if (deLaBanque == null) deLaBanque = banque.choisir(client.getId(), produit.nom() + " " + (produit.description() == null ? "" : produit.description())).orElse(null);
+            if (deLaBanque == null && (client.vendDesProduits() || "BANQUE".equals(mode))) {
+                throw ApiException.requeteInvalide("Aucune photo pour « " + produit.nom() + " ». Ajoute-en une à ce produit (fiche client, onglet Offres) : "
+                        + "une image générée par l'IA ne montrerait pas le vrai article. Tu peux aussi choisir la génération par IA pour un visuel d'ambiance.");
+            }
+        } else if (habiller && !"IA".equals(mode)) {
             String requete = String.join(" ", p.getIdee() == null ? "" : p.getIdee(),
                     p.getBrief() == null || p.getBrief().description() == null ? "" : p.getBrief().description(),
                     scene, contenu.titre() == null ? "" : contenu.titre(), contenu.texte() == null ? "" : contenu.texte());
@@ -169,6 +181,38 @@ public class VisuelService {
         v.setAssetId(deLaBanque == null ? null : deLaBanque.getId());
         v.setDiapositive(diapositive);
         return vue(visuels.save(v));
+    }
+
+    /** Offre de la fiche citée par le brief (nom exact, sans tenir compte de la casse ni des accents). */
+    static Client.Offre produitMisEnAvant(Client client, Modeles.BriefVisuel brief) {
+        if (brief == null || brief.produit() == null || brief.produit().isBlank() || client.getOffres() == null) return null;
+        String voulu = normaliser(brief.produit());
+        return client.getOffres().stream().filter(o -> o.nom() != null && normaliser(o.nom()).equals(voulu)).findFirst().orElse(null);
+    }
+
+    private static String normaliser(String t) {
+        return java.text.Normalizer.normalize(t.trim(), java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "").toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /** Pour un produit : le prix et le nom viennent de la fiche (jamais inventés) et le gabarit « fiche produit » est utilisé par défaut. */
+    static MoteurAffiche.Contenu avecProduit(MoteurAffiche.Contenu c, Client.Offre produit) {
+        String prix = c.chiffre() != null && !c.chiffre().isBlank() ? c.chiffre() : produit.prix();
+        String titre = c.titre() != null && !c.titre().isBlank() ? c.titre() : produit.nom();
+        MoteurAffiche.Gabarit g = c.gabarit() == MoteurAffiche.Gabarit.PLEIN_CADRE || c.gabarit() == null ? MoteurAffiche.Gabarit.PRODUIT : c.gabarit();
+        return new MoteurAffiche.Contenu(g, titre, prix, c.texte(), c.cta());
+    }
+
+    /** Photo du produit dans la banque : celles rattachées à l'offre, en variant d'une publication à l'autre. */
+    private java.util.Optional<ClientAsset> photoProduit(Client client, Client.Offre produit, UUID publicationId) {
+        if (produit.photos() == null || produit.photos().isEmpty()) return java.util.Optional.empty();
+        List<ClientAsset> photos = produit.photos().stream()
+                .map(id -> assets.findByIdAndClientId(id, client.getId()).orElse(null))
+                .filter(a -> a != null && a.getClientId().equals(client.getId()) && a.getMime() != null && a.getMime().startsWith("image/") && !a.getMime().contains("svg"))
+                .toList();
+        if (photos.isEmpty()) return java.util.Optional.empty();
+        java.util.Set<UUID> deja = visuels.findByPublicationIdInOrderByCreatedAtDesc(List.of(publicationId)).stream()
+                .map(VisuelGenere::getAssetId).filter(java.util.Objects::nonNull).collect(Collectors.toSet());
+        return photos.stream().filter(a -> !deja.contains(a.getId())).findFirst().or(() -> java.util.Optional.of(photos.get(0)));
     }
 
     /** Scène d'une diapositive : même univers visuel que le carrousel, contenu propre à la diapositive. */

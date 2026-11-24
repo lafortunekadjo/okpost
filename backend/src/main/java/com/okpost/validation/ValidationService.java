@@ -189,7 +189,7 @@ public class ValidationService {
                 p.getBrief() == null ? null : new com.okpost.ia.Modeles.BriefVisuel(p.getBrief().type(),
                         p.getBrief().description(), null, p.getBrief().ratio(), p.getBrief().textesCarrousel(),
                         p.getBrief().accroche(), p.getBrief().gabarit(), p.getBrief().chiffre(), p.getBrief().texte(),
-                        p.getBrief().cta()),
+                        p.getBrief().cta(), p.getBrief().produit()),
                 p.getScenario(), medias.getOrDefault(p.getId(), List.of()))).toList();
         return new ValidationDtos.PartageCalendrier(client.getNom(), clientService.logoUrl(client.getId()),
                 client.getCouleurs(), cal.getPeriodeDebut(), cal.getPeriodeFin(), cal.getStrategie(), cal.getPiliers(),

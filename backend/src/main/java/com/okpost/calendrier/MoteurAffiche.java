@@ -38,7 +38,9 @@ public class MoteurAffiche {
         /** Panneau de couleur en diagonale à gauche, photo à droite. */
         DIAGONALE("the subject on the right side of the frame, the left side calmer"),
         /** Photo pleine page, texte en bas sur un dégradé : le gabarit des carrousels et des stories. */
-        PLEIN_CADRE("the subject in the upper half of the frame, the lower third calm and simple");
+        PLEIN_CADRE("the subject in the upper half of the frame, the lower third calm and simple"),
+        /** Fiche produit : la photo du produit reste entière, pastille de prix en haut, nom et bouton de commande en bas. */
+        PRODUIT("the product centred and filling most of the frame, the lower third calm");
 
         /** Cadrage à demander à l'IA pour que le sujet ne passe pas sous le texte. */
         public final String cadrage;
@@ -137,6 +139,7 @@ public class MoteurAffiche {
             case TITRE_HAUT -> titreHaut(g, z, p, titre, texte, cta);
             case DIAGONALE -> diagonale(g, z, p, titre, texte, cta);
             case PLEIN_CADRE -> pleinCadre(g, z, p, titre, texte, cta);
+            case PRODUIT -> produit(g, z, p, titre, chiffre, texte, cta);
         }
         g.dispose();
         return composition.habiller(png(out), marque == null ? new CompositionVisuel.Habillage(null, null, List.of()) : marque);
@@ -244,6 +247,22 @@ public class MoteurAffiche {
         g.setPaint(new GradientPaint(0, z.h() * 0.7f, alpha(p.fond(), 0f), 0, z.bas(), alpha(p.fond(), 0.45f)));
         g.fillRect(0, Math.round(z.h() * 0.7f), z.w(), z.h());
         if (!cta.isEmpty()) pilule(g, cta, 3 * u, suite + 3 * u, 3.6f * u, p, 60 * u);
+    }
+
+    /** Le produit reste lisible : pas de voile sur la photo, seulement une pastille de prix, le nom et le bouton en bas. */
+    private void produit(Graphics2D g, Zone z, Palette p, String titre, String prix, String texte, String cta) {
+        float u = z.u();
+        pleinCadre(g, z, p, titre, texte, cta);
+        if (prix.isEmpty()) return;
+        Bloc pb = ajuster(g, gras, prix, 40 * u, 9 * u, 7 * u, 3.6f * u, 1.0f, 1);
+        float pad = 2.2f * u;
+        float largeur = pb.lignes().stream().map(l -> pb.mesures().stringWidth(l)).max(Integer::compare).orElse(0) + 2 * pad;
+        float hauteur = pb.hauteur() + 1.6f * pad;
+        float x = 4 * u;
+        float y = z.haut() + 1.5f * u;
+        g.setColor(p.marque());
+        g.fill(new RoundRectangle2D.Float(x, y, largeur, hauteur, hauteur / 2, hauteur / 2));
+        dessiner(g, pb, x + pad, y + 0.8f * pad, contraste(p.marque()), false);
     }
 
     private void pleinCadre(Graphics2D g, Zone z, Palette p, String titre, String texte, String cta) {

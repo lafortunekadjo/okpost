@@ -18,7 +18,12 @@ import java.util.UUID;
 @Table(name = "client")
 public class Client extends BaseEntity {
 
-    public record Offre(String nom, String description, String prix) {}
+    /** photos : identifiants de photos de la banque d'images du client, pour que les publications montrent le vrai produit. */
+    public record Offre(String nom, String description, String prix, String variantes, List<UUID> photos) {
+        public Offre(String nom, String description, String prix) {
+            this(nom, description, prix, null, null);
+        }
+    }
 
     @Column(name = "workspace_id", nullable = false)
     private UUID workspaceId;
@@ -72,6 +77,9 @@ public class Client extends BaseEntity {
     private Map<String, String> reseaux = new LinkedHashMap<>();
 
     private String whatsapp;
+
+    @Column(name = "type_activite", nullable = false)
+    private String typeActivite = "SERVICES";
     private boolean archive;
 
     @Column(name = "auto_publication")
@@ -137,6 +145,10 @@ public class Client extends BaseEntity {
     public void setDomaine(String domaine) { this.domaine = domaine; }
     public Map<String, String> getReseaux() { return reseaux; }
     public void setReseaux(Map<String, String> reseaux) { this.reseaux = reseaux; }
+    public String getTypeActivite() { return typeActivite; }
+    public void setTypeActivite(String typeActivite) { this.typeActivite = typeActivite; }
+    /** Vend des produits (seuls ou avec des services) : visuels basés sur de vraies photos, commande par message. */
+    public boolean vendDesProduits() { return "PRODUITS".equals(typeActivite) || "MIXTE".equals(typeActivite); }
     public String getWhatsapp() { return whatsapp; }
     public void setWhatsapp(String whatsapp) { this.whatsapp = whatsapp; }
     public boolean isArchive() { return archive; }

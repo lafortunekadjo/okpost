@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService, messageErreur } from '../core/api.service';
 import { ConfirmationService } from '../core/confirmation.service';
-import { Asset, Client, FicheProposee, RESEAUX, LIBELLES_RESEAU } from '../core/models';
+import { Asset, Client, FicheProposee, Offre, RESEAUX, LIBELLES_RESEAU } from '../core/models';
 import { PucesComponent } from '../shared/puces.component';
 import { BanqueImagesComponent } from '../shared/banque-images.component';
 
@@ -115,6 +115,12 @@ const TYPES_FICHIERS = [
         @switch (onglet()) {
           @case ('identite') {
             <div class="champ"><label>Nom *</label><input type="text" name="nom" [(ngModel)]="c.nom" required /></div>
+            <div class="champ"><label>Type d'activité <span class="aide">adapte les idées, les visuels et les appels à l'action</span></label>
+              <select name="type-activite" [(ngModel)]="c.typeActivite" style="max-width:420px">
+                <option value="SERVICES">Prestations de services</option>
+                <option value="PRODUITS">Vente de produits (boutique)</option>
+                <option value="MIXTE">Produits et services</option>
+              </select></div>
             <div class="ligne-champs">
               <div class="champ"><label>Secteur</label><input type="text" name="secteur" [(ngModel)]="c.secteur" placeholder="Agroalimentaire, santé, transport…" /></div>
               <div class="champ"><label>Année de création</label><input type="number" name="annee" [(ngModel)]="c.anneeCreation" /></div>
@@ -124,7 +130,8 @@ const TYPES_FICHIERS = [
             <div class="champ"><label>Slogan</label><input type="text" name="slogan" [(ngModel)]="c.slogan" /></div>
           }
           @case ('offres') {
-            <p class="aide">Produits ou services. Les prix indiqués ici sont les seuls que l'IA pourra citer.</p>
+            <p class="aide">Produits ou services. Les prix indiqués ici sont les seuls que l'IA pourra citer.
+              @if (c.typeActivite !== 'SERVICES') { Pour chaque produit, rattache ses vraies photos : les publications montreront le vrai article, jamais une image inventée par l'IA. }</p>
             @for (o of c.offres; track $index) {
               <div class="offre">
                 <div class="ligne-champs">
@@ -132,6 +139,27 @@ const TYPES_FICHIERS = [
                   <div class="champ"><label>Prix</label><input type="text" [name]="'offre-prix-' + $index" [(ngModel)]="o.prix" placeholder="25 000 FCFA" /></div>
                 </div>
                 <div class="champ"><label>Description</label><textarea rows="2" [name]="'offre-desc-' + $index" [(ngModel)]="o.description"></textarea></div>
+                @if (c.typeActivite !== 'SERVICES') {
+                  <div class="champ"><label>Variantes <span class="aide">tailles, couleurs… (facultatif)</span></label>
+                    <input type="text" [name]="'offre-var-' + $index" [(ngModel)]="o.variantes" placeholder="Tailles 85 à 100 ; noir, nude" /></div>
+                  <div class="champ"><label>Photos du produit</label>
+                    @if (!id()) {
+                      <p class="aide">Enregistre d'abord la fiche et ajoute des photos à la banque d'images (onglet Identité visuelle) pour les rattacher ici.</p>
+                    } @else if (!photosBanque().length) {
+                      <p class="aide">La banque d'images est vide : ajoute les photos du client (onglet Identité visuelle), puis reviens ici.</p>
+                    } @else {
+                      <div class="vignettes">
+                        @for (a of photosBanque(); track a.id) {
+                          <label class="vignette">
+                            <input type="checkbox" [checked]="o.photos?.includes(a.id)" (change)="basculerPhotoProduit(o, a.id)" [attr.aria-label]="'Rattacher cette photo à ' + (o.nom || 'ce produit')" />
+                            <img [src]="a.url" [alt]="a.legende || a.description || 'Photo'" loading="lazy" />
+                          </label>
+                        }
+                      </div>
+                      @if (!o.photos?.length) { <p class="aide" style="margin-top:6px">Aucune photo choisie pour ce produit.</p> }
+                    }
+                  </div>
+                }
                 <button type="button" class="bouton danger petit" (click)="c.offres.splice($index, 1); modifie.set(true)">Retirer</button>
               </div>
             }
@@ -257,6 +285,15 @@ export class FicheClientComponent implements OnInit {
   id = input<string>();
   onglet = signal<Onglet>('identite');
   assets = signal<Asset[]>([]);
+  photosBanque = computed(() => this.assets().filter(a => a.type === 'PHOTO'));
+
+  basculerPhotoProduit(o: Offre, assetId: string) {
+    const l = new Set(o.photos ?? []);
+    l.has(assetId) ? l.delete(assetId) : l.add(assetId);
+    o.photos = [...l];
+    this.modifie.set(true);
+  }
+
   envoi = signal(false);
   envoiFichier = signal(false);
   modifie = signal(false);
@@ -286,7 +323,7 @@ export class FicheClientComponent implements OnInit {
   ];
 
   c: Client = {
-    nom: '', langue: 'fr', tutoiement: false, fetesReligieuses: true, offres: [], cibles: [], concurrents: [], couleurs: [], reseaux: {},
+    nom: '', typeActivite: 'SERVICES', langue: 'fr', tutoiement: false, fetesReligieuses: true, offres: [], cibles: [], concurrents: [], couleurs: [], reseaux: {},
   };
 
   ngOnInit() {
@@ -294,7 +331,7 @@ export class FicheClientComponent implements OnInit {
     if (id) {
       this.api.client(id).subscribe({
         next: c => {
-          this.c = { ...c, offres: c.offres ?? [], cibles: c.cibles ?? [], concurrents: c.concurrents ?? [],
+          this.c = { ...c, typeActivite: c.typeActivite ?? 'SERVICES', offres: c.offres ?? [], cibles: c.cibles ?? [], concurrents: c.concurrents ?? [],
             couleurs: c.couleurs ?? [], reseaux: c.reseaux ?? {} };
           this.assets.set(c.assets ?? []);
         },

@@ -180,7 +180,7 @@ public class ClientService {
                 c.getLangue(), c.getTon(), c.isTutoiement(), c.getMotsAEviter(), c.getExemples(), c.getOffres(),
                 c.getCibles(), c.getConcurrents(), c.getCouleurs(), c.getPolices(), c.getDomaine(), c.getReseaux(),
                 c.getWhatsapp(), c.getCmId(), fichiers, c.getUpdatedAt(), c.isAutoPublication(), c.getHeurePublication(),
-                c.isFetesReligieuses());
+                c.isFetesReligieuses(), c.getTypeActivite());
     }
 
     @Transactional(readOnly = true)
@@ -219,6 +219,7 @@ public class ClientService {
         if (f.autoPublication() != null) c.setAutoPublication(f.autoPublication());
         if (f.heurePublication() != null) c.setHeurePublication(f.heurePublication());
         if (f.fetesReligieuses() != null) c.setFetesReligieuses(f.fetesReligieuses());
+        if (f.typeActivite() != null) c.setTypeActivite(f.typeActivite());
     }
 
     /** Détection du format par les premiers octets, pas par l'extension déclarée. */

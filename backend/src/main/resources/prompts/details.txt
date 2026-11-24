@@ -18,8 +18,10 @@ Champs du briefVisuel (formats IMAGE, STORY, TEXTE, et couverture de CARROUSEL) 
   • CHIFFRE : l'idée repose sur un chiffre ou un prix réel (« 850 utilisateurs », « 0 F », « -30 % ») ;
   • TITRE_HAUT : une question, une explication ou un conseil (titre fort + une phrase) ;
   • DIAGONALE : une annonce, une offre, un événement, un lancement ;
-  • PLEIN_CADRE : une ambiance, une émotion, un portrait, une scène où la photo parle d'elle-même.
+  • PLEIN_CADRE : une ambiance, une émotion, un portrait, une scène où la photo parle d'elle-même ;
+  • PRODUIT : la publication met en avant UN produit de la liste « Offres » (fiche produit : photo entière du produit, prix, nom, bouton). Renseigne alors « produit » avec le nom exact de l'offre ; le prix est repris de la fiche.
   Varie les gabarits d'une publication à l'autre.
+- produit : nom EXACT de l'offre mise en avant (gabarit PRODUIT), sinon null.
 - chiffre : uniquement avec le gabarit CHIFFRE, 1 à 8 caractères (« 850 », « 0 F », « -30 % »). Ne l'invente jamais : il doit figurer dans la fiche client ou dans l'idée. Sinon null et choisis un autre gabarit.
 - accroche : le titre de l'affiche, 2 à 7 mots, percutant, qui donne envie de lire la suite. Pas de point final. Avec CHIFFRE, c'est le mot qui suit le chiffre (« utilisateurs », « pour ton tournoi »).
 - texte : une phrase d'appui de 8 à 20 mots qui apporte le bénéfice concret ou la preuve. Null avec PLEIN_CADRE si la photo suffit. N'invente ni prix, ni chiffre, ni nom.

@@ -16,6 +16,11 @@ public final class FicheTexte {
         ligne(sb, "Nom", c.getNom());
         ligne(sb, "Secteur", c.getSecteur());
         ligne(sb, "Description", c.getDescription());
+        ligne(sb, "Type d'activité", switch (c.getTypeActivite() == null ? "SERVICES" : c.getTypeActivite()) {
+            case "PRODUITS" -> "vente de produits (boutique)";
+            case "MIXTE" -> "vente de produits et de services";
+            default -> "prestations de services";
+        });
         ligne(sb, "Slogan", c.getSlogan());
         ligne(sb, "Année de création", c.getAnneeCreation() == null ? null : c.getAnneeCreation().toString());
         ligne(sb, "Ville", c.getVille());
@@ -29,6 +34,8 @@ public final class FicheTexte {
                 sb.append("  - ").append(o.nom());
                 if (o.prix() != null && !o.prix().isBlank()) sb.append(" — ").append(o.prix());
                 if (o.description() != null && !o.description().isBlank()) sb.append(" : ").append(o.description());
+                if (o.variantes() != null && !o.variantes().isBlank()) sb.append(" [variantes : ").append(o.variantes().trim()).append(']');
+                if (c.vendDesProduits()) sb.append(o.photos() != null && !o.photos().isEmpty() ? " [photo du produit disponible]" : " [pas de photo du produit]");
                 sb.append('\n');
             }
         }
@@ -48,8 +55,21 @@ public final class FicheTexte {
             ligne(sb, "Réseaux", reseaux.entrySet().stream().map(e -> e.getKey() + " " + e.getValue())
                     .collect(Collectors.joining(", ")));
         }
+        if (c.vendDesProduits()) sb.append(REGLES_BOUTIQUE);
         return sb.toString();
     }
+
+    static final String REGLES_BOUTIQUE = """
+
+            RÈGLES POUR UNE ENTREPRISE QUI VEND DES PRODUITS
+            - Chaque publication de vente porte sur un produit précis de la liste « Offres » : mets son nom EXACT dans briefVisuel.produit (null si la publication ne parle d'aucun produit précis : conseil, coulisses, avis, livraison…).
+            - Pour une publication sur un produit dont la photo est disponible, choisis le gabarit PRODUIT. La photo réelle du produit sera utilisée : n'invente ni son apparence ni ses couleurs.
+            - Si le produit n'a pas de photo, le promptImage ne montre JAMAIS le produit lui-même (ni vêtement, ni article) : seulement une ambiance, un lieu ou un geste, sans corps dénudé ni pose suggestive.
+            - Prix, tailles, couleurs et disponibilités : uniquement ceux de la liste « Offres ». Ne promets ni remise, ni stock, ni délai qui n'y figurent pas.
+            - Varie les angles : nouveauté, conseil de taille ou d'entretien, produit en situation, confiance et confort, promotion réelle, dernières pièces, livraison et paiement, coulisses de la boutique, réponse à une question fréquente.
+            - Appel à l'action : la commande se fait par message. Si un numéro WhatsApp est renseigné, utilise « Commander sur WhatsApp » ou « Écris-nous sur WhatsApp ».
+            - Ton élégant et respectueux, conforme aux règles des réseaux sociaux : pour les produits intimes ou de lingerie, parle de matière, de confort, de coupe, de taille et de confiance en soi, sans vocabulaire ni mise en scène suggestifs.
+            """;
 
     private static void ligne(StringBuilder sb, String libelle, String valeur) {
         if (valeur != null && !valeur.isBlank()) {

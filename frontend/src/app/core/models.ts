@@ -9,7 +9,9 @@ export interface SessionUtilisateur {
   role: Role;
 }
 
-export interface Offre { nom: string; description?: string; prix?: string; }
+export interface Offre { nom: string; description?: string; prix?: string; variantes?: string; photos?: string[]; }
+
+export type TypeActivite = 'SERVICES' | 'PRODUITS' | 'MIXTE';
 
 /** Piste de la bibliothèque de musiques du serveur. */
 export interface Musique { id: string; nom: string; taille: number; }
@@ -38,6 +40,7 @@ export interface FicheProposee {
 
 export interface Client {
   id?: string;
+  typeActivite?: TypeActivite;
   nom: string;
   secteur?: string;
   description?: string;
@@ -83,7 +86,7 @@ export interface CalendrierResume {
 
 export interface TexteCarrousel { visuel: number; titre: string; texte: string; }
 export interface BriefVisuel { type?: string; description?: string; promptImage?: string; ratio?: string; textesCarrousel?: TexteCarrousel[]; accroche?: string;
-  gabarit?: string; chiffre?: string; texte?: string; cta?: string; }
+  gabarit?: string; chiffre?: string; texte?: string; cta?: string; produit?: string; }
 export interface PlanVideo { numero: number; dureeS: number; image?: string; texteEcran?: string; voixOff?: string; son?: string; }
 export interface ScenarioVideo { titre?: string; dureeTotaleS?: number; accroche?: string; plans?: PlanVideo[]; materiel?: string[]; }
 

@@ -89,7 +89,8 @@ public final class Modeles {
             @JsonPropertyDescription("Mise en page de l'affiche : CHIFFRE (un chiffre fort), TITRE_HAUT (titre + texte), DIAGONALE (annonce, offre) ou PLEIN_CADRE (photo dominante)") String gabarit,
             @JsonPropertyDescription("Chiffre ou prix mis en avant (« 850 », « 0 F », « -30 % »), UNIQUEMENT s'il figure dans la fiche ou l'idée, sinon null") String chiffre,
             @JsonPropertyDescription("Phrase d'appui sous le titre, 8 à 20 mots, dans la langue des contenus ; null si inutile") String texte,
-            @JsonPropertyDescription("Texte court du bouton d'appel à l'action, 2 à 5 mots (ex. « Écris-nous sur WhatsApp »)") String cta) {}
+            @JsonPropertyDescription("Texte court du bouton d'appel à l'action, 2 à 5 mots (ex. « Écris-nous sur WhatsApp »)") String cta,
+            @JsonPropertyDescription("Nom EXACT de l'offre de la fiche mise en avant par cette publication, null si la publication ne porte pas sur un produit précis") String produit) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record TexteCarrousel(int visuel, String titre, String texte) {}

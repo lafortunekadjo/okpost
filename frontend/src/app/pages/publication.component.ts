@@ -165,12 +165,17 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
                     <option value="TITRE_HAUT">Titre en haut</option>
                     <option value="DIAGONALE">Panneau diagonal</option>
                     <option value="PLEIN_CADRE">Photo pleine page</option>
+                    <option value="PRODUIT">Fiche produit (photo, prix, nom, bouton)</option>
                   </select></div>
                 <div class="champ"><label>Titre <span class="aide">2 à 7 mots, écrits sur l'affiche</span></label>
                   <input type="text" name="b-accroche" [(ngModel)]="brief.accroche" maxlength="120" /></div>
-                @if (brief.gabarit === 'CHIFFRE' || brief.chiffre) {
-                  <div class="champ"><label>Chiffre <span class="aide">ex. 850, 0 F, -30 %</span></label>
-                    <input type="text" name="b-chiffre" [(ngModel)]="brief.chiffre" maxlength="12" style="max-width:200px" /></div>
+                @if (brief.gabarit === 'PRODUIT' || brief.produit) {
+                  <div class="champ"><label>Produit mis en avant <span class="aide">nom exact de l'offre dans la fiche client : sa photo et son prix sont repris automatiquement</span></label>
+                    <input type="text" name="b-produit" [(ngModel)]="brief.produit" maxlength="150" /></div>
+                }
+                @if (brief.gabarit === 'CHIFFRE' || brief.gabarit === 'PRODUIT' || brief.chiffre) {
+                  <div class="champ"><label>{{ brief.gabarit === 'PRODUIT' ? 'Prix' : 'Chiffre' }} <span class="aide">{{ brief.gabarit === 'PRODUIT' ? 'laisse vide pour reprendre le prix de la fiche' : 'ex. 850, 0 F, -30 %' }}</span></label>
+                    <input type="text" name="b-chiffre" [(ngModel)]="brief.chiffre" maxlength="20" style="max-width:200px" /></div>
                 }
                 <div class="champ"><label>Texte d'appui <span class="aide">une phrase, facultatif</span></label>
                   <textarea name="b-texte" rows="2" [(ngModel)]="brief.texte" maxlength="300"></textarea></div>

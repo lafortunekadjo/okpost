@@ -42,7 +42,7 @@ public class IaFactice implements GenerateurIA {
                 : new DetailGenere(x.index(), "Légende " + x.index(), List.of("#Douala"), "Écrivez-nous",
                     new BriefVisuel(x.format(), "Description", "A photo of...", "4:5",
                             "CARROUSEL".equals(x.format()) ? List.of(new Modeles.TexteCarrousel(1, "Titre", "Texte")) : null,
-                            "Accroche de test", null, null, null, null), null))
+                            "Accroche de test", null, null, null, null, null), null))
                 .toList();
     }
 
