@@ -50,13 +50,15 @@ public class ValidationService {
     private final OkpostProperties props;
     private final com.okpost.calendrier.VisuelGenereRepository visuels;
     private final com.okpost.reseaux.PublicationAutoService publicationAuto;
+    private final CodesValidationService codes;
 
     public ValidationService(com.okpost.calendrier.VisuelGenereRepository visuels,
                              @org.springframework.context.annotation.Lazy com.okpost.reseaux.PublicationAutoService publicationAuto, LienValidationRepository liens, RetourClientRepository retours,
                              PublicationRepository publications, CalendrierRepository calendriers,
                              CalendrierService calendrierService, ClientRepository clients,
                              ClientService clientService, UtilisateurRepository utilisateurs, MailService mail,
-                             OkpostProperties props) {
+                             OkpostProperties props, CodesValidationService codes) {
+        this.codes = codes;
         this.liens = liens;
         this.retours = retours;
         this.publications = publications;
@@ -198,11 +200,19 @@ public class ValidationService {
 
     // ---------------------------------------------------------------- côté client (public)
 
-    @Transactional(readOnly = true)
-    public Portail portail(String jeton) {
+    /** Sans code, un client qui exige un code ne voit que l'écran de saisie : le contenu n'est montré qu'à une personne autorisée. */
+    @Transactional
+    public Portail portail(String jeton, String code) {
         LienValidation l = lienValide(jeton);
         Calendrier cal = calendriers.findById(l.getCalendrierId()).orElseThrow(() -> ApiException.introuvable("Lien"));
         Client client = clients.findById(cal.getClientId()).orElseThrow(() -> ApiException.introuvable("Lien"));
+        boolean codeRequis = codes.codeRequis(client.getId());
+        String couleurMarque = client.getCouleurs() == null || client.getCouleurs().isEmpty() ? null : client.getCouleurs().get(0);
+        if (codeRequis && (code == null || code.isBlank())) {
+            return new Portail(client.getNom(), clientService.logoUrl(client.getId()), couleurMarque, cal.getPeriodeDebut(), cal.getPeriodeFin(),
+                    l.getExpireLe(), 0, 0, 0, List.of(), true, null);
+        }
+        String validateur = codes.verifier(jeton, client.getId(), code).map(CodesValidationService.Validateur::nom).orElse(null);
         List<Publication> pubs = publications.findByIdInAndCalendrierId(l.getPublications(), cal.getId()).stream()
                 .sorted((a, b) -> a.getDatePrevue().compareTo(b.getDatePrevue())).toList();
         Map<UUID, RetourClient> derniers = retours.findByPublicationIdInOrderByCreatedAtDesc(
@@ -223,11 +233,11 @@ public class ValidationService {
         int aModifier = (int) pubs.stream().filter(p -> p.getStatut() == StatutPublication.A_MODIFIER).count();
         String couleur = client.getCouleurs() == null || client.getCouleurs().isEmpty() ? null : client.getCouleurs().get(0);
         return new Portail(client.getNom(), clientService.logoUrl(client.getId()), couleur, cal.getPeriodeDebut(),
-                cal.getPeriodeFin(), l.getExpireLe(), pubs.size(), validees, aModifier, vues);
+                cal.getPeriodeFin(), l.getExpireLe(), pubs.size(), validees, aModifier, vues, codeRequis, validateur);
     }
 
     @Transactional
-    public void decider(String jeton, UUID publicationId, RetourClient.Decision decision, String commentaire, String ipHash) {
+    public void decider(String jeton, UUID publicationId, RetourClient.Decision decision, String commentaire, String ipHash, String code) {
         if (decision == RetourClient.Decision.MODIFIEE) {
             throw ApiException.requeteInvalide("Utilise la modification de légende pour proposer un nouveau texte");
         }
@@ -235,24 +245,26 @@ public class ValidationService {
             throw ApiException.requeteInvalide("Explique ce qu'il faut modifier");
         }
         LienValidation l = lienValidation(jeton);
+        var validateur = identifier(l, jeton, code);
         Publication p = publicationDuLien(l, publicationId);
         p.setStatut(decision == RetourClient.Decision.OK ? StatutPublication.VALIDEE : StatutPublication.A_MODIFIER);
         publications.save(p);
-        enregistrerRetour(l, p, decision, commentaire, null, null, ipHash);
-        notifier(l, p, decision, commentaire);
+        enregistrerRetour(l, p, decision, commentaire, null, null, ipHash, validateur);
+        notifier(l, p, decision, commentaire, validateur);
         programmerSiAuto(p);
     }
 
     @Transactional
-    public void modifierLegende(String jeton, UUID publicationId, String legende, String commentaire, String ipHash) {
+    public void modifierLegende(String jeton, UUID publicationId, String legende, String commentaire, String ipHash, String code) {
         LienValidation l = lienValidation(jeton);
+        var validateur = identifier(l, jeton, code);
         Publication p = publicationDuLien(l, publicationId);
         String origine = p.getLegende();
         p.setLegende(legende.trim());
         p.setStatut(StatutPublication.VALIDEE);
         publications.save(p);
-        enregistrerRetour(l, p, RetourClient.Decision.MODIFIEE, commentaire, legende.trim(), origine, ipHash);
-        notifier(l, p, RetourClient.Decision.MODIFIEE, commentaire);
+        enregistrerRetour(l, p, RetourClient.Decision.MODIFIEE, commentaire, legende.trim(), origine, ipHash, validateur);
+        notifier(l, p, RetourClient.Decision.MODIFIEE, commentaire, validateur);
         programmerSiAuto(p);
     }
 
@@ -286,8 +298,15 @@ public class ValidationService {
         return p;
     }
 
+    /** Personne qui décide, d'après son code (vide si le client n'exige pas de code). */
+    private java.util.Optional<CodesValidationService.Validateur> identifier(LienValidation l, String jeton, String code) {
+        Calendrier cal = calendriers.findById(l.getCalendrierId()).orElseThrow(() -> ApiException.introuvable("Lien"));
+        return codes.verifier(jeton, cal.getClientId(), code);
+    }
+
     private void enregistrerRetour(LienValidation l, Publication p, RetourClient.Decision d, String commentaire,
-                                   String proposee, String origine, String ipHash) {
+                                   String proposee, String origine, String ipHash,
+                                   java.util.Optional<CodesValidationService.Validateur> validateur) {
         RetourClient r = new RetourClient();
         r.setPublicationId(p.getId());
         r.setLienId(l.getId());
@@ -296,10 +315,13 @@ public class ValidationService {
         r.setLegendeProposee(proposee);
         r.setLegendeOrigine(origine);
         r.setIpHash(ipHash);
+        validateur.ifPresent(v -> { r.setContactId(v.id()); r.setNomValidateur(v.nom()); });
         retours.save(r);
     }
 
-    private void notifier(LienValidation l, Publication p, RetourClient.Decision d, String commentaire) {
+    private void notifier(LienValidation l, Publication p, RetourClient.Decision d, String commentaire,
+                          java.util.Optional<CodesValidationService.Validateur> validateur) {
+        String par = validateur.map(v -> " (" + v.nom() + ")").orElse("");
         Calendrier cal = calendriers.findById(l.getCalendrierId()).orElse(null);
         if (cal == null) return;
         Client client = clients.findById(cal.getClientId()).orElse(null);
@@ -312,12 +334,12 @@ public class ValidationService {
             if (d != RetourClient.Decision.OK) {
                 String quoi = d == RetourClient.Decision.A_MODIFIER ? "demande une modification" : "a modifié la légende";
                 mail.envoyer(cm.getEmail(), client.getNom() + " " + quoi,
-                        client.getNom() + " " + quoi + " sur la publication du " + p.getDatePrevue() + " (" + p.getReseau() + ")."
+                        client.getNom() + par + " " + quoi + " sur la publication du " + p.getDatePrevue() + " (" + p.getReseau() + ")."
                                 + (commentaire == null || commentaire.isBlank() ? "" : "\n\nCommentaire : " + commentaire),
                         url, "Voir le calendrier");
             } else if (!restants.contains(StatutPublication.A_VALIDER)) {
                 mail.envoyer(cm.getEmail(), client.getNom() + " a terminé la validation",
-                        client.getNom() + " a donné son avis sur toutes les publications envoyées.", url, "Voir le calendrier");
+                        client.getNom() + par + " a donné son avis sur toutes les publications envoyées.", url, "Voir le calendrier");
             }
         });
     }

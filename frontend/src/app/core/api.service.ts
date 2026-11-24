@@ -1,8 +1,8 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import {
   Abonnement, Alerte, Asset, FicheProposee, Musique, ResultatDuplication, Calendrier, CalendrierResume, Client, ClientResume, Consommation, EtatIa,
-  CompteSocial, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
+  CompteSocial, ContactValidation, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
   PropositionEvenement, TempsFortSuggere, EvenementCatalogue, EvaluationCalendrier, LigneSynthese, NotesPublication,
   BilanPage, Recommandations,
 } from './models';
@@ -138,13 +138,24 @@ export class ApiService {
     if (diapositive) f.append('diapositive', String(diapositive));
     return this.http.post<Visuel>(`${this.base}/publications/${id}/medias`, f, { reportProgress: true, observe: 'events' });
   }
-  portail(jeton: string) { return this.http.get<Portail>(`${this.base}/public/validation/${jeton}`); }
-  decider(jeton: string, pubId: string, decision: 'OK' | 'A_MODIFIER', commentaire?: string) {
-    return this.http.post<void>(`${this.base}/public/validation/${jeton}/publications/${pubId}`, { decision, commentaire });
+  /** Le code personnel du client passe dans un en-tête, jamais dans l'adresse (elle se retrouve dans les journaux). */
+  private enteteCode(code?: string | null) { return code ? { headers: new HttpHeaders({ 'X-Code-Validation': code }) } : {}; }
+  portail(jeton: string, code?: string | null) { return this.http.get<Portail>(`${this.base}/public/validation/${jeton}`, this.enteteCode(code)); }
+  decider(jeton: string, pubId: string, decision: 'OK' | 'A_MODIFIER', commentaire?: string, code?: string | null) {
+    return this.http.post<void>(`${this.base}/public/validation/${jeton}/publications/${pubId}`, { decision, commentaire }, this.enteteCode(code));
   }
-  modifierLegendePortail(jeton: string, pubId: string, legende: string, commentaire?: string) {
-    return this.http.put<void>(`${this.base}/public/validation/${jeton}/publications/${pubId}/legende`, { legende, commentaire });
+  modifierLegendePortail(jeton: string, pubId: string, legende: string, commentaire?: string, code?: string | null) {
+    return this.http.put<void>(`${this.base}/public/validation/${jeton}/publications/${pubId}/legende`, { legende, commentaire }, this.enteteCode(code));
   }
+
+  contactsValidation(clientId: string) { return this.http.get<ContactValidation[]>(`${this.base}/clients/${clientId}/contacts-validation`); }
+  ajouterContactValidation(clientId: string, nom: string) {
+    return this.http.post<{ contact: ContactValidation; code: string }>(`${this.base}/clients/${clientId}/contacts-validation`, { nom });
+  }
+  renouvelerContactValidation(clientId: string, id: string) {
+    return this.http.post<{ contact: ContactValidation; code: string }>(`${this.base}/clients/${clientId}/contacts-validation/${id}/nouveau-code`, {});
+  }
+  supprimerContactValidation(clientId: string, id: string) { return this.http.delete<void>(`${this.base}/clients/${clientId}/contacts-validation/${id}`); }
 
   membres() { return this.http.get<Membre[]>(`${this.base}/membres`); }
   inviter(m: { nom: string; email: string; motDePasseProvisoire: string }) { return this.http.post<Membre>(`${this.base}/membres`, m); }

@@ -43,7 +43,8 @@ public final class ValidationDtos {
 
     public record Portail(String clientNom, String logoUrl, String couleur, LocalDate debut, LocalDate fin,
                           Instant expireLe, int total, int validees, int aModifier,
-                          List<PortailPublication> publications) {}
+                          List<PortailPublication> publications,
+                          boolean codeRequis, String validateur) {}
 
     public record Decision(@NotNull RetourClient.Decision decision, @Size(max = 2000) String commentaire) {}
 

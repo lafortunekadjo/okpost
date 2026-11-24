@@ -7,6 +7,7 @@ import { ConfirmationService } from '../core/confirmation.service';
 import { Asset, Client, FicheProposee, Offre, RESEAUX, LIBELLES_RESEAU } from '../core/models';
 import { PucesComponent } from '../shared/puces.component';
 import { BanqueImagesComponent } from '../shared/banque-images.component';
+import { ContactsValidationComponent } from '../shared/contacts-validation.component';
 
 type Onglet = 'identite' | 'offres' | 'localisation' | 'audience' | 'ton' | 'visuel' | 'en-ligne';
 
@@ -20,7 +21,7 @@ const TYPES_FICHIERS = [
 
 @Component({
   selector: 'app-fiche-client',
-  imports: [FormsModule, RouterLink, PucesComponent, BanqueImagesComponent],
+  imports: [FormsModule, RouterLink, PucesComponent, BanqueImagesComponent, ContactsValidationComponent],
   template: `
     <div class="page page-etroite">
       <div class="entete-page">
@@ -245,6 +246,11 @@ const TYPES_FICHIERS = [
             @for (r of reseaux; track r) {
               <div class="champ"><label>{{ libellesReseau[r] }}</label>
                 <input type="url" [name]="'reseau-' + r" [ngModel]="c.reseaux[r]" (ngModelChange)="c.reseaux[r] = $event" placeholder="Lien de la page" /></div>
+            }
+            @if (id()) {
+              <app-contacts-validation [clientId]="id()!" />
+            } @else {
+              <p class="aide">Enregistre d'abord la fiche pour définir qui peut valider les publications (codes personnels).</p>
             }
           }
         }

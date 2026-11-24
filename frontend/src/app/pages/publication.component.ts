@@ -35,6 +35,7 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
             @for (r of pub.retours; track $index) {
               <div class="retour">
                 <strong>{{ decisions[r.decision] ?? r.decision }}</strong>
+                @if (r.par) { <span> par {{ r.par }}</span> }
                 <span class="aide"> · {{ r.date | date: 'd MMM, HH:mm' }}</span>
                 @if (r.commentaire) { <p class="pre">« {{ r.commentaire }} »</p> }
                 @if (r.legendeOrigine) {

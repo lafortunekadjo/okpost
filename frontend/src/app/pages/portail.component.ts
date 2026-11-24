@@ -15,12 +15,31 @@ type Mode = 'lecture' | 'texte' | 'commentaire';
       <div class="page page-etroite"><div class="carte vide"><h2>Lien indisponible</h2><p>{{ erreur() }}</p></div></div>
     }
     @if (portail(); as p) {
+      @if (p.codeRequis && !deverrouille()) {
+        <header class="bandeau" [style.background]="couleur()">
+          <div class="contenu">
+            @if (p.logoUrl) { <img [src]="p.logoUrl" alt="" class="logo" /> }
+            <div><h1>{{ p.clientNom }}</h1><p>Validation des publications</p></div>
+          </div>
+        </header>
+        <div class="page page-etroite">
+          <form class="carte" (ngSubmit)="deverrouiller()">
+            <h2>Entrez votre code personnel</h2>
+            <p class="aide">Ce code à 6 chiffres vous a été remis par votre community manager. Il permet d'enregistrer que c'est bien vous qui validez.</p>
+            @if (erreur()) { <div class="erreur" role="alert">{{ erreur() }}</div> }
+            <div class="champ"><label for="code">Code</label>
+              <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}"
+                     [(ngModel)]="saisieCode" style="max-width:220px;font-size:1.4rem;letter-spacing:.3em" required /></div>
+            <button class="bouton" [disabled]="envoi() || saisieCode.length !== 6">{{ envoi() ? 'Vérification…' : 'Accéder aux publications' }}</button>
+          </form>
+        </div>
+      } @else {
       <header class="bandeau" [style.background]="couleur()">
         <div class="contenu">
           @if (p.logoUrl) { <img [src]="p.logoUrl" alt="" class="logo" /> }
           <div>
             <h1>{{ p.clientNom }}</h1>
-            <p>Publications du {{ p.debut | date: 'd MMMM' }} au {{ p.fin | date: 'd MMMM' }}</p>
+            <p>Publications du {{ p.debut | date: 'd MMMM' }} au {{ p.fin | date: 'd MMMM' }}@if (p.validateur) { · connecté : {{ p.validateur }} }</p>
           </div>
         </div>
       </header>
@@ -105,6 +124,7 @@ type Mode = 'lecture' | 'texte' | 'commentaire';
 
         <p class="pied"><app-logo [taille]="14" /> · lien valable jusqu'au {{ p.expireLe | date: 'd MMMM y' }}</p>
       </div>
+      }
     }
   `,
   styles: `
@@ -138,6 +158,9 @@ export class PortailComponent implements OnInit {
   erreur = signal('');
   envoi = signal(false);
   modes = new Map<string, Mode>();
+  saisieCode = '';
+  private code: string | null = null;
+  deverrouille = computed(() => !this.portail()?.codeRequis || !!this.portail()?.validateur);
   brouillons: Record<string, string> = {};
   commentaires: Partial<Record<string, string>> = {};
   libellesReseau = LIBELLES_RESEAU;
@@ -151,13 +174,37 @@ export class PortailComponent implements OnInit {
   aModifier = computed(() => this.portail()?.publications.filter(p => p.statut === 'A_MODIFIER').length ?? 0);
 
   ngOnInit() {
+    // Le code est gardé le temps de la session du navigateur pour ne pas le redemander à chaque rechargement
+    try { this.code = sessionStorage.getItem('code-validation-' + this.jeton()); } catch { /* stockage indisponible */ }
+    this.charger();
+  }
+
+  deverrouiller() {
+    this.code = this.saisieCode.trim();
+    this.envoi.set(true);
+    this.erreur.set('');
     this.charger();
   }
 
   charger() {
-    this.api.portail(this.jeton()).subscribe({
-      next: p => { this.portail.set(p); this.envoi.set(false); },
-      error: e => { this.erreur.set(messageErreur(e)); this.envoi.set(false); },
+    this.api.portail(this.jeton(), this.code).subscribe({
+      next: p => {
+        this.portail.set(p);
+        this.envoi.set(false);
+        if (p.validateur && this.code) {
+          try { sessionStorage.setItem('code-validation-' + this.jeton(), this.code); } catch { /* stockage indisponible */ }
+        }
+      },
+      error: e => {
+        this.envoi.set(false);
+        this.erreur.set(messageErreur(e));
+        if (this.code) {
+          // Code refusé (faux, remplacé, retiré ou lien bloqué) : on l'oublie et on revient à l'écran de saisie
+          this.code = null;
+          try { sessionStorage.removeItem('code-validation-' + this.jeton()); } catch { /* ignoré */ }
+          this.api.portail(this.jeton()).subscribe({ next: p => this.portail.set(p), error: () => { /* l'erreur reste affichée */ } });
+        }
+      },
     });
   }
 
@@ -176,12 +223,12 @@ export class PortailComponent implements OnInit {
 
   valider(p: PortailPublication) {
     this.envoi.set(true);
-    this.api.decider(this.jeton(), p.id, 'OK').subscribe({ next: () => this.charger(), error: e => this.echec(e) });
+    this.api.decider(this.jeton(), p.id, 'OK', undefined, this.code).subscribe({ next: () => this.charger(), error: e => this.echec(e) });
   }
 
   demander(p: PortailPublication) {
     this.envoi.set(true);
-    this.api.decider(this.jeton(), p.id, 'A_MODIFIER', this.commentaires[p.id]).subscribe({
+    this.api.decider(this.jeton(), p.id, 'A_MODIFIER', this.commentaires[p.id], this.code).subscribe({
       next: () => { this.modes.set(p.id, 'lecture'); this.charger(); },
       error: e => this.echec(e),
     });
@@ -189,7 +236,7 @@ export class PortailComponent implements OnInit {
 
   enregistrerTexte(p: PortailPublication) {
     this.envoi.set(true);
-    this.api.modifierLegendePortail(this.jeton(), p.id, this.brouillons[p.id]).subscribe({
+    this.api.modifierLegendePortail(this.jeton(), p.id, this.brouillons[p.id], undefined, this.code).subscribe({
       next: () => { this.modes.set(p.id, 'lecture'); this.charger(); },
       error: e => this.echec(e),
     });

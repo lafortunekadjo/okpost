@@ -36,6 +36,12 @@ public class RetourClient extends BaseEntity {
     @Column(name = "ip_hash")
     private String ipHash;
 
+    @Column(name = "contact_id")
+    private UUID contactId;
+
+    @Column(name = "nom_validateur")
+    private String nomValidateur;
+
     public UUID getPublicationId() { return publicationId; }
     public void setPublicationId(UUID publicationId) { this.publicationId = publicationId; }
     public UUID getLienId() { return lienId; }
@@ -48,6 +54,10 @@ public class RetourClient extends BaseEntity {
     public void setLegendeProposee(String legendeProposee) { this.legendeProposee = legendeProposee; }
     public String getLegendeOrigine() { return legendeOrigine; }
     public void setLegendeOrigine(String legendeOrigine) { this.legendeOrigine = legendeOrigine; }
+    public UUID getContactId() { return contactId; }
+    public void setContactId(UUID contactId) { this.contactId = contactId; }
+    public String getNomValidateur() { return nomValidateur; }
+    public void setNomValidateur(String nomValidateur) { this.nomValidateur = nomValidateur; }
     public String getIpHash() { return ipHash; }
     public void setIpHash(String ipHash) { this.ipHash = ipHash; }
 }

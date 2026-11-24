@@ -36,7 +36,7 @@ public final class CalendrierDtos {
                                 boolean analyserPage, String analysePage) {}
 
     public record RetourVue(String decision, String commentaire, String legendeProposee, String legendeOrigine,
-                            java.time.Instant date) {}
+                            java.time.Instant date, String par) {}
 
     public record PublicationVue(UUID id, UUID calendrierId, LocalDate date, String reseau, String format,
                                  String pilier, String idee, String objectif, String tempsFort, String legende,

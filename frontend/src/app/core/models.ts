@@ -90,7 +90,9 @@ export interface BriefVisuel { type?: string; description?: string; promptImage?
 export interface PlanVideo { numero: number; dureeS: number; image?: string; texteEcran?: string; voixOff?: string; son?: string; }
 export interface ScenarioVideo { titre?: string; dureeTotaleS?: number; accroche?: string; plans?: PlanVideo[]; materiel?: string[]; }
 
-export interface Retour { decision: string; commentaire?: string; legendeProposee?: string; legendeOrigine?: string; date: string; }
+export interface Retour { decision: string; commentaire?: string; legendeProposee?: string; legendeOrigine?: string; date: string; par?: string; }
+
+export interface ContactValidation { id: string; nom: string; actif: boolean; derniereUtilisation?: string; creeLe?: string; }
 
 export interface Visuel {
   id: string; url: string; prompt?: string; ratio?: string; modele?: string; date: string;
@@ -150,6 +152,7 @@ export interface PortailPublication {
 export interface Portail {
   clientNom: string; logoUrl?: string; couleur?: string; debut: string; fin: string; expireLe: string;
   total: number; validees: number; aModifier: number; publications: PortailPublication[];
+  codeRequis?: boolean; validateur?: string;
 }
 
 export interface Membre { id: string; nom: string; email: string; role: Role; actif: boolean; }

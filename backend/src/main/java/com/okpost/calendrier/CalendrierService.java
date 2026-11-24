@@ -357,7 +357,7 @@ public class CalendrierService {
         return retours.findByPublicationIdInOrderByCreatedAtDesc(ids).stream()
                 .collect(Collectors.groupingBy(RetourClient::getPublicationId, LinkedHashMap::new,
                         Collectors.mapping(r -> new RetourVue(r.getDecision().name(), r.getCommentaire(),
-                                r.getLegendeProposee(), r.getLegendeOrigine(), r.getCreatedAt()), Collectors.toList())));
+                                r.getLegendeProposee(), r.getLegendeOrigine(), r.getCreatedAt(), r.getNomValidateur()), Collectors.toList())));
     }
 
     public static PublicationVue vue(Publication p, List<RetourVue> retours, List<CalendrierDtos.VisuelVue> images) {
