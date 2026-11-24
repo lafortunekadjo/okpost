@@ -263,6 +263,71 @@ public class MetaApi {
         return new Resultat(videoId, "https://www.facebook.com/reel/" + videoId);
     }
 
+    // ------------------------------------------------------------------ Profil de la Page (pré-remplissage de la fiche)
+
+    /** Ce que la Page Facebook dit d'elle-même : à propos, catégorie, adresse, téléphone, site, horaires, logo. */
+    public record ProfilPage(String nom, String apropos, String description, String categorie, String ville, String pays,
+                             String adresse, String telephone, String siteWeb, String horaires, String fondee, Integer abonnes,
+                             String logoUrl, String lien) {}
+
+    public ProfilPage profilPage(String pageId, String jeton) {
+        JsonNode r;
+        try {
+            r = get("/{p}?fields={f}&access_token={t}", pageId,
+                    "name,about,description,category,location{city,country,street},phone,website,hours,founded,followers_count,link,picture.type(large){url}", jeton);
+        } catch (MetaException e) {
+            // Certains champs demandent une autorisation que la Page n'a pas : on se rabat sur l'essentiel
+            r = get("/{p}?fields={f}&access_token={t}", pageId, "name,about,category,link,picture.type(large){url}", jeton);
+        }
+        JsonNode lieu = r.path("location");
+        return new ProfilPage(texte(r, "name"), texte(r, "about"), texte(r, "description"), texte(r, "category"),
+                texte(lieu, "city"), texte(lieu, "country"), texte(lieu, "street"), texte(r, "phone"), texte(r, "website"),
+                horairesTexte(r.path("hours")), texte(r, "founded"), r.has("followers_count") ? r.path("followers_count").asInt() : null,
+                texte(r.path("picture").path("data"), "url"), texte(r, "link"));
+    }
+
+    /** Photos que la Page a publiées (la plus grande version de chacune), pour la banque d'images. */
+    public List<String> photosPage(String pageId, String jeton, int max) {
+        try {
+            JsonNode r = get("/{p}/photos?type=uploaded&fields=images&limit={n}&access_token={t}", pageId, max, jeton);
+            List<String> urls = new ArrayList<>();
+            r.path("data").forEach(d -> {
+                String u = d.path("images").path(0).path("source").asText("");
+                if (!u.isBlank()) urls.add(u);
+            });
+            return urls;
+        } catch (MetaException e) {
+            return List.of();
+        }
+    }
+
+    /** Horaires de la Page (mon_1_open, mon_1_close…) en texte lisible : « Lun–Ven 08:00–18:00 ; Sam 09:00–13:00 ». */
+    static String horairesTexte(JsonNode hours) {
+        if (hours == null || hours.isMissingNode() || !hours.isObject() || hours.isEmpty()) return null;
+        String[] cles = {"mon", "tue", "wed", "thu", "fri", "sat", "sun"};
+        String[] noms = {"Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"};
+        String[] plages = new String[7];
+        for (int i = 0; i < 7; i++) {
+            String ouvre = hours.path(cles[i] + "_1_open").asText("");
+            String ferme = hours.path(cles[i] + "_1_close").asText("");
+            if (!ouvre.isBlank() && !ferme.isBlank()) plages[i] = ouvre + "–" + ferme;
+        }
+        List<String> groupes = new ArrayList<>();
+        for (int i = 0; i < 7; ) {
+            if (plages[i] == null) { i++; continue; }
+            int j = i;
+            while (j + 1 < 7 && plages[i].equals(plages[j + 1])) j++;
+            groupes.add((i == j ? noms[i] : noms[i] + "–" + noms[j]) + " " + plages[i]);
+            i = j + 1;
+        }
+        return groupes.isEmpty() ? null : String.join(" ; ", groupes);
+    }
+
+    private static String texte(JsonNode n, String cle) {
+        String v = n.path(cle).asText("").trim();
+        return v.isEmpty() ? null : v;
+    }
+
     // ------------------------------------------------------------------ Instagram
 
     /** Compte Instagram professionnel lié à la Page (vide s'il n'y en a pas, ou si la permission instagram_basic manque). */
@@ -276,6 +341,37 @@ public class MetaApi {
             return java.util.Optional.of(new CompteInstagram(ig.path("id").asText(), pseudo.isEmpty() ? "Instagram" : "@" + pseudo));
         } catch (MetaException e) {
             return java.util.Optional.empty();
+        }
+    }
+
+    public record ProfilInstagram(String nom, String pseudo, String biographie, String siteWeb, String photoProfil, Integer abonnes) {}
+
+    public record MediaInstagram(String url, String legende) {}
+
+    /** Profil du compte Instagram relié (nom, biographie, site, photo de profil). Vide si la lecture est refusée. */
+    public java.util.Optional<ProfilInstagram> profilInstagram(String igId, String jeton) {
+        try {
+            JsonNode r = get("/{i}?fields=name,username,biography,website,profile_picture_url,followers_count&access_token={t}", igId, jeton);
+            return java.util.Optional.of(new ProfilInstagram(texte(r, "name"), texte(r, "username"), texte(r, "biography"), texte(r, "website"),
+                    texte(r, "profile_picture_url"), r.has("followers_count") ? r.path("followers_count").asInt() : null));
+        } catch (MetaException e) {
+            return java.util.Optional.empty();
+        }
+    }
+
+    /** Dernières photos du compte Instagram (images et albums, pas les vidéos) avec leur légende. */
+    public List<MediaInstagram> mediasInstagram(String igId, String jeton, int max) {
+        try {
+            JsonNode r = get("/{i}/media?fields=media_type,media_url,caption&limit={n}&access_token={t}", igId, max, jeton);
+            List<MediaInstagram> medias = new ArrayList<>();
+            r.path("data").forEach(d -> {
+                String type = d.path("media_type").asText("");
+                String url = d.path("media_url").asText("");
+                if ((type.equals("IMAGE") || type.equals("CAROUSEL_ALBUM")) && !url.isBlank()) medias.add(new MediaInstagram(url, texte(d, "caption")));
+            });
+            return medias;
+        } catch (MetaException e) {
+            return List.of();
         }
     }
 

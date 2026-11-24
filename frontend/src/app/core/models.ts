@@ -21,6 +21,9 @@ export interface Alerte {
   publicationId?: string | null; clientId: string; clientNom: string; reseau: string; date: string; message: string;
 }
 
+/** Résultat de « mettre sur d'autres réseaux » : copies créées, réseaux ignorés (avec la raison), textes réécrits par l'IA. */
+export interface ResultatDuplication { creees: string[]; ignorees: string[]; adaptees: number; }
+
 export interface Asset { id: string; type: string; url: string; nomOrigine?: string; legende?: string;
   description?: string; tags?: string[]; analyse?: 'AUCUNE' | 'EN_COURS' | 'OK' | 'ECHEC' | string; }
 

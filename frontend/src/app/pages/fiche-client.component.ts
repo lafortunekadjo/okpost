@@ -48,6 +48,13 @@ const TYPES_FICHIERS = [
             <button type="button" class="bouton secondaire" [disabled]="lectureSite() || !(siteUrl || c.domaine)" (click)="chercherImages()">Chercher les images</button>
           }
         </div>
+        @if (id()) {
+          <p class="aide" style="margin-top:10px"><strong>Pas de site web ?</strong> Si la Page Facebook ou le compte Instagram du client est déjà relié (onglet Réseaux),
+            OkPost peut lire son profil (à propos, adresse, horaires, téléphone, publications) pour proposer la fiche.</p>
+          <button type="button" class="bouton secondaire" [disabled]="lectureSite()" (click)="lireReseaux()">
+            {{ lectureSite() ? 'Lecture en cours…' : 'Lire les pages Facebook / Instagram' }}
+          </button>
+        }
         <label class="case" style="margin-top:8px"><input type="checkbox" name="ecraser" [(ngModel)]="ecraser" /> Remplacer aussi les champs déjà remplis</label>
         @if (resumeSite(); as r) {
           <div class="succes" style="margin-top:12px">
@@ -62,7 +69,7 @@ const TYPES_FICHIERS = [
 
         @if (logosTrouves().length || photosTrouvees().length) {
           <div class="images-site">
-            <h3>Images trouvées sur le site</h3>
+            <h3>Images trouvées</h3>
             @if (!id()) {
               <div class="info">Enregistre d'abord la fiche : tu pourras ensuite importer le logo et les photos (bouton « Chercher les images »).</div>
             }
@@ -89,7 +96,7 @@ const TYPES_FICHIERS = [
                 }
               </div>
             }
-            <p class="aide" style="margin-top:10px">N'importe que des images que le client t'autorise à utiliser. Les photos sont réduites, converties en JPG puis décrites par l'IA.</p>
+            <p class="aide" style="margin-top:10px">N'importe que des images que le client t'autorise à utiliser (ses propres photos de Page, par exemple). Les photos sont réduites, converties en JPG puis décrites par l'IA.</p>
             <button type="button" class="bouton" [disabled]="!id() || importEnCours() || (!logoChoisi() && !nbPhotosChoisies())" (click)="importerImages()">
               {{ importEnCours() ? 'Import en cours… ' + progression() : 'Importer la sélection' }}
             </button>
@@ -356,6 +363,23 @@ export class FicheClientComponent implements OnInit {
     this.erreur.set('');
     this.resumeSite.set(null);
     this.api.analyserSite(url).subscribe({
+      next: proposition => {
+        this.resumeSite.set(this.appliquerProposition(proposition));
+        this.memoriserImages(proposition);
+        this.lectureSite.set(false);
+      },
+      error: e => { this.erreur.set(messageErreur(e)); this.lectureSite.set(false); window.scrollTo({ top: 0 }); },
+    });
+  }
+
+  /** Pré-remplit la fiche depuis les pages sociales reliées : mêmes règles que pour le site (rien n'est enregistré). */
+  lireReseaux() {
+    const id = this.id();
+    if (!id) return;
+    this.lectureSite.set(true);
+    this.erreur.set('');
+    this.resumeSite.set(null);
+    this.api.analyserReseaux(id).subscribe({
       next: proposition => {
         this.resumeSite.set(this.appliquerProposition(proposition));
         this.memoriserImages(proposition);

@@ -70,6 +70,15 @@ public final class CalendrierDtos {
                                    BriefVisuel brief, ScenarioVideo scenario, StatutPublication statut,
                                    Integer version, String heure) {}
 
+    /** Mettre la même publication sur d'autres réseaux. adapter : l'IA réécrit le texte pour chaque réseau (plus long). */
+    public record DemandeDuplication(@NotEmpty List<@Size(max = 20) String> reseaux, Boolean adapter) {}
+
+    public record DemandeDuplicationSelection(@NotEmpty @Size(max = 60) List<UUID> ids,
+                                              @NotEmpty List<@Size(max = 20) String> reseaux, Boolean adapter) {}
+
+    /** Publications créées, motifs des réseaux ignorés, et nombre de textes réécrits par l'IA. */
+    public record ResultatDuplication(List<UUID> creees, List<String> ignorees, int adaptees) {}
+
     public record Regeneration(@NotNull @Pattern(regexp = "legende|cta|tout") String champ,
                                @Size(max = 1000) String consigne) {}
 }

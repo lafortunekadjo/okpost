@@ -6,7 +6,7 @@ import { RouterLink } from '@angular/router';
 import { ApiService, messageErreur } from '../core/api.service';
 import { ConfirmationService } from '../core/confirmation.service';
 import {
-  BriefVisuel, LIBELLES_FORMAT, LIBELLES_RESEAU, LIBELLES_STATUT, Musique, Publication, RESEAUX, ScenarioVideo, StatutPublication,
+  BriefVisuel, LIBELLES_FORMAT, LIBELLES_RESEAU, LIBELLES_STATUT, Musique, Publication, RESEAUX, ResultatDuplication, ScenarioVideo, StatutPublication,
 } from '../core/models';
 import { PucesComponent } from '../shared/puces.component';
 
@@ -315,6 +315,34 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
         </form>
 
         <div class="carte">
+          <h2>Mettre aussi sur d'autres réseaux</h2>
+          <p class="aide">Crée une copie de cette publication (texte, hashtags, visuel et heure) pour chaque réseau coché. Chaque copie a sa propre validation
+            et sa propre programmation ; un réseau incompatible avec le format est ignoré, avec la raison.</p>
+          <div class="ligne" style="gap:18px;flex-wrap:wrap">
+            @for (r of reseaux; track r) {
+              @if (r !== pub.reseau) {
+                <label class="case"><input type="checkbox" [checked]="reseauxCibles().has(r)" (change)="basculerReseauCible(r)" />
+                  <span class="reseau reseau-{{ r }}"></span> {{ libellesReseau[r] }}</label>
+              }
+            }
+          </div>
+          <label class="case" style="margin-top:8px"><input type="checkbox" [(ngModel)]="adapterTextes" /> Adapter le texte à chaque réseau avec l'IA</label>
+          <div class="ligne" style="margin-top:10px">
+            <button type="button" class="bouton" [disabled]="!reseauxCibles().size || duplication()" (click)="dupliquer()">
+              {{ duplication() ? 'Copie en cours…' : 'Créer les copies' }}
+            </button>
+          </div>
+          @if (resultatDuplication(); as res) {
+            <div [class]="res.creees.length ? 'succes' : 'info'" style="margin-top:10px">
+              {{ res.creees.length }} copie{{ res.creees.length > 1 ? 's' : '' }} créée{{ res.creees.length > 1 ? 's' : '' }}
+              @if (res.adaptees) { , dont {{ res.adaptees }} adaptée{{ res.adaptees > 1 ? 's' : '' }} par l'IA }.
+              @if (res.creees.length) { <a [routerLink]="['/calendriers', pub.calendrierId]">Voir le calendrier</a> }
+              @for (m of res.ignorees; track $index) { <br />· {{ m }} }
+            </div>
+          }
+        </div>
+
+        <div class="carte">
           <h2>Régénérer avec l'IA</h2>
           <div class="champ"><label>Consigne <span class="aide">facultative</span></label>
             <input type="text" [(ngModel)]="consigne" placeholder="Ex. plus court, ton plus festif, mettre en avant la livraison gratuite" /></div>
@@ -449,6 +477,29 @@ export class PublicationComponent implements OnInit {
     this.lecteur.pause();
     if (this.adresseLecture) { URL.revokeObjectURL(this.adresseLecture); this.adresseLecture = null; }
     this.ecoute.set(false);
+  }
+
+  reseauxCibles = signal<Set<string>>(new Set());
+  adapterTextes = false;
+  duplication = signal(false);
+  resultatDuplication = signal<ResultatDuplication | null>(null);
+
+  basculerReseauCible(reseau: string) {
+    const s = new Set(this.reseauxCibles());
+    s.has(reseau) ? s.delete(reseau) : s.add(reseau);
+    this.reseauxCibles.set(s);
+  }
+
+  dupliquer() {
+    const p = this.p();
+    if (!p) return;
+    this.duplication.set(true);
+    this.resultatDuplication.set(null);
+    this.erreur.set('');
+    this.api.dupliquerPublication(p.id, [...this.reseauxCibles()], this.adapterTextes).subscribe({
+      next: res => { this.resultatDuplication.set(res); this.duplication.set(false); if (res.creees.length) this.reseauxCibles.set(new Set()); },
+      error: e => { this.erreur.set(messageErreur(e)); this.duplication.set(false); window.scrollTo({ top: 0 }); },
+    });
   }
 
   aller(id: string) {

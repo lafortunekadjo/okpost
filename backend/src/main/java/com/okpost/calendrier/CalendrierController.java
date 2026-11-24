@@ -139,6 +139,45 @@ public class CalendrierController {
         visuels.supprimer(Session.courante(), id, visuelId);
     }
 
+    /** Met la même publication sur d'autres réseaux (une copie par réseau). */
+    @PostMapping("/publications/{id}/dupliquer")
+    public CalendrierDtos.ResultatDuplication dupliquer(@PathVariable UUID id, @Valid @RequestBody CalendrierDtos.DemandeDuplication d) {
+        return adapterTextes(service.dupliquer(Session.courante(), id, d.reseaux()), Boolean.TRUE.equals(d.adapter()));
+    }
+
+    /** Même chose pour plusieurs publications cochées dans le calendrier. */
+    @PostMapping("/calendriers/{id}/dupliquer")
+    public CalendrierDtos.ResultatDuplication dupliquerSelection(@PathVariable UUID id,
+                                                                  @Valid @RequestBody CalendrierDtos.DemandeDuplicationSelection d) {
+        return adapterTextes(service.dupliquerSelection(Session.courante(), id, d.ids(), d.reseaux()), Boolean.TRUE.equals(d.adapter()));
+    }
+
+    private static final int ADAPTATIONS_MAX = 4;
+
+    /** L'IA réécrit la légende de chaque copie pour son réseau (longueur, ton, hashtags). Limité : chaque réécriture est un appel d'IA. */
+    private CalendrierDtos.ResultatDuplication adapterTextes(CalendrierDtos.ResultatDuplication r, boolean adapter) {
+        if (!adapter || r.creees().isEmpty()) return r;
+        Session s = Session.courante();
+        java.util.List<String> ignorees = new java.util.ArrayList<>(r.ignorees());
+        int adaptees = 0;
+        for (UUID id : r.creees()) {
+            if (adaptees >= ADAPTATIONS_MAX) {
+                ignorees.add("Adaptation par l'IA limitée à " + ADAPTATIONS_MAX + " publications par demande : les autres gardent le texte d'origine");
+                break;
+            }
+            try {
+                Publication p = service.chargerPublication(s, id);
+                generation.redetailler(p, "Adapte cette publication au réseau " + p.getReseau()
+                        + " (longueur, ton et hashtags propres à ce réseau) sans changer l'idée ni le sujet.");
+                adaptees++;
+            } catch (RuntimeException e) {
+                ignorees.add("Adaptation par l'IA impossible (" + e.getMessage() + ") : les copies gardent le texte d'origine");
+                break;
+            }
+        }
+        return new CalendrierDtos.ResultatDuplication(r.creees(), ignorees, adaptees);
+    }
+
     @PostMapping("/publications/{id}/regenerer")
     public PublicationVue regenerer(@PathVariable UUID id, @Valid @RequestBody Regeneration r) {
         Session s = Session.courante();

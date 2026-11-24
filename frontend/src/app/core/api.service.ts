@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import {
-  Abonnement, Alerte, Asset, FicheProposee, Musique, Calendrier, CalendrierResume, Client, ClientResume, Consommation, EtatIa,
+  Abonnement, Alerte, Asset, FicheProposee, Musique, ResultatDuplication, Calendrier, CalendrierResume, Client, ClientResume, Consommation, EtatIa,
   CompteSocial, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
   PropositionEvenement, TempsFortSuggere, EvenementCatalogue, EvaluationCalendrier, LigneSynthese, NotesPublication,
   BilanPage, Recommandations,
@@ -55,9 +55,19 @@ export class ApiService {
   analyserSite(url: string, seulementImages = false) {
     return this.http.post<FicheProposee>(`${this.base}/clients/analyser-site`, { url, seulementImages });
   }
+  /** Propose une fiche à partir des pages Facebook / Instagram reliées (client sans site web). */
+  analyserReseaux(clientId: string) {
+    return this.http.post<FicheProposee>(`${this.base}/clients/${clientId}/analyser-reseaux`, {});
+  }
   /** Importe dans la fiche une image du site du client : logo, ou photo pour la banque d'images. */
   importerImage(clientId: string, url: string, type: 'PHOTO' | 'LOGO_COULEUR') {
     return this.http.post<Asset>(`${this.base}/clients/${clientId}/assets/depuis-url`, { url, type });
+  }
+  dupliquerPublication(id: string, reseaux: string[], adapter: boolean) {
+    return this.http.post<ResultatDuplication>(`${this.base}/publications/${id}/dupliquer`, { reseaux, adapter });
+  }
+  dupliquerSelection(calendrierId: string, ids: string[], reseaux: string[], adapter: boolean) {
+    return this.http.post<ResultatDuplication>(`${this.base}/calendriers/${calendrierId}/dupliquer`, { ids, reseaux, adapter });
   }
   surveillance() { return this.http.get<Alerte[]>(`${this.base}/surveillance`); }
   musiques() { return this.http.get<Musique[]>(`${this.base}/musiques`); }

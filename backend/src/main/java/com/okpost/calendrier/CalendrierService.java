@@ -43,11 +43,14 @@ public class CalendrierService {
     private final ApplicationEventPublisher evenements;
     private final VisuelGenereRepository visuels;
     private final com.okpost.reseaux.PublicationAutoService publicationAuto;
+    private final com.okpost.client.StockageFichiers stockage;
 
     public CalendrierService(CalendrierRepository calendriers, PublicationRepository publications,
                              RetourClientRepository retours, ClientService clients, AbonnementService abonnements,
                              ApplicationEventPublisher evenements, VisuelGenereRepository visuels,
-                             @org.springframework.context.annotation.Lazy com.okpost.reseaux.PublicationAutoService publicationAuto) {
+                             @org.springframework.context.annotation.Lazy com.okpost.reseaux.PublicationAutoService publicationAuto,
+                             com.okpost.client.StockageFichiers stockage) {
+        this.stockage = stockage;
         this.visuels = visuels;
         this.publicationAuto = publicationAuto;
         this.calendriers = calendriers;
@@ -222,6 +225,117 @@ public class CalendrierService {
         publications.saveAndFlush(p);
         return vue(p, retoursPar(List.of(p.getId())).getOrDefault(p.getId(), List.of()),
                 visuelsPar(List.of(p.getId())).getOrDefault(p.getId(), List.of()));
+    }
+
+    private static final Map<String, String> NOMS_RESEAUX = Map.of("FACEBOOK", "Facebook", "INSTAGRAM", "Instagram", "TIKTOK", "TikTok", "LINKEDIN", "LinkedIn");
+
+    /**
+     * Met la même publication sur d'autres réseaux : le texte, les hashtags, le visuel et l'heure sont copiés dans une nouvelle publication
+     * par réseau (chacune a ensuite sa validation, sa programmation et son état). Un réseau incompatible avec le format est ignoré, avec la raison.
+     */
+    @Transactional
+    public CalendrierDtos.ResultatDuplication dupliquer(Session s, UUID publicationId, List<String> reseauxCibles) {
+        abonnements.exigerEcriture(s.workspaceId());
+        Publication source = chargerPublication(s, publicationId);
+        List<Publication> existantes = publications.findByCalendrierIdOrderByDatePrevueAscReseauAsc(source.getCalendrierId());
+        List<UUID> creees = new ArrayList<>();
+        List<String> ignorees = new ArrayList<>();
+        for (String brut : new java.util.LinkedHashSet<>(reseauxCibles)) {
+            String cible = brut == null ? "" : brut.trim().toUpperCase(Locale.ROOT);
+            if (!RESEAUX.contains(cible)) throw ApiException.requeteInvalide("Réseau invalide : " + brut);
+            String nom = NOMS_RESEAUX.getOrDefault(cible, cible);
+            if (cible.equals(source.getReseau())) { ignorees.add(nom + " : c'est déjà le réseau de cette publication"); continue; }
+            String incompatibilite = incompatibilite(cible, source.getFormat());
+            if (incompatibilite != null) { ignorees.add(nom + " : " + incompatibilite); continue; }
+            boolean dejaLa = existantes.stream().anyMatch(p -> p.getReseau().equals(cible)
+                    && p.getDatePrevue().equals(source.getDatePrevue()) && java.util.Objects.equals(p.getIdee(), source.getIdee()));
+            if (dejaLa) { ignorees.add(nom + " : cette publication existe déjà sur ce réseau ce jour-là"); continue; }
+            Publication copie = copier(source, cible);
+            publications.save(copie);
+            copierVisuels(source, copie);
+            creees.add(copie.getId());
+        }
+        return new CalendrierDtos.ResultatDuplication(creees, ignorees, 0);
+    }
+
+    /** Même chose pour plusieurs publications d'un calendrier à la fois. */
+    @Transactional
+    public CalendrierDtos.ResultatDuplication dupliquerSelection(Session s, UUID calendrierId, List<UUID> ids, List<String> reseaux) {
+        charger(s, calendrierId);
+        List<UUID> creees = new ArrayList<>();
+        List<String> ignorees = new ArrayList<>();
+        for (UUID id : new java.util.LinkedHashSet<>(ids)) {
+            Publication p = chargerPublication(s, id);
+            if (!p.getCalendrierId().equals(calendrierId)) throw ApiException.requeteInvalide("Certaines publications n'appartiennent pas à ce calendrier");
+            CalendrierDtos.ResultatDuplication r = dupliquer(s, id, reseaux);
+            creees.addAll(r.creees());
+            String repere = p.getDatePrevue() + " (" + NOMS_RESEAUX.getOrDefault(p.getReseau(), p.getReseau()) + ")";
+            r.ignorees().forEach(m -> ignorees.add(repere + " → " + m));
+        }
+        return new CalendrierDtos.ResultatDuplication(creees, ignorees, 0);
+    }
+
+    /** Raison pour laquelle un format ne peut pas aller sur un réseau, sinon null. */
+    static String incompatibilite(String cible, String format) {
+        if ("TIKTOK".equals(cible) && !"VIDEO".equals(format)) return "TikTok n'accepte que des vidéos (cette publication est au format " + format + ")";
+        if ("INSTAGRAM".equals(cible) && "TEXTE".equals(format)) return "Instagram demande une image ou une vidéo (format Texte)";
+        return null;
+    }
+
+    private static Publication copier(Publication source, String reseau) {
+        Publication c = new Publication();
+        c.setWorkspaceId(source.getWorkspaceId());
+        c.setCalendrierId(source.getCalendrierId());
+        c.setDatePrevue(source.getDatePrevue());
+        c.setReseau(reseau);
+        c.setFormat(source.getFormat());
+        c.setPilier(source.getPilier());
+        c.setIdee(source.getIdee());
+        c.setObjectif(source.getObjectif());
+        c.setTempsFort(source.getTempsFort());
+        c.setHeurePrevue(source.getHeurePrevue());
+        c.setHeureMotif(source.getHeureMotif());
+        c.setLegende(source.getLegende());
+        c.setHashtags(source.getHashtags() == null ? new ArrayList<>() : new ArrayList<>(source.getHashtags()));
+        c.setCta(source.getCta());
+        c.setBrief(source.getBrief());
+        c.setScenario(source.getScenario());
+        c.setModeCarrousel(source.getModeCarrousel());
+        c.setDetailGenere(source.isDetailGenere());
+        // La copie repart de zéro côté validation et publication : elle doit être validée et programmée à son tour
+        c.setStatut(source.isDetailGenere() ? StatutPublication.BROUILLON : StatutPublication.IDEE);
+        return c;
+    }
+
+    /** Les fichiers sont copiés (et non partagés) : supprimer un visuel sur un réseau ne doit pas l'effacer des autres. */
+    private void copierVisuels(Publication source, Publication copie) {
+        List<VisuelGenere> anciens = new ArrayList<>(visuels.findByPublicationIdInOrderByCreatedAtDesc(List.of(source.getId())));
+        java.util.Collections.reverse(anciens); // du plus ancien au plus récent : l'ordre de création est conservé
+        for (VisuelGenere v : anciens) {
+            String chemin;
+            try (var in = stockage.lire(v.getChemin()).getInputStream()) {
+                String ext = v.getChemin().contains(".") ? v.getChemin().substring(v.getChemin().lastIndexOf('.') + 1) : "jpg";
+                chemin = stockage.enregistrer(in, ext);
+            } catch (java.io.IOException | RuntimeException e) {
+                continue; // fichier introuvable : la copie se fait sans ce visuel
+            }
+            VisuelGenere n = new VisuelGenere();
+            n.setWorkspaceId(v.getWorkspaceId());
+            n.setPublicationId(copie.getId());
+            n.setChemin(chemin);
+            n.setMime(v.getMime());
+            n.setPrompt(v.getPrompt());
+            n.setRatio(v.getRatio());
+            n.setFournisseur(v.getFournisseur());
+            n.setModele(v.getModele());
+            n.setSource(v.getSource());
+            n.setTypeMedia(v.getTypeMedia());
+            n.setNomOrigine(v.getNomOrigine());
+            n.setTaille(v.getTaille());
+            n.setDiapositive(v.getDiapositive());
+            n.setAssetId(v.getAssetId());
+            visuels.saveAndFlush(n);
+        }
     }
 
     @Transactional(readOnly = true)

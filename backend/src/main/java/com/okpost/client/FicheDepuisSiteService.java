@@ -38,6 +38,14 @@ public class FicheDepuisSiteService {
                                 List<String> couleurs, String domaine, Map<String, String> reseaux, String whatsapp,
                                 List<String> logos, List<String> photos, List<String> sources, List<String> avertissements) {}
 
+    /**
+     * Ce qui est lu tel quel à la source (site, Page, compte) : il prime sur l'IA. Les champs d'adresse, de ville, de pays et d'horaires
+     * ne sont imposés que s'ils sont renseignés.
+     */
+    public record Faits(List<String> couleurs, Map<String, String> reseaux, String whatsapp, String domaine, List<String> logos,
+                        List<String> photos, List<String> sources, List<String> avertissements,
+                        String adresse, String ville, String pays, String horaires) {}
+
     private static final int ANALYSES_PAR_HEURE = 15;
 
     private final LecteurSite lecteur;
@@ -67,7 +75,7 @@ public class FicheDepuisSiteService {
     }
 
     /** Au plus 15 analyses par heure et par espace : chacune appelle l'IA et lit un site externe. */
-    private void limiter(UUID workspaceId) {
+    public void limiter(UUID workspaceId) {
         ArrayDeque<Instant> file = appels.computeIfAbsent(workspaceId, k -> new ArrayDeque<>());
         synchronized (file) {
             Instant limite = Instant.now().minus(Duration.ofHours(1));
@@ -79,11 +87,21 @@ public class FicheDepuisSiteService {
         }
     }
 
-    /** Ce qui est lu directement sur le site (réseaux, WhatsApp, couleurs) prime sur l'IA ; le reste est nettoyé et plafonné. */
+    /** Fiche proposée à partir d'un site web. */
     static FicheProposee assembler(ContenuSite site, FicheSite ia) {
+        List<String> avertissements = new ArrayList<>();
+        if (site.texte().replaceAll("--- Page : [^\\n]* ---", "").trim().length() < 400) {
+            avertissements.add("Le site contient très peu de texte lisible (il charge peut-être son contenu avec JavaScript) : la fiche proposée est incomplète.");
+        }
+        return construire(ia, new Faits(site.couleurs(), site.reseaux(), site.whatsapp(), domaine(site.url()), site.logos(), site.photos(),
+                site.pagesLues(), avertissements, null, null, null, null));
+    }
+
+    /** Ce qui est lu directement à la source prime sur l'IA ; le reste est nettoyé et plafonné. */
+    public static FicheProposee construire(FicheSite ia, Faits faits) {
         FicheSite f = ia == null ? new FicheSite(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null) : ia;
 
-        Set<String> couleurs = new LinkedHashSet<>(site.couleurs());
+        Set<String> couleurs = new LinkedHashSet<>(faits.couleurs() == null ? List.<String>of() : faits.couleurs());
         if (f.couleurs() != null) f.couleurs().stream().map(ExtracteurSite::hex).filter(c -> c != null).forEach(couleurs::add);
 
         List<Client.Offre> offres = new ArrayList<>();
@@ -101,18 +119,17 @@ public class FicheDepuisSiteService {
                 if (cibles.size() >= 6) break;
             }
         }
-        List<String> avertissements = new ArrayList<>();
-        if (site.texte().replaceAll("--- Page : [^\\n]* ---", "").trim().length() < 400) {
-            avertissements.add("Le site contient très peu de texte lisible (il charge peut-être son contenu avec JavaScript) : la fiche proposée est incomplète.");
-        }
         Integer annee = f.anneeCreation() != null && f.anneeCreation() >= 1800 && f.anneeCreation() <= Year.now().getValue() ? f.anneeCreation() : null;
         String langue = f.langue() != null && f.langue().toLowerCase(Locale.ROOT).matches("fr|en") ? f.langue().toLowerCase(Locale.ROOT) : null;
 
         return new FicheProposee(max(f.nom(), 150), max(f.secteur(), 150), max(f.description(), 4000), max(f.slogan(), 255),
-                annee, max(f.ville(), 100), max(f.pays(), 100), max(f.zone(), 255), max(f.adresse(), 255), max(f.horaires(), 255),
+                annee, max(vide(faits.ville()) ? f.ville() : faits.ville(), 100), max(vide(faits.pays()) ? f.pays() : faits.pays(), 100),
+                max(f.zone(), 255), max(vide(faits.adresse()) ? f.adresse() : faits.adresse(), 255),
+                max(vide(faits.horaires()) ? f.horaires() : faits.horaires(), 255),
                 langue, max(f.ton(), 255), f.tutoiement(), offres, cibles,
-                couleurs.stream().limit(3).toList(), domaine(site.url()), site.reseaux(), site.whatsapp(),
-                site.logos(), site.photos(), site.pagesLues(), avertissements);
+                couleurs.stream().limit(3).toList(), faits.domaine(), faits.reseaux() == null ? Map.of() : faits.reseaux(), faits.whatsapp(),
+                faits.logos() == null ? List.of() : faits.logos(), faits.photos() == null ? List.of() : faits.photos(),
+                faits.sources() == null ? List.of() : faits.sources(), faits.avertissements() == null ? List.of() : faits.avertissements());
     }
 
     /** exemple.com : adresse sans protocole, sans « www. » ni chemin. */

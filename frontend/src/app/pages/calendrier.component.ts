@@ -5,7 +5,7 @@ import { RouterLink } from '@angular/router';
 import { ApiService, messageErreur } from '../core/api.service';
 import { ConfirmationService } from '../core/confirmation.service';
 import {
-  Calendrier, LIBELLES_FORMAT, LIBELLES_RESEAU, LIBELLES_STATUT, LienValidation, Publication, RESEAUX, StatutPublication,
+  Calendrier, LIBELLES_FORMAT, LIBELLES_RESEAU, LIBELLES_STATUT, LienValidation, Publication, RESEAUX, ResultatDuplication, StatutPublication,
 } from '../core/models';
 
 interface Jour { date: string; dansPeriode: boolean; publications: Publication[]; }
@@ -73,15 +73,48 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
             @for (s of statuts; track s) { <option [value]="s">{{ libellesStatut[s] }}</option> }
           </select>
           <span class="espace"></span>
+          <button type="button" class="bouton secondaire petit" [disabled]="!eligibles().length" (click)="toutSelectionner()"
+                  title="Sélectionne toutes les publications rédigées de la liste affichée (selon les filtres)">
+            {{ toutSelectionne() ? 'Tout désélectionner' : 'Tout sélectionner (' + eligibles().length + ')' }}
+          </button>
           @if (selection().size) {
             <span class="aide">{{ selection().size }} sélectionnée(s)</span>
             <button class="bouton secondaire petit" (click)="viderSelection()">Annuler</button>
+            <button type="button" class="bouton secondaire" (click)="panneauReseaux.set(!panneauReseaux())">Mettre sur d'autres réseaux</button>
           }
           @if (nbValidees() > 0) {
             <button class="bouton secondaire" [disabled]="programmation()" (click)="programmerValidees()">Programmer les {{ nbValidees() }} validée(s)</button>
           }
           <button class="bouton" [disabled]="!selection().size || envoiLien()" (click)="creerLien()">Envoyer en validation</button>
         </div>
+        @if (panneauReseaux() && selection().size) {
+          <div class="carte multi-reseaux">
+            <h3>Mettre {{ selection().size > 1 ? 'les ' + selection().size + ' publications sélectionnées' : 'la publication sélectionnée' }} sur d'autres réseaux</h3>
+            <p class="aide">Chaque réseau coché reçoit une copie (texte, hashtags, visuel et heure) qui a sa propre validation et sa propre programmation.
+              Un réseau incompatible avec le format (par exemple TikTok pour une image) est ignoré, avec la raison.</p>
+            <div class="ligne reseaux-choix">
+              @for (r of reseaux; track r) {
+                <label class="case"><input type="checkbox" [checked]="reseauxCibles().has(r)" (change)="basculerReseauCible(r)" />
+                  <span class="reseau reseau-{{ r }}"></span> {{ libellesReseau[r] }}</label>
+              }
+            </div>
+            <label class="case"><input type="checkbox" [(ngModel)]="adapterTextes" /> Adapter le texte à chaque réseau avec l'IA
+              <span class="aide">(plus long : 4 publications au plus)</span></label>
+            <div class="ligne" style="margin-top:10px">
+              <button type="button" class="bouton" [disabled]="!reseauxCibles().size || duplication()" (click)="dupliquerSelection()">
+                {{ duplication() ? 'Copie en cours…' : 'Créer les copies' }}
+              </button>
+              <button type="button" class="bouton secondaire" (click)="panneauReseaux.set(false)">Fermer</button>
+            </div>
+          </div>
+        }
+        @if (resultatDuplication(); as res) {
+          <div [class]="res.creees.length ? 'succes' : 'info'">
+            {{ res.creees.length }} publication{{ res.creees.length > 1 ? 's' : '' }} créée{{ res.creees.length > 1 ? 's' : '' }}
+            @if (res.adaptees) { , dont {{ res.adaptees }} texte{{ res.adaptees > 1 ? 's' : '' }} adapté{{ res.adaptees > 1 ? 's' : '' }} par l'IA }.
+            @for (m of res.ignorees; track $index) { <br />· {{ m }} }
+          </div>
+        }
         @if (bilan(); as b) {
           <div [class]="b.programmees ? 'succes' : 'info'">
             {{ b.programmees }} publication(s) programmée(s).
@@ -216,6 +249,8 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
     .case.hors { background: transparent; box-shadow: none; opacity: .5; }
     .num { font-size: .8rem; font-weight: 700; color: var(--gris); margin-bottom: 4px; }
     .heure { font-weight: 600; color: var(--gris); margin-left: 4px; }
+    .multi-reseaux { border-left: 4px solid var(--vert); margin-bottom: 14px; }
+    .reseaux-choix { gap: 18px; flex-wrap: wrap; margin: 8px 0; }
     .legende { display: flex; gap: 14px; flex-wrap: wrap; margin: -4px 0 12px; }
     .elt-legende { display: inline-flex; align-items: center; gap: 4px; }
     .mini input[type=checkbox] { width: 16px; height: 16px; margin: 1px 0 0; flex: none; }
@@ -327,6 +362,48 @@ export class CalendrierComponent implements OnInit {
       jours.push({ date: cle, dansPeriode: d >= debut && d <= fin, publications: parDate.get(cle) ?? [] });
     }
     return jours;
+  }
+
+  // ---------- Tout sélectionner, et mettre la même publication sur plusieurs réseaux
+
+  panneauReseaux = signal(false);
+  reseauxCibles = signal<Set<string>>(new Set());
+  adapterTextes = false;
+  duplication = signal(false);
+  resultatDuplication = signal<ResultatDuplication | null>(null);
+
+  /** Publications de la liste affichée qui peuvent partir en validation : rédigées, ni programmées ni publiées. */
+  eligibles(): Publication[] {
+    return this.filtrees().filter(p => p.detailGenere && p.statut !== 'PROGRAMMEE' && p.statut !== 'PUBLIEE');
+  }
+
+  toutSelectionne(): boolean {
+    const e = this.eligibles();
+    return e.length > 0 && e.every(p => this.selection().has(p.id));
+  }
+
+  toutSelectionner() {
+    this.selection.set(this.toutSelectionne() ? new Set() : new Set(this.eligibles().map(p => p.id)));
+  }
+
+  basculerReseauCible(reseau: string) {
+    const s = new Set(this.reseauxCibles());
+    s.has(reseau) ? s.delete(reseau) : s.add(reseau);
+    this.reseauxCibles.set(s);
+  }
+
+  dupliquerSelection() {
+    this.duplication.set(true);
+    this.resultatDuplication.set(null);
+    this.erreur.set('');
+    this.api.dupliquerSelection(this.id(), [...this.selection()], [...this.reseauxCibles()], this.adapterTextes).subscribe({
+      next: res => {
+        this.resultatDuplication.set(res);
+        this.duplication.set(false);
+        if (res.creees.length) { this.selection.set(new Set()); this.panneauReseaux.set(false); this.charger(); }
+      },
+      error: e => { this.erreur.set(messageErreur(e)); this.duplication.set(false); },
+    });
   }
 
   viderSelection() {

@@ -45,10 +45,13 @@ public class ReseauxController {
     private final ClientService clients;
     private final MetaApi meta;
     private final OkpostProperties props;
+    private final FicheDepuisReseauxService ficheDepuisReseaux;
 
     public ReseauxController(ComptesSociauxService comptes, PublicationAutoService auto, CalendrierService calendriers,
                              CalendrierRepository depotCalendriers, ClientService clients, MetaApi meta, OkpostProperties props,
-                             com.okpost.calendrier.PublicationRepository publications) {
+                             com.okpost.calendrier.PublicationRepository publications,
+                             FicheDepuisReseauxService ficheDepuisReseaux) {
+        this.ficheDepuisReseaux = ficheDepuisReseaux;
         this.publications = publications;
         this.comptes = comptes;
         this.auto = auto;
@@ -75,6 +78,12 @@ public class ReseauxController {
     @PostMapping("/clients/{id}/comptes-sociaux/facebook/jeton")
     public List<ComptesSociauxService.CompteVue> jeton(@PathVariable UUID id, @Valid @RequestBody JetonManuel j) {
         return comptes.relierAvecJeton(Session.courante(), id, j.jeton());
+    }
+
+    /** Propose une fiche à partir des pages Facebook et Instagram reliées (pour un client sans site web). Rien n'est enregistré. */
+    @PostMapping("/clients/{id}/analyser-reseaux")
+    public com.okpost.client.FicheDepuisSiteService.FicheProposee analyserReseaux(@PathVariable UUID id) {
+        return ficheDepuisReseaux.proposer(Session.courante(), id);
     }
 
     @PostMapping("/clients/{id}/comptes-sociaux/{compteId}/activer")
