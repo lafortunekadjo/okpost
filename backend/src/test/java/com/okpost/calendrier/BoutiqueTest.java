@@ -28,7 +28,7 @@ class BoutiqueTest {
     }
 
     private static BriefVisuel brief(String produit) {
-        return new BriefVisuel("IMAGE", "d", "scene", "1:1", null, null, "PRODUIT", null, null, null, produit);
+        return new BriefVisuel("IMAGE", "d", "scene", "1:1", null, null, "PRODUIT", null, null, null, produit, null);
     }
 
     @Test
@@ -46,7 +46,7 @@ class BoutiqueTest {
         var contenu = new MoteurAffiche.Contenu(MoteurAffiche.Gabarit.PLEIN_CADRE, null, null, "Confort et douceur", "Commander sur WhatsApp");
         var avec = VisuelService.avecProduit(contenu, c.getOffres().get(0));
         assertThat(avec.gabarit()).isEqualTo(MoteurAffiche.Gabarit.PRODUIT);
-        assertThat(avec.chiffre()).isEqualTo("12 000 FCFA");
+        assertThat(avec.prix()).isEqualTo("12 000 FCFA");
         assertThat(avec.titre()).isEqualTo("Soutien-gorge Émeraude");
         assertThat(avec.cta()).isEqualTo("Commander sur WhatsApp");
         // Un titre écrit par le CM est conservé

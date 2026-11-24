@@ -91,7 +91,9 @@ export interface CalendrierResume {
 
 export interface TexteCarrousel { visuel: number; titre: string; texte: string; }
 export interface BriefVisuel { type?: string; description?: string; promptImage?: string; ratio?: string; textesCarrousel?: TexteCarrousel[]; accroche?: string;
-  gabarit?: string; chiffre?: string; texte?: string; cta?: string; produit?: string; }
+  gabarit?: string; chiffre?: string; texte?: string; cta?: string; produit?: string; produits?: string[]; }
+
+export interface LienCommande { url: string; message: string; produit?: string; }
 export interface PlanVideo { numero: number; dureeS: number; image?: string; texteEcran?: string; voixOff?: string; son?: string; }
 export interface ScenarioVideo { titre?: string; dureeTotaleS?: number; accroche?: string; plans?: PlanVideo[]; materiel?: string[]; }
 

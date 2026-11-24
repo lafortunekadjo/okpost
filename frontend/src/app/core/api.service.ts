@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http
 import { Injectable, inject } from '@angular/core';
 import {
   Abonnement, Alerte, Asset, FicheProposee, Musique, ResultatDuplication, Calendrier, CalendrierResume, Client, ClientResume, Consommation, EtatIa,
-  AdminCompte, AdminJournal, AdminTotaux, ResultatCatalogue, CompteSocial, ContactValidation, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
+  AdminCompte, AdminJournal, AdminTotaux, LienCommande, ResultatCatalogue, CompteSocial, ContactValidation, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
   PropositionEvenement, TempsFortSuggere, EvenementCatalogue, EvaluationCalendrier, LigneSynthese, NotesPublication,
   BilanPage, Recommandations,
 } from './models';
@@ -153,6 +153,11 @@ export class ApiService {
     const f = new FormData();
     f.append('fichier', fichier);
     return this.http.post<ResultatCatalogue>(`${this.base}/clients/${clientId}/catalogue/importer`, f);
+  }
+  /** Lien wa.me avec un message de commande déjà écrit, pour une publication (son produit) ou un produit du catalogue. */
+  lienCommandePublication(id: string) { return this.http.get<LienCommande>(`${this.base}/publications/${id}/lien-commande`); }
+  lienCommandeProduit(clientId: string, produit: string) {
+    return this.http.get<LienCommande>(`${this.base}/clients/${clientId}/lien-commande`, { params: { produit } });
   }
   adminComptes() { return this.http.get<{ totaux: AdminTotaux; comptes: AdminCompte[] }>(`${this.base}/admin/comptes`); }
   adminJournal(f: { espace?: string; action?: string; page?: number }) {

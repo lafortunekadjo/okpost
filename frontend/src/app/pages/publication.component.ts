@@ -6,7 +6,7 @@ import { RouterLink } from '@angular/router';
 import { ApiService, messageErreur } from '../core/api.service';
 import { ConfirmationService } from '../core/confirmation.service';
 import {
-  BriefVisuel, LIBELLES_FORMAT, LIBELLES_RESEAU, LIBELLES_STATUT, Musique, Publication, RESEAUX, ResultatDuplication, ScenarioVideo, StatutPublication,
+  BriefVisuel, LienCommande, LIBELLES_FORMAT, LIBELLES_RESEAU, LIBELLES_STATUT, Musique, Publication, RESEAUX, ResultatDuplication, ScenarioVideo, StatutPublication,
 } from '../core/models';
 import { PucesComponent } from '../shared/puces.component';
 
@@ -167,15 +167,22 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
                     <option value="DIAGONALE">Panneau diagonal</option>
                     <option value="PLEIN_CADRE">Photo pleine page</option>
                     <option value="PRODUIT">Fiche produit (photo, prix, nom, bouton)</option>
+                    <option value="NOUVEAUTE">Nouveauté (fiche produit + étiquette)</option>
+                    <option value="PROMO">Promotion (fiche produit + remise)</option>
+                    <option value="COLLECTION">Collection (2 à 4 produits)</option>
                   </select></div>
                 <div class="champ"><label>Titre <span class="aide">2 à 7 mots, écrits sur l'affiche</span></label>
                   <input type="text" name="b-accroche" [(ngModel)]="brief.accroche" maxlength="120" /></div>
-                @if (brief.gabarit === 'PRODUIT' || brief.produit) {
+                @if (brief.gabarit === 'COLLECTION' || brief.produits?.length) {
+                  <div class="champ"><label>Produits de la collection <span class="aide">2 à 4 noms exacts d'offres de la fiche, séparés par des virgules ; chacun doit avoir une photo</span></label>
+                    <input type="text" name="b-produits" [ngModel]="(brief.produits || []).join(', ')" (change)="definirProduits(brief, $any($event.target).value)" /></div>
+                }
+                @if (brief.gabarit === 'PRODUIT' || brief.gabarit === 'NOUVEAUTE' || brief.gabarit === 'PROMO' || brief.produit) {
                   <div class="champ"><label>Produit mis en avant <span class="aide">nom exact de l'offre dans la fiche client : sa photo et son prix sont repris automatiquement</span></label>
                     <input type="text" name="b-produit" [(ngModel)]="brief.produit" maxlength="150" /></div>
                 }
-                @if (brief.gabarit === 'CHIFFRE' || brief.gabarit === 'PRODUIT' || brief.chiffre) {
-                  <div class="champ"><label>{{ brief.gabarit === 'PRODUIT' ? 'Prix' : 'Chiffre' }} <span class="aide">{{ brief.gabarit === 'PRODUIT' ? 'laisse vide pour reprendre le prix de la fiche' : 'ex. 850, 0 F, -30 %' }}</span></label>
+                @if (brief.gabarit === 'CHIFFRE' || brief.gabarit === 'PRODUIT' || brief.gabarit === 'PROMO' || brief.gabarit === 'NOUVEAUTE' || brief.chiffre) {
+                  <div class="champ"><label>{{ libelleChiffre(brief.gabarit) }} <span class="aide">{{ aideChiffre(brief.gabarit) }}</span></label>
                     <input type="text" name="b-chiffre" [(ngModel)]="brief.chiffre" maxlength="20" style="max-width:200px" /></div>
                 }
                 <div class="champ"><label>Texte d'appui <span class="aide">une phrase, facultatif</span></label>
@@ -319,6 +326,24 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
             <button class="bouton" [disabled]="envoi()">{{ envoi() ? 'Enregistrement…' : 'Enregistrer' }}</button>
           </div>
         </form>
+
+        <div class="carte">
+          <h2>Commande par WhatsApp</h2>
+          <p class="aide">Un lien qui ouvre WhatsApp avec le message de commande déjà écrit{{ pub.brief?.produit ? ' pour « ' + pub.brief?.produit + ' »' : '' }} : le client n'a qu'à préciser sa taille et sa couleur.
+            Facebook rend le lien cliquable ; sur Instagram, mets-le plutôt dans la bio ou en story.</p>
+          <div class="ligne"><button type="button" class="bouton secondaire" [disabled]="lienEnCours()" (click)="genererLien(pub.id)">{{ lienEnCours() ? 'Création…' : 'Créer le lien de commande' }}</button></div>
+          @if (lienErreur()) { <div class="erreur" role="alert" style="margin-top:8px">{{ lienErreur() }}</div> }
+          @if (lien(); as l) {
+            <div class="champ" style="margin-top:10px"><label for="lien-commande">Lien</label>
+              <input id="lien-commande" type="text" name="lien-commande" [ngModel]="l.url" readonly (focus)="$any($event.target).select()" /></div>
+            <p class="aide pre">Message : {{ l.message }}</p>
+            <div class="ligne" style="gap:8px;flex-wrap:wrap">
+              <button type="button" class="bouton secondaire petit" (click)="copier(l.url, 'lien')">{{ copie() === 'lien' ? 'Copié' : 'Copier le lien' }}</button>
+              <button type="button" class="bouton secondaire petit" (click)="ajouterLienALaLegende(pub, l.url)">Ajouter à la légende</button>
+              <a class="bouton secondaire petit" [href]="l.url" target="_blank" rel="noopener">Tester le lien</a>
+            </div>
+          }
+        </div>
 
         <div class="carte">
           <h2>Mettre aussi sur d'autres réseaux</h2>
@@ -788,6 +813,41 @@ export class PublicationComponent implements OnInit {
       next: maj => { this.afficher(maj); this.regen.set(false); },
       error: e => { this.erreur.set(messageErreur(e)); this.regen.set(false); },
     });
+  }
+
+  lien = signal<LienCommande | null>(null);
+  lienEnCours = signal(false);
+  lienErreur = signal('');
+
+  libelleChiffre(g?: string) {
+    return g === 'PRODUIT' ? 'Prix' : g === 'PROMO' ? 'Remise' : g === 'NOUVEAUTE' ? 'Étiquette' : 'Chiffre';
+  }
+
+  aideChiffre(g?: string) {
+    if (g === 'PRODUIT') return 'laisse vide pour reprendre le prix de la fiche';
+    if (g === 'PROMO') return 'ex. -20 % : seulement une remise réelle ; le prix vient de la fiche';
+    if (g === 'NOUVEAUTE') return 'laisse vide pour écrire « NOUVEAU »';
+    return 'ex. 850, 0 F, -30 %';
+  }
+
+  definirProduits(brief: BriefVisuel, texte: string) {
+    const l = [...new Set(texte.split(/[;,|]/).map(t => t.trim()).filter(Boolean))].slice(0, 4);
+    brief.produits = l.length ? l : undefined;
+  }
+
+  genererLien(id: string) {
+    this.lienEnCours.set(true);
+    this.lienErreur.set('');
+    this.api.lienCommandePublication(id).subscribe({
+      next: l => { this.lien.set(l); this.lienEnCours.set(false); },
+      error: e => { this.lienErreur.set(messageErreur(e)); this.lienEnCours.set(false); },
+    });
+  }
+
+  /** Ajoute le lien en bas de la légende : le CM relit puis enregistre, rien n'est publié sans qu'il le voie. */
+  ajouterLienALaLegende(pub: Publication, url: string) {
+    if ((pub.legende ?? '').includes(url)) return;
+    pub.legende = `${(pub.legende ?? '').trimEnd()}\n\n👉 Commander sur WhatsApp : ${url}`.trim();
   }
 
   copier(texte: string, cle: string) {

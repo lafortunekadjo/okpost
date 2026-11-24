@@ -100,6 +100,9 @@ public class VisuelService {
             marque = new CompositionVisuel.Habillage(f.logo(), f.couleur(), f.contacts());
             contenu = contenuAffiche(p.getBrief(), diapo, saisie);
         }
+        if (contenu != null && contenu.gabarit() == MoteurAffiche.Gabarit.COLLECTION) {
+            return collection(s, p, client, contenu, marque, ratio, scene);
+        }
         // Photo de fond : la banque du client d'abord (vraies photos, gratuit, instantané), l'IA si rien ne correspond.
         String mode = saisie == null || saisie.photo() == null ? "AUTO" : saisie.photo().toUpperCase(java.util.Locale.ROOT);
         ClientAsset deLaBanque = null;
@@ -163,6 +166,13 @@ public class VisuelService {
         }
         byte[] octets = contenu != null ? affiches.composer(photo, ratio, contenu, marque)
                 : composition.recadrer(photo, ratio);
+        return enregistrerVisuel(s, p, octets, prompt, ratio, fournisseur, modele, source,
+                deLaBanque == null ? null : deLaBanque.getId(), diapositive);
+    }
+
+    /** Contrôle le format, enregistre le fichier et la ligne du visuel. */
+    private VisuelVue enregistrerVisuel(Session s, Publication p, byte[] octets, String prompt, String ratio, String fournisseur,
+                                        String modele, VisuelGenere.Source source, UUID assetId, Integer diapositive) {
         ClientService.TypeImage type = ClientService.TypeImage.detecter(octets);
         if (type == null || type == ClientService.TypeImage.SVG) {
             throw new ApiException(HttpStatus.BAD_GATEWAY, "Image reçue dans un format inattendu");
@@ -178,15 +188,47 @@ public class VisuelService {
         v.setFournisseur(fournisseur);
         v.setModele(modele);
         v.setSource(source);
-        v.setAssetId(deLaBanque == null ? null : deLaBanque.getId());
+        v.setAssetId(assetId);
         v.setDiapositive(diapositive);
         return vue(visuels.save(v));
     }
 
+    /** Collection : 2 à 4 produits de la fiche, chacun avec sa vraie photo, en grille. Aucune image IA, donc aucun quota consommé. */
+    private VisuelVue collection(Session s, Publication p, Client client, MoteurAffiche.Contenu contenu,
+                                 CompositionVisuel.Habillage marque, String ratio, String scene) {
+        List<String> demandes = p.getBrief() == null || p.getBrief().produits() == null ? List.of() : p.getBrief().produits();
+        List<MoteurAffiche.Article> articles = new java.util.ArrayList<>();
+        java.util.Set<String> deja = new java.util.HashSet<>();
+        UUID premiere = null;
+        for (String nom : demandes) {
+            Client.Offre o = offreNommee(client, nom);
+            if (o == null || !deja.add(normaliser(o.nom()))) continue;
+            ClientAsset photo = photoProduit(client, o, p.getId()).orElse(null);
+            if (photo == null) continue;
+            try (var in = stockage.lire(photo.getChemin()).getInputStream()) {
+                articles.add(new MoteurAffiche.Article(in.readAllBytes(), o.nom(), o.prix()));
+            } catch (java.io.IOException e) {
+                continue;
+            }
+            if (premiere == null) premiere = photo.getId();
+            if (articles.size() == 4) break;
+        }
+        if (articles.size() < 2) {
+            throw ApiException.requeteInvalide("Une collection demande 2 à 4 produits de la fiche qui ont chacun une photo (" + articles.size()
+                    + " trouvé(s)). Indique leurs noms exacts dans « Produits » et rattache une photo à chacun (fiche client, onglet Offres).");
+        }
+        byte[] octets = affiches.composerCollection(articles, ratio, contenu.titre(), contenu.cta(), marque);
+        return enregistrerVisuel(s, p, octets, scene, ratio, "collection", "grille", VisuelGenere.Source.BANQUE, premiere, null);
+    }
+
     /** Offre de la fiche citée par le brief (nom exact, sans tenir compte de la casse ni des accents). */
     static Client.Offre produitMisEnAvant(Client client, Modeles.BriefVisuel brief) {
-        if (brief == null || brief.produit() == null || brief.produit().isBlank() || client.getOffres() == null) return null;
-        String voulu = normaliser(brief.produit());
+        return brief == null ? null : offreNommee(client, brief.produit());
+    }
+
+    static Client.Offre offreNommee(Client client, String nom) {
+        if (nom == null || nom.isBlank() || client.getOffres() == null) return null;
+        String voulu = normaliser(nom);
         return client.getOffres().stream().filter(o -> o.nom() != null && normaliser(o.nom()).equals(voulu)).findFirst().orElse(null);
     }
 
@@ -196,10 +238,12 @@ public class VisuelService {
 
     /** Pour un produit : le prix et le nom viennent de la fiche (jamais inventés) et le gabarit « fiche produit » est utilisé par défaut. */
     static MoteurAffiche.Contenu avecProduit(MoteurAffiche.Contenu c, Client.Offre produit) {
-        String prix = c.chiffre() != null && !c.chiffre().isBlank() ? c.chiffre() : produit.prix();
         String titre = c.titre() != null && !c.titre().isBlank() ? c.titre() : produit.nom();
         MoteurAffiche.Gabarit g = c.gabarit() == MoteurAffiche.Gabarit.PLEIN_CADRE || c.gabarit() == null ? MoteurAffiche.Gabarit.PRODUIT : c.gabarit();
-        return new MoteurAffiche.Contenu(g, titre, prix, c.texte(), c.cta());
+        boolean prixSaisi = g == MoteurAffiche.Gabarit.PRODUIT && c.chiffre() != null && !c.chiffre().isBlank();
+        String prix = prixSaisi ? c.chiffre() : produit.prix();
+        // Pour NOUVEAUTE et PROMO, « chiffre » reste l'étiquette ou la remise ; pour PRODUIT il ne sert que de prix
+        return new MoteurAffiche.Contenu(g, titre, g == MoteurAffiche.Gabarit.PRODUIT ? null : c.chiffre(), c.texte(), c.cta(), prix);
     }
 
     /** Photo du produit dans la banque : celles rattachées à l'offre, en variant d'une publication à l'autre. */

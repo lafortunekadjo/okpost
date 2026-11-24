@@ -21,7 +21,7 @@ class AfficheTest {
 
     @Test
     void leTitreDuCmPasseAvantCeluiDeLIa() {
-        var b = new BriefVisuel("IMAGE", "d", "scene", "1:1", null, "Titre IA", null, null, null, null, null);
+        var b = new BriefVisuel("IMAGE", "d", "scene", "1:1", null, "Titre IA", null, null, null, null, null, null);
         assertThat(VisuelService.contenuAffiche(b, null, new VisuelService.Saisie("Titre du CM", null, null, null, null, null)).titre()).isEqualTo("Titre du CM");
         assertThat(VisuelService.contenuAffiche(b, null, null).titre()).isEqualTo("Titre IA");
     }

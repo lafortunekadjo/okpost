@@ -204,7 +204,12 @@ const TYPES_FICHIERS = [
                     }
                   </div>
                 }
-                <button type="button" class="bouton danger petit" (click)="c.offres.splice($index, 1); modifie.set(true)">Retirer</button>
+                <div class="ligne" style="gap:8px;flex-wrap:wrap">
+                  @if (c.typeActivite !== 'SERVICES' && id() && o.nom) {
+                    <button type="button" class="bouton secondaire petit" (click)="copierLienCommande(o)">{{ lienCopie() === o.nom ? 'Lien copié' : 'Copier le lien de commande WhatsApp' }}</button>
+                  }
+                  <button type="button" class="bouton danger petit" (click)="c.offres.splice($index, 1); modifie.set(true)">Retirer</button>
+                </div>
               </div>
             }
             <button type="button" class="bouton secondaire" (click)="c.offres.push({ nom: '' }); modifie.set(true)">+ Ajouter une offre</button>
@@ -338,6 +343,24 @@ export class FicheClientComponent implements OnInit {
   onglet = signal<Onglet>('identite');
   assets = signal<Asset[]>([]);
   photosBanque = computed(() => this.assets().filter(a => a.type === 'PHOTO'));
+
+  lienCopie = signal('');
+
+  /** Copie le lien wa.me du produit (le produit doit être enregistré dans la fiche). */
+  copierLienCommande(o: Offre) {
+    const id = this.id();
+    if (!id) return;
+    this.erreur.set('');
+    this.api.lienCommandeProduit(id, o.nom).subscribe({
+      next: l => {
+        navigator.clipboard?.writeText(l.url).then(() => {
+          this.lienCopie.set(o.nom);
+          setTimeout(() => this.lienCopie.set(''), 2500);
+        });
+      },
+      error: e => { this.erreur.set(messageErreur(e)); window.scrollTo({ top: 0 }); },
+    });
+  }
 
   importCatalogue = signal(false);
   resumeCatalogue = signal<{ texte: string; avertissements: string[]; erreur: boolean } | null>(null);

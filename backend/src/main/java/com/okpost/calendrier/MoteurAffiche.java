@@ -40,7 +40,13 @@ public class MoteurAffiche {
         /** Photo pleine page, texte en bas sur un dégradé : le gabarit des carrousels et des stories. */
         PLEIN_CADRE("the subject in the upper half of the frame, the lower third calm and simple"),
         /** Fiche produit : la photo du produit reste entière, pastille de prix en haut, nom et bouton de commande en bas. */
-        PRODUIT("the product centred and filling most of the frame, the lower third calm");
+        PRODUIT("the product centred and filling most of the frame, the lower third calm"),
+        /** Fiche produit avec une étiquette « Nouveau » en haut à droite. */
+        NOUVEAUTE("the product centred and filling most of the frame, the lower third calm"),
+        /** Fiche produit avec un badge de remise (« -20 % ») en haut à droite. */
+        PROMO("the product centred and filling most of the frame, the lower third calm"),
+        /** Grille de 2 à 4 produits, chacun avec son nom et son prix (voir composerCollection). */
+        COLLECTION("the subject centred, the lower third calm");
 
         /** Cadrage à demander à l'IA pour que le sujet ne passe pas sous le texte. */
         public final String cadrage;
@@ -59,7 +65,15 @@ public class MoteurAffiche {
         }
     }
 
-    public record Contenu(Gabarit gabarit, String titre, String chiffre, String texte, String cta) {}
+    /** prix : prix du produit (gabarits boutique) ; chiffre : chiffre fort, ou remise pour PROMO, ou étiquette pour NOUVEAUTE. */
+    public record Contenu(Gabarit gabarit, String titre, String chiffre, String texte, String cta, String prix) {
+        public Contenu(Gabarit gabarit, String titre, String chiffre, String texte, String cta) {
+            this(gabarit, titre, chiffre, texte, cta, null);
+        }
+    }
+
+    /** Un produit de la grille d'une collection. */
+    public record Article(byte[] photo, String nom, String prix) {}
 
     /** Gabarit demandé s'il est valide et possible, sinon celui qui convient au contenu. */
     public static Gabarit resoudre(String demande, String duBrief, String chiffre, String texte) {
@@ -67,7 +81,7 @@ public class MoteurAffiche {
         for (String nom : new String[]{demande, duBrief}) {
             Gabarit g = Gabarit.depuis(nom);
             if (g == null) continue;
-            if (g == Gabarit.CHIFFRE && !aChiffre) continue;
+            if ((g == Gabarit.CHIFFRE || g == Gabarit.PROMO) && !aChiffre) continue;
             return g;
         }
         if (aChiffre) return Gabarit.CHIFFRE;
@@ -133,13 +147,23 @@ public class MoteurAffiche {
         String chiffre = nettoyer(c.chiffre());
         String texte = nettoyer(c.texte());
         String cta = nettoyer(c.cta());
+        String prix = nettoyer(c.prix());
         Gabarit gabarit = resoudre(c.gabarit() == null ? null : c.gabarit().name(), null, chiffre, texte);
         switch (gabarit) {
             case CHIFFRE -> chiffre(g, z, p, titre, chiffre, texte, cta);
             case TITRE_HAUT -> titreHaut(g, z, p, titre, texte, cta);
             case DIAGONALE -> diagonale(g, z, p, titre, texte, cta);
             case PLEIN_CADRE -> pleinCadre(g, z, p, titre, texte, cta);
-            case PRODUIT -> produit(g, z, p, titre, chiffre, texte, cta);
+            case PRODUIT -> produit(g, z, p, titre, prix.isEmpty() ? chiffre : prix, texte, cta);
+            case NOUVEAUTE -> {
+                produit(g, z, p, titre, prix, texte, cta);
+                etiquette(g, z, p, chiffre.isEmpty() ? "NOUVEAU" : chiffre);
+            }
+            case PROMO -> {
+                produit(g, z, p, titre, prix, texte, cta);
+                badge(g, z, p, chiffre);
+            }
+            case COLLECTION -> pleinCadre(g, z, p, titre, texte, cta);
         }
         g.dispose();
         return composition.habiller(png(out), marque == null ? new CompositionVisuel.Habillage(null, null, List.of()) : marque);
@@ -263,6 +287,129 @@ public class MoteurAffiche {
         g.setColor(p.marque());
         g.fill(new RoundRectangle2D.Float(x, y, largeur, hauteur, hauteur / 2, hauteur / 2));
         dessiner(g, pb, x + pad, y + 0.8f * pad, contraste(p.marque()), false);
+    }
+
+    /** Étiquette en haut à droite (« NOUVEAU »). */
+    private void etiquette(Graphics2D g, Zone z, Palette p, String texte) {
+        float u = z.u();
+        float taille = 3.6f * u;
+        FontMetrics fm = g.getFontMetrics(gras.deriveFont(taille));
+        float largeur = Math.min(40 * u, fm.stringWidth(texte) + 2 * 0.9f * taille);
+        pilule(g, texte, z.w() - 4 * u - largeur, z.haut() + 1.5f * u, taille, p, 40 * u);
+    }
+
+    /** Badge rond de remise en haut à droite (« -20 % »). */
+    private void badge(Graphics2D g, Zone z, Palette p, String texte) {
+        if (texte.isEmpty()) return;
+        float u = z.u();
+        float d = 21 * u;
+        float x = z.w() - 4 * u - d;
+        float y = z.haut() + 1.5f * u;
+        Color fond = p.accent();
+        g.setColor(fond);
+        g.fill(new java.awt.geom.Ellipse2D.Float(x, y, d, d));
+        g.setColor(alpha(Color.WHITE, 0.55f));
+        g.setStroke(new BasicStroke(0.5f * u));
+        g.draw(new java.awt.geom.Ellipse2D.Float(x + 0.9f * u, y + 0.9f * u, d - 1.8f * u, d - 1.8f * u));
+        Bloc b = ajuster(g, gras, texte, d * 0.72f, d * 0.4f, 7.5f * u, 3f * u, 1.0f, 1);
+        float largeur = b.lignes().stream().map(l -> b.mesures().stringWidth(l)).max(Integer::compare).orElse(0);
+        dessiner(g, b, x + (d - largeur) / 2f, y + (d - b.hauteur()) / 2f, contraste(fond), false);
+    }
+
+    // ------------------------------------------------------------------ collection de produits
+
+    /** Grille de 2 à 4 produits (photo, nom, prix) sous un titre, avec le bouton, le logo et les coordonnées. */
+    public byte[] composerCollection(List<Article> articles, String ratio, String titre, String cta, CompositionVisuel.Habillage marque) {
+        int[] d = dimensions(ratio);
+        int w = d[0];
+        int h = d[1];
+        float u = w / 100f;
+        Color couleur = CompositionVisuel.couleur(marque == null ? null : marque.couleur(), new Color(37, 99, 235));
+        Palette p = new Palette(couleur);
+        int nbContacts = marque == null || marque.contacts() == null ? 0
+                : (int) marque.contacts().stream().filter(x -> x.valeur() != null && !x.valeur().isBlank()).limit(6).count();
+        float bandeau = u * CompositionVisuel.hauteurBandeau(nbContacts);
+        float haut = hauteurLogo(marque == null ? null : marque.logo(), w, h, u);
+        BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = out.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+        g.setColor(p.fond());
+        g.fillRect(0, 0, w, h);
+        float bas = h - bandeau;
+        float y = haut;
+        String t = nettoyer(titre);
+        String c = nettoyer(cta);
+        if (!t.isEmpty()) {
+            Bloc tb = ajuster(g, gras, t, 92 * u, h * 0.14f, 8.4f * u, 4.2f * u, 1.1f, 2);
+            y = dessiner(g, tb, 4 * u, y, Color.WHITE, false) + 1.5f * u;
+        }
+        float reserve = c.isEmpty() ? 0 : pilule(g, c, 4 * u, -1000, 3.6f * u, p, 90 * u) + 3 * u;
+        float hauteurGrille = Math.max(12 * u, bas - reserve - y - 1.5f * u);
+        List<float[]> cases = disposition(Math.min(4, articles.size()), 3 * u, y, w - 6 * u, hauteurGrille, 1.6f * u);
+        for (int i = 0; i < cases.size(); i++) {
+            BufferedImage src = lire(articles.get(i).photo());
+            if (src != null) dessinerCase(g, src, cases.get(i), articles.get(i), u, p);
+        }
+        if (!c.isEmpty()) pilule(g, c, 4 * u, bas - (reserve - 3 * u) - 1.5f * u, 3.6f * u, p, 90 * u);
+        g.dispose();
+        return composition.habiller(png(out), marque == null ? new CompositionVisuel.Habillage(null, null, List.of()) : marque);
+    }
+
+    /** Rectangles {x, y, largeur, hauteur} : 2 côte à côte, 3 (un large en haut), 4 en grille. */
+    static List<float[]> disposition(int n, float x, float y, float w, float h, float ecart) {
+        List<float[]> l = new ArrayList<>();
+        float demiL = (w - ecart) / 2f;
+        float demiH = (h - ecart) / 2f;
+        if (n <= 2) {
+            l.add(new float[]{x, y, demiL, h});
+            if (n == 2) l.add(new float[]{x + demiL + ecart, y, demiL, h});
+        } else if (n == 3) {
+            l.add(new float[]{x, y, w, demiH});
+            l.add(new float[]{x, y + demiH + ecart, demiL, demiH});
+            l.add(new float[]{x + demiL + ecart, y + demiH + ecart, demiL, demiH});
+        } else {
+            l.add(new float[]{x, y, demiL, demiH});
+            l.add(new float[]{x + demiL + ecart, y, demiL, demiH});
+            l.add(new float[]{x, y + demiH + ecart, demiL, demiH});
+            l.add(new float[]{x + demiL + ecart, y + demiH + ecart, demiL, demiH});
+        }
+        return l;
+    }
+
+    private void dessinerCase(Graphics2D g, BufferedImage src, float[] r, Article a, float u, Palette p) {
+        float x = r[0];
+        float y = r[1];
+        float w = r[2];
+        float h = r[3];
+        java.awt.Shape clip = new RoundRectangle2D.Float(x, y, w, h, 2 * u, 2 * u);
+        java.awt.Shape ancien = g.getClip();
+        g.setClip(clip);
+        double e = Math.max((double) w / src.getWidth(), (double) h / src.getHeight());
+        int sw = (int) Math.ceil(src.getWidth() * e);
+        int sh = (int) Math.ceil(src.getHeight() * e);
+        g.drawImage(src, Math.round(x + (w - sw) / 2f), Math.round(y + (h - sh) / 2f), sw, sh, null);
+        float debut = y + h * 0.55f;
+        g.setPaint(new GradientPaint(0, debut, alpha(Color.BLACK, 0f), 0, y + h, alpha(Color.BLACK, 0.78f)));
+        g.fillRect(Math.round(x), Math.round(debut), Math.round(w), Math.round(y + h - debut) + 1);
+        float pad = 1.6f * u;
+        float bas = y + h - pad;
+        String prix = nettoyer(a.prix());
+        if (!prix.isEmpty()) {
+            Bloc pb = ajuster(g, gras, prix, w - 2 * pad, h * 0.14f, 4.4f * u, 2.6f * u, 1.0f, 1);
+            bas -= pb.hauteur();
+            dessiner(g, pb, x + pad, bas, p.accent(), true);
+        }
+        String nom = nettoyer(a.nom());
+        if (!nom.isEmpty()) {
+            Bloc nb = ajuster(g, semi, nom, w - 2 * pad, h * 0.22f, 3.8f * u, 2.4f * u, 1.15f, 2);
+            bas -= nb.hauteur();
+            dessiner(g, nb, x + pad, bas, Color.WHITE, true);
+        }
+        g.setClip(ancien);
     }
 
     private void pleinCadre(Graphics2D g, Zone z, Palette p, String titre, String texte, String cta) {
