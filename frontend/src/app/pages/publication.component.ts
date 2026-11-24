@@ -286,7 +286,7 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
                 <input type="file" hidden accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm"
                        [disabled]="envoiMedia()" (change)="televerser($event)" />
               </label>
-              <span class="aide">Photo JPG, PNG ou WebP (10 Mo) ; vidéo MP4, MOV ou WebM (200 Mo). Pas besoin de générer.</span>
+              <span class="aide">Photo JPG, PNG ou WebP (10 Mo) ; vidéo MP4, MOV ou WebM (25 Mo). Pas besoin de générer.</span>
             </div>
             @if (envoiMedia()) { <div class="barre" style="margin-top:8px"><div [style.width.%]="progression()"></div></div> }
             @if (pub.visuels?.length) {
@@ -746,8 +746,8 @@ export class PublicationComponent implements OnInit {
     const p = this.p();
     if (!fichier || !p) return;
     const video = fichier.type.startsWith('video/');
-    if (fichier.size > (video ? 200 : 10) * 1024 * 1024) {
-      this.erreur.set(video ? 'Vidéo trop lourde (200 Mo maximum)' : 'Photo trop lourde (10 Mo maximum)');
+    if (fichier.size > (video ? 25 : 10) * 1024 * 1024) {
+      this.erreur.set(video ? 'Vidéo trop lourde (25 Mo maximum)' : 'Photo trop lourde (10 Mo maximum)');
       champ.value = '';
       return;
     }

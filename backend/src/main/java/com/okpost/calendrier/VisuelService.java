@@ -352,7 +352,7 @@ public class VisuelService {
     }
 
     static final long MAX_IMAGE = 10L * 1024 * 1024;
-    static final long MAX_VIDEO = 200L * 1024 * 1024;
+    static final long MAX_VIDEO = 25L * 1024 * 1024;
 
     /** Photo ou vidéo fournie par le CM (tournée, retouchée, faite sur Canva…). Le format est vérifié par les octets. */
     public VisuelVue televerser(Session s, UUID publicationId, org.springframework.web.multipart.MultipartFile fichier) {
@@ -383,7 +383,7 @@ public class VisuelService {
             mime = image.mime;
             typeMedia = VisuelGenere.TypeMedia.IMAGE;
         } else if (video != null) {
-            if (fichier.getSize() > MAX_VIDEO) throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "Vidéo trop lourde (200 Mo maximum)");
+            if (fichier.getSize() > MAX_VIDEO) throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "Vidéo trop lourde (25 Mo maximum)");
             extension = video;
             mime = switch (video) { case "webm" -> "video/webm"; case "mov" -> "video/quicktime"; default -> "video/mp4"; };
             typeMedia = VisuelGenere.TypeMedia.VIDEO;

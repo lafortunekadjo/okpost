@@ -38,7 +38,7 @@ public class GestionErreurs {
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ProblemDetail tropGros(MaxUploadSizeExceededException e) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.PAYLOAD_TOO_LARGE, "Fichier trop lourd (200 Mo maximum pour une vidéo)");
+        return ProblemDetail.forStatusAndDetail(HttpStatus.PAYLOAD_TOO_LARGE, "Fichier trop lourd (25 Mo maximum pour une vidéo)");
     }
 
     @ExceptionHandler(AccessDeniedException.class)
