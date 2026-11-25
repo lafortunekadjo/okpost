@@ -49,12 +49,15 @@ public final class CalendrierDtos {
     public record VisuelVue(UUID id, String url, String prompt, String ratio, String modele, java.time.Instant date,
                             String type, String source, String nomOrigine, Integer diapositive) {}
 
+    /** Mises en page acceptées : celles du moteur d'affiches, plus AUTO (choix automatique). */
+    public static final String MISES_EN_PAGE = "CHIFFRE|TITRE_HAUT|DIAGONALE|PLEIN_CADRE|PRODUIT|NOUVEAUTE|PROMO|COLLECTION|PHOTO_SEULE|AUTO";
+
     /** habiller : ajoute le logo, l'accroche et les coordonnées de la fiche client (oui par défaut). */
     public record DemandeImage(@Size(max = 4000) String prompt, @Pattern(regexp = "1:1|4:5|9:16|16:9") String ratio,
                                Boolean habiller, @Size(max = 120) String accroche,
                                @Pattern(regexp = "gemini|cloudflare") String moteur,
-                               @Pattern(regexp = "CHIFFRE|TITRE_HAUT|DIAGONALE|PLEIN_CADRE|AUTO") String gabarit,
-                               @Size(max = 12) String chiffre, @Size(max = 300) String texte, @Size(max = 60) String cta,
+                               @Pattern(regexp = MISES_EN_PAGE) String gabarit,
+                               @Size(max = 20) String chiffre, @Size(max = 300) String texte, @Size(max = 60) String cta,
                                @Pattern(regexp = "AUTO|IA|BANQUE") String photo,
                                @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(20) Integer diapositive) {}
 

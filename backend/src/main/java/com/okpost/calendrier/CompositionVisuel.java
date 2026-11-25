@@ -282,7 +282,7 @@ public class CompositionVisuel {
         }
     }
 
-    private static byte[] jpeg(BufferedImage img) {
+    static byte[] jpeg(BufferedImage img) {
         try (ByteArrayOutputStream sortie = new ByteArrayOutputStream();
              ImageOutputStream flux = ImageIO.createImageOutputStream(sortie)) {
             ImageWriter writer = ImageIO.getImageWritersByFormatName("jpeg").next();

@@ -22,7 +22,8 @@ Champs du briefVisuel (formats IMAGE, STORY, TEXTE, et couverture de CARROUSEL) 
   • PRODUIT : la publication met en avant UN produit de la liste « Offres » (fiche produit : photo entière du produit, prix, nom, bouton). Renseigne alors « produit » avec le nom exact de l'offre ; le prix est repris de la fiche ;
   • NOUVEAUTE : lancement ou arrivage d'un produit de la liste (fiche produit avec une étiquette « Nouveau ») ; renseigne « produit » ;
   • PROMO : promotion réelle sur un produit de la liste (fiche produit avec un badge de remise) ; renseigne « produit » et « chiffre » avec la remise (« -20 % »), UNIQUEMENT si elle figure dans la fiche client ou dans l'idée ;
-  • COLLECTION : présentation de 2 à 4 produits de la liste en grille (sélection, gamme, idée cadeau, assortiment) ; renseigne « produits » avec leurs noms exacts.
+  • COLLECTION : présentation de 2 à 4 produits de la liste en grille (sélection, gamme, idée cadeau, assortiment) ; renseigne « produits » avec leurs noms exacts ;
+  • PHOTO_SEULE : montrer simplement un produit ou un modèle : la vraie photo est publiée telle quelle, sans texte, avec le logo du client en filigrane ; renseigne « produit ». Le nom, le prix et la commande vont alors dans la légende.
   Varie les gabarits d'une publication à l'autre.
 - produit : nom EXACT de l'offre mise en avant (gabarits PRODUIT, NOUVEAUTE, PROMO), sinon null.
 - produits : 2 à 4 noms EXACTS d'offres (gabarit COLLECTION), sinon null.

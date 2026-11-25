@@ -46,7 +46,9 @@ public class MoteurAffiche {
         /** Fiche produit avec un badge de remise (« -20 % ») en haut à droite. */
         PROMO("the product centred and filling most of the frame, the lower third calm"),
         /** Grille de 2 à 4 produits, chacun avec son nom et son prix (voir composerCollection). */
-        COLLECTION("the subject centred, the lower third calm");
+        COLLECTION("the subject centred, the lower third calm"),
+        /** La photo seule, sans texte, avec le logo du client en filigrane discret dans l'angle (voir photoSeule). */
+        PHOTO_SEULE("the subject centred, the bottom right corner calm");
 
         /** Cadrage à demander à l'IA pour que le sujet ne passe pas sous le texte. */
         public final String cadrage;
@@ -125,6 +127,7 @@ public class MoteurAffiche {
         int[] d = dimensions(ratio);
         int w = d[0];
         int h = d[1];
+        if (c.gabarit() == Gabarit.PHOTO_SEULE) return photoSeule(src, w, h, marque == null ? null : marque.logo());
         float u = w / 100f;
         Color couleur = CompositionVisuel.couleur(marque == null ? null : marque.couleur(), new Color(37, 99, 235));
         Palette p = new Palette(couleur);
@@ -163,7 +166,7 @@ public class MoteurAffiche {
                 produit(g, z, p, titre, prix, texte, cta);
                 badge(g, z, p, chiffre);
             }
-            case COLLECTION -> pleinCadre(g, z, p, titre, texte, cta);
+            case COLLECTION, PHOTO_SEULE -> pleinCadre(g, z, p, titre, texte, cta);
         }
         g.dispose();
         return composition.habiller(png(out), marque == null ? new CompositionVisuel.Habillage(null, null, List.of()) : marque);
@@ -314,6 +317,79 @@ public class MoteurAffiche {
         Bloc b = ajuster(g, gras, texte, d * 0.72f, d * 0.4f, 7.5f * u, 3f * u, 1.0f, 1);
         float largeur = b.lignes().stream().map(l -> b.mesures().stringWidth(l)).max(Integer::compare).orElse(0);
         dessiner(g, b, x + (d - largeur) / 2f, y + (d - b.hauteur()) / 2f, contraste(fond), false);
+    }
+
+    // ------------------------------------------------------------------ photo seule avec filigrane
+
+    static final float FILIGRANE_LARGEUR = 0.18f;
+    static final float FILIGRANE_HAUTEUR = 0.10f;
+    static final float FILIGRANE_MARGE = 0.035f;
+    static final float FILIGRANE_OPACITE = 0.72f;
+
+    /** La photo telle quelle (recadrée au format), avec seulement le logo du client en filigrane dans l'angle en bas à droite. */
+    byte[] photoSeule(BufferedImage src, int w, int h, byte[] logoOctets) {
+        BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = out.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        couvrir(g, src, w, h);
+        BufferedImage logo = logoOctets == null ? null : lire(logoOctets);
+        if (logo != null) filigrane(g, out, logo, w, h);
+        g.dispose();
+        return CompositionVisuel.jpeg(out);
+    }
+
+    /**
+     * Logo semi-transparent. Un logo à fond transparent est teinté en blanc sur une zone sombre et en bleu nuit sur une zone claire,
+     * pour rester lisible sans cacher la photo ; un logo opaque (fond plein) est posé tel quel.
+     */
+    private void filigrane(Graphics2D g, BufferedImage fond, BufferedImage logo, int w, int h) {
+        double e = Math.min(w * FILIGRANE_LARGEUR / logo.getWidth(), h * FILIGRANE_HAUTEUR / logo.getHeight());
+        int lw = Math.max(1, (int) Math.round(logo.getWidth() * e));
+        int lh = Math.max(1, (int) Math.round(logo.getHeight() * e));
+        int marge = Math.round(w * FILIGRANE_MARGE);
+        int x = w - marge - lw;
+        int y = h - marge - lh;
+        BufferedImage version = versionFiligrane(logo, lw, lh, luminanceMoyenne(fond, x, y, lw, lh));
+        g.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, FILIGRANE_OPACITE));
+        g.drawImage(version, x, y, null);
+        g.setComposite(java.awt.AlphaComposite.SrcOver);
+    }
+
+    static BufferedImage versionFiligrane(BufferedImage logo, int lw, int lh, float luminanceZone) {
+        BufferedImage petit = new BufferedImage(lw, lh, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = petit.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g.drawImage(logo, 0, 0, lw, lh, null);
+        g.dispose();
+        boolean transparent = false;
+        for (int py = 0; py < lh && !transparent; py++) {
+            for (int px = 0; px < lw; px++) {
+                if (((petit.getRGB(px, py) >>> 24) & 0xFF) < 200) { transparent = true; break; }
+            }
+        }
+        if (!transparent) return petit;
+        int teinte = luminanceZone < 0.5f ? 0xFFFFFF : 0x111827;
+        for (int py = 0; py < lh; py++) {
+            for (int px = 0; px < lw; px++) {
+                int alpha = (petit.getRGB(px, py) >>> 24) & 0xFF;
+                petit.setRGB(px, py, (alpha << 24) | teinte);
+            }
+        }
+        return petit;
+    }
+
+    static float luminanceMoyenne(BufferedImage img, int x, int y, int w, int h) {
+        double somme = 0;
+        int n = 0;
+        for (int py = Math.max(0, y); py < Math.min(img.getHeight(), y + h); py += 4) {
+            for (int px = Math.max(0, x); px < Math.min(img.getWidth(), x + w); px += 4) {
+                somme += luminance(new Color(img.getRGB(px, py)));
+                n++;
+            }
+        }
+        return n == 0 ? 0.5f : (float) (somme / n);
     }
 
     // ------------------------------------------------------------------ collection de produits

@@ -170,7 +170,12 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
                     <option value="NOUVEAUTE">Nouveauté (fiche produit + étiquette)</option>
                     <option value="PROMO">Promotion (fiche produit + remise)</option>
                     <option value="COLLECTION">Collection (2 à 4 produits)</option>
+                    <option value="PHOTO_SEULE">Photo seule (logo en filigrane, sans texte)</option>
                   </select></div>
+                @if (brief.gabarit === 'PHOTO_SEULE') {
+                  <p class="aide">La vraie photo est publiée telle quelle, sans texte, avec seulement le logo du client en filigrane discret en bas à droite.
+                    Le nom, le prix et la commande vont dans la légende : le lien WhatsApp peut s'y ajouter avec la carte « Commande par WhatsApp ».</p>
+                }
                 <div class="champ"><label>Titre <span class="aide">2 à 7 mots, écrits sur l'affiche</span></label>
                   <input type="text" name="b-accroche" [(ngModel)]="brief.accroche" maxlength="120" /></div>
                 @if (brief.gabarit === 'COLLECTION' || brief.produits?.length) {

@@ -76,6 +76,7 @@ public final class FicheTexte {
             RÈGLES POUR UNE ENTREPRISE QUI VEND DES PRODUITS
             - Chaque publication de vente porte sur un produit précis de la liste « Offres » : mets son nom EXACT dans briefVisuel.produit (null si la publication ne parle d'aucun produit précis : conseil, coulisses, avis, livraison…).
             - Pour une publication sur un produit dont la photo est disponible, choisis le gabarit PRODUIT (ou NOUVEAUTE pour un arrivage, PROMO pour une remise réelle). La photo réelle du produit sera utilisée : n'invente ni son apparence ni ses couleurs.
+            - Pour simplement montrer un produit ou un modèle (mannequin, packshot) sans texte sur l'image, choisis PHOTO_SEULE : la photo réelle est publiée avec le logo en filigrane ; la légende doit alors donner le nom, le prix et l'appel à la commande.
             - Pour présenter plusieurs produits ensemble (sélection, gamme, idée cadeau), choisis COLLECTION avec 2 à 4 produits qui ont une photo.
             - Pour des publications de vente, propose régulièrement un appel à l'action de commande par WhatsApp : OkPost peut fournir un lien de commande déjà rédigé pour chaque produit.
             - Si le produit n'a pas de photo, le promptImage ne montre JAMAIS le produit lui-même (ni vêtement, ni article) : seulement une ambiance, un lieu ou un geste, sans corps dénudé ni pose suggestive.

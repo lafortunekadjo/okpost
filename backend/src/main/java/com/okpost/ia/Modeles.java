@@ -86,7 +86,7 @@ public final class Modeles {
             @JsonPropertyDescription("1:1, 4:5 ou 9:16") String ratio,
             List<TexteCarrousel> textesCarrousel,
             @JsonPropertyDescription("Titre accrocheur posé sur le visuel, 3 à 7 mots, dans la langue des contenus") String accroche,
-            @JsonPropertyDescription("Mise en page de l'affiche : CHIFFRE (un chiffre fort), TITRE_HAUT (titre + texte), DIAGONALE (annonce, offre) ou PLEIN_CADRE (photo dominante)") String gabarit,
+            @JsonPropertyDescription("Mise en page de l'affiche : CHIFFRE (un chiffre fort), TITRE_HAUT (titre + texte), DIAGONALE (annonce, offre), PLEIN_CADRE (photo dominante), PRODUIT, NOUVEAUTE, PROMO, COLLECTION ou PHOTO_SEULE (boutiques : voir les consignes)") String gabarit,
             @JsonPropertyDescription("Chiffre ou prix mis en avant (« 850 », « 0 F », « -30 % »), UNIQUEMENT s'il figure dans la fiche ou l'idée, sinon null") String chiffre,
             @JsonPropertyDescription("Phrase d'appui sous le titre, 8 à 20 mots, dans la langue des contenus ; null si inutile") String texte,
             @JsonPropertyDescription("Texte court du bouton d'appel à l'action, 2 à 5 mots (ex. « Écris-nous sur WhatsApp »)") String cta,
