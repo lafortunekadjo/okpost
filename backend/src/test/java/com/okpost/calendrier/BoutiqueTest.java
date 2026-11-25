@@ -56,6 +56,21 @@ class BoutiqueTest {
     }
 
     @Test
+    void leCarrouselDesPhotosDUnProduitGardeLeBriefEtNumeroteLesDiapositives() {
+        var brief = new BriefVisuel("CARROUSEL", "Présentation", "scene", "1:1", null, "Accroche", "DIAGONALE", "-20 %", "texte", "cta",
+                "Soutien-gorge Émeraude", null);
+        var textes = List.of(new com.okpost.ia.Modeles.TexteCarrousel(1, "Photo 1", ""), new com.okpost.ia.Modeles.TexteCarrousel(2, "Photo 2", ""));
+        var neuf = VisuelService.avecDiapositives(brief, "4:5", textes);
+        assertThat(neuf.textesCarrousel()).hasSize(2);
+        assertThat(neuf.ratio()).isEqualTo("4:5");
+        assertThat(neuf.gabarit()).isEqualTo("PHOTO_SEULE");
+        assertThat(neuf.produit()).isEqualTo("Soutien-gorge Émeraude");
+        assertThat(neuf.promptImage()).isEqualTo("scene");
+        assertThat(VisuelService.avecDiapositives(new BriefVisuel(null, null, null, null, null, null, null, null, null, null, null, null), "1:1", textes).type())
+                .isEqualTo("CARROUSEL");
+    }
+
+    @Test
     void laFichePromptContientLesReglesBoutiqueSeulementPourLesProduits() {
         String texte = FicheTexte.de(boutique("PRODUITS"));
         assertThat(texte).contains("vente de produits (boutique)", "RÈGLES POUR UNE ENTREPRISE QUI VEND DES PRODUITS",

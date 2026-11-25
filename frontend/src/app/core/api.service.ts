@@ -181,6 +181,10 @@ export class ApiService {
   catalogueDepuisReseaux(clientId: string) {
     return this.http.post<ResultatCatalogueWeb>(`${this.base}/clients/${clientId}/catalogue/depuis-reseaux`, {});
   }
+  /** Crée une diapositive par photo du produit mis en avant (logo en filigrane, sans texte) : 10 au plus. */
+  carrouselProduit(publicationId: string) {
+    return this.http.post<Publication>(`${this.base}/publications/${publicationId}/carrousel-produit`, {});
+  }
   adminComptes() { return this.http.get<{ totaux: AdminTotaux; comptes: AdminCompte[] }>(`${this.base}/admin/comptes`); }
   adminJournal(f: { espace?: string; action?: string; page?: number }) {
     const params: Record<string, string> = { page: String(f.page ?? 0) };

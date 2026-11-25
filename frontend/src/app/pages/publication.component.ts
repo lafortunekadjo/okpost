@@ -204,6 +204,17 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
               </div>
             </div>
             @if (pub.format === 'CARROUSEL') {
+              <div class="carte-produit">
+                <strong>Carrousel avec les photos d'un produit</strong>
+                <p class="aide">Une diapositive par photo rattachée au produit (jusqu'à 10), avec le logo en filigrane et sans texte. Indique d'abord le produit
+                  (champ « Produit mis en avant » de la mise en page, nom exact de la fiche client). Les diapositives créées ainsi sont remplacées à chaque nouvel essai.</p>
+                <div class="ligne" style="gap:8px;flex-wrap:wrap;align-items:center">
+                  <input type="text" name="carrousel-produit" [(ngModel)]="brief.produit" maxlength="150" placeholder="Nom exact du produit" aria-label="Produit du carrousel" style="max-width:320px" />
+                  <button type="button" class="bouton" [disabled]="carrouselProduitEnCours() || !brief.produit?.trim()" (click)="creerCarrouselProduit()">
+                    {{ carrouselProduitEnCours() ? 'Création des diapositives…' : 'Créer le carrousel avec ses photos' }}
+                  </button>
+                </div>
+              </div>
               <h3>Diapositives du carrousel</h3>
               <p class="aide">Chaque diapositive a son visuel : son titre est écrit sur l’image, son texte guide la scène.
                 Même prompt de base pour toutes, pour garder un style cohérent.</p>
@@ -422,6 +433,7 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
     .galerie figcaption { display: flex; gap: 6px; align-items: center; padding: 8px; flex-wrap: wrap; }
     h2 { margin-top: 20px; }
     .diapo { display: flex; gap: 14px; align-items: flex-start; }
+    .carte-produit { border: 1px dashed var(--gris-clair); border-radius: 10px; padding: 12px 14px; margin: 8px 0 14px; }
     .vignette { width: 110px; flex: none; aspect-ratio: 4/5; border-radius: 8px; background: #eef0f2; overflow: hidden;
       display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 700; color: var(--gris); }
     .vignette img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -462,6 +474,7 @@ export class PublicationComponent implements OnInit {
   consigne = '';
 
   diapoEnCours = signal<number | null>(null);
+  carrouselProduitEnCours = signal(false);
   montageEnCours = signal(false);
   secondesMontage = 3;
   transitionMontage = 'fondu';
@@ -656,7 +669,7 @@ export class PublicationComponent implements OnInit {
     this.brief.textesCarrousel?.forEach((t, k) => (t.visuel = k + 1));
     this.api.modifierPublication(p.id, { brief: this.brief, version: p.version }).subscribe({
       next: maj => { const visuels = this.p()?.visuels; this.afficher({ ...maj, visuels: maj.visuels ?? visuels }); suite(); },
-      error: e => { this.erreur.set(messageErreur(e)); this.diapoEnCours.set(null); window.scrollTo({ top: 0 }); },
+      error: e => { this.erreur.set(messageErreur(e)); this.diapoEnCours.set(null); this.carrouselProduitEnCours.set(false); window.scrollTo({ top: 0 }); },
     });
   }
 
@@ -682,6 +695,20 @@ export class PublicationComponent implements OnInit {
   }
 
   /** Génère les visuels manquants l'un après l'autre (les fournisseurs limitent les appels simultanés). */
+  /** Enregistre le produit saisi, puis crée une diapositive par photo du produit (le serveur remplace celles d'un essai précédent). */
+  creerCarrouselProduit() {
+    this.carrouselProduitEnCours.set(true);
+    this.erreur.set('');
+    this.enregistrerPuis(() => {
+      const p = this.p();
+      if (!p) return;
+      this.api.carrouselProduit(p.id).subscribe({
+        next: v => { this.afficher(v); this.carrouselProduitEnCours.set(false); },
+        error: e => { this.erreur.set(messageErreur(e)); this.carrouselProduitEnCours.set(false); window.scrollTo({ top: 0 }); },
+      });
+    });
+  }
+
   genererToutesDiapos() {
     const total = this.brief.textesCarrousel?.length ?? 0;
     const restantes: number[] = [];

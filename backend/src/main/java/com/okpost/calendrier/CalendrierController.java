@@ -81,6 +81,13 @@ public class CalendrierController {
         service.supprimer(Session.courante(), id);
     }
 
+    /** Carrousel des photos du produit mis en avant, chacune avec le logo en filigrane. */
+    @PostMapping("/publications/{id}/carrousel-produit")
+    public PublicationVue carrouselProduit(@PathVariable UUID id) {
+        visuels.carrouselProduit(Session.courante(), id);
+        return service.vuePublication(Session.courante(), id);
+    }
+
     @PostMapping("/calendriers/{id}/archiver")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void archiver(@PathVariable UUID id) {

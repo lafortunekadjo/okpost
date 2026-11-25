@@ -42,11 +42,13 @@ public class VisuelService {
     private final MoteurAffiche affiches;
     private final BanqueImages banque;
     private final com.okpost.config.OkpostProperties props;
+    private final PublicationRepository publications;
 
     public VisuelService(VisuelGenereRepository visuels, CalendrierService calendriers, AbonnementService abonnements,
                          StockageFichiers stockage, List<GenerateurImage> generateurs, ClientService clients,
                          ClientAssetRepository assets, CompositionVisuel composition, MoteurAffiche affiches, BanqueImages banque,
-                         com.okpost.config.OkpostProperties props) {
+                         com.okpost.config.OkpostProperties props, PublicationRepository publications) {
+        this.publications = publications;
         this.props = props;
         this.clients = clients;
         this.assets = assets;
@@ -193,6 +195,63 @@ public class VisuelService {
         return vue(visuels.save(v));
     }
 
+    static final String CARROUSEL_PRODUIT = "carrousel-produit";
+    static final int DIAPOSITIVES_MAX = 10;
+
+    /**
+     * Carrousel des photos d'un produit : une diapositive par photo rattachée (10 au plus, limite des réseaux), chacune avec le logo en
+     * filigrane et sans texte. Les diapositives créées par une précédente exécution sont remplacées ; celles ajoutées à la main restent.
+     */
+    @Transactional
+    public void carrouselProduit(Session s, UUID publicationId) {
+        abonnements.exigerEcriture(s.workspaceId());
+        Publication p = calendriers.chargerPublication(s, publicationId);
+        if (!"CARROUSEL".equals(p.getFormat())) {
+            throw ApiException.requeteInvalide("Cette publication n'est pas un carrousel : passe son format en « Carrousel » d'abord.");
+        }
+        Client client = clients.charger(s, calendriers.charger(s, p.getCalendrierId()).getClientId());
+        Client.Offre produit = produitMisEnAvant(client, p.getBrief());
+        if (produit == null) {
+            throw ApiException.requeteInvalide("Indique le produit mis en avant (champ « Produit », nom exact dans la fiche client) puis enregistre.");
+        }
+        List<ClientAsset> photos = photosDuProduit(client, produit).stream().limit(DIAPOSITIVES_MAX).toList();
+        if (photos.size() < 2) {
+            throw ApiException.requeteInvalide("Un carrousel demande au moins 2 photos rattachées au produit « " + produit.nom() + " » ("
+                    + photos.size() + " trouvée(s)). Ajoute-les dans la fiche client, onglet Offres.");
+        }
+        String ratio = p.getBrief().ratio() != null && p.getBrief().ratio().matches("1:1|4:5|9:16") ? p.getBrief().ratio() : "4:5";
+        Fiche f = fiche(client);
+        CompositionVisuel.Habillage marque = new CompositionVisuel.Habillage(f.logo(), f.couleur(), List.of());
+        MoteurAffiche.Contenu contenu = new MoteurAffiche.Contenu(MoteurAffiche.Gabarit.PHOTO_SEULE, null, null, null, null);
+
+        List<VisuelGenere> anciens = visuels.findByPublicationIdInOrderByCreatedAtDesc(List.of(p.getId())).stream()
+                .filter(v -> CARROUSEL_PRODUIT.equals(v.getFournisseur())).toList();
+        List<String> aEffacer = anciens.stream().map(VisuelGenere::getChemin).toList();
+        visuels.deleteAll(anciens);
+        visuels.flush();
+
+        List<Modeles.TexteCarrousel> textes = new java.util.ArrayList<>();
+        for (int i = 0; i < photos.size(); i++) {
+            byte[] source;
+            try (var in = stockage.lire(photos.get(i).getChemin()).getInputStream()) {
+                source = in.readAllBytes();
+            } catch (java.io.IOException e) {
+                throw new ApiException(HttpStatus.BAD_GATEWAY, "Photo " + (i + 1) + " du produit illisible");
+            }
+            byte[] octets = affiches.composer(source, ratio, contenu, marque);
+            enregistrerVisuel(s, p, octets, produit.nom(), ratio, CARROUSEL_PRODUIT, "photo", VisuelGenere.Source.BANQUE, photos.get(i).getId(), i + 1);
+            textes.add(new Modeles.TexteCarrousel(i + 1, "Photo " + (i + 1), ""));
+        }
+        p.setBrief(avecDiapositives(p.getBrief(), ratio, textes));
+        publications.save(p);
+        com.okpost.client.FichiersApresCommit.supprimer(stockage, aEffacer);
+    }
+
+    static Modeles.BriefVisuel avecDiapositives(Modeles.BriefVisuel b, String ratio, List<Modeles.TexteCarrousel> textes) {
+        return new Modeles.BriefVisuel(b.type() == null ? "CARROUSEL" : b.type(), b.description(), b.promptImage(), ratio, textes, b.accroche(),
+                "PHOTO_SEULE", b.chiffre(), b.texte(), b.cta(), b.produit(), b.produits());
+    }
+
     /** Collection : 2 à 4 produits de la fiche, chacun avec sa vraie photo, en grille. Aucune image IA, donc aucun quota consommé. */
     private VisuelVue collection(Session s, Publication p, Client client, MoteurAffiche.Contenu contenu,
                                  CompositionVisuel.Habillage marque, String ratio, String scene) {
@@ -247,12 +306,17 @@ public class VisuelService {
     }
 
     /** Photo du produit dans la banque : celles rattachées à l'offre, en variant d'une publication à l'autre. */
-    private java.util.Optional<ClientAsset> photoProduit(Client client, Client.Offre produit, UUID publicationId) {
-        if (produit.photos() == null || produit.photos().isEmpty()) return java.util.Optional.empty();
-        List<ClientAsset> photos = produit.photos().stream()
+    /** Photos rattachées au produit, dans l'ordre choisi (images de ce client uniquement, ni logo vectoriel ni fichier supprimé). */
+    private List<ClientAsset> photosDuProduit(Client client, Client.Offre produit) {
+        if (produit.photos() == null || produit.photos().isEmpty()) return List.of();
+        return produit.photos().stream()
                 .map(id -> assets.findByIdAndClientId(id, client.getId()).orElse(null))
-                .filter(a -> a != null && a.getClientId().equals(client.getId()) && a.getMime() != null && a.getMime().startsWith("image/") && !a.getMime().contains("svg"))
+                .filter(a -> a != null && a.getMime() != null && a.getMime().startsWith("image/") && !a.getMime().contains("svg"))
                 .toList();
+    }
+
+    private java.util.Optional<ClientAsset> photoProduit(Client client, Client.Offre produit, UUID publicationId) {
+        List<ClientAsset> photos = photosDuProduit(client, produit);
         if (photos.isEmpty()) return java.util.Optional.empty();
         java.util.Set<UUID> deja = visuels.findByPublicationIdInOrderByCreatedAtDesc(List.of(publicationId)).stream()
                 .map(VisuelGenere::getAssetId).filter(java.util.Objects::nonNull).collect(Collectors.toSet());
