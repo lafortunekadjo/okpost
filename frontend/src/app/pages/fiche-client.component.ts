@@ -8,6 +8,7 @@ import { Asset, Client, FicheProposee, Offre, RESEAUX, LIBELLES_RESEAU } from '.
 import { PucesComponent } from '../shared/puces.component';
 import { BanqueImagesComponent } from '../shared/banque-images.component';
 import { ContactsValidationComponent } from '../shared/contacts-validation.component';
+import { AssistantRedactionComponent } from '../shared/assistant-redaction.component';
 
 type Onglet = 'identite' | 'offres' | 'localisation' | 'audience' | 'ton' | 'visuel' | 'en-ligne';
 
@@ -21,7 +22,7 @@ const TYPES_FICHIERS = [
 
 @Component({
   selector: 'app-fiche-client',
-  imports: [FormsModule, RouterLink, PucesComponent, BanqueImagesComponent, ContactsValidationComponent],
+  imports: [FormsModule, RouterLink, PucesComponent, BanqueImagesComponent, ContactsValidationComponent, AssistantRedactionComponent],
   template: `
     <div class="page page-etroite">
       <div class="entete-page">
@@ -127,7 +128,8 @@ const TYPES_FICHIERS = [
               <div class="champ"><label>Année de création</label><input type="number" name="annee" [(ngModel)]="c.anneeCreation" /></div>
             </div>
             <div class="champ"><label>Description <span class="aide">ce que fait l'entreprise, pour qui, ce qui la rend différente</span></label>
-              <textarea name="description" rows="5" [(ngModel)]="c.description"></textarea></div>
+              <textarea name="description" rows="5" [(ngModel)]="c.description"></textarea>
+              <app-assistant-redaction [texte]="c.description ?? ''" [sujet]="c.nom" champ="activite" [clientId]="id()" (appliquer)="c.description = $event; modifie.set(true)" /></div>
             <div class="champ"><label>Slogan</label><input type="text" name="slogan" [(ngModel)]="c.slogan" /></div>
           }
           @case ('offres') {
@@ -186,7 +188,8 @@ const TYPES_FICHIERS = [
                   <div class="champ"><label>Offre</label><input type="text" [name]="'offre-nom-' + $index" [(ngModel)]="o.nom" /></div>
                   <div class="champ"><label>Prix</label><input type="text" [name]="'offre-prix-' + $index" [(ngModel)]="o.prix" placeholder="25 000 FCFA" /></div>
                 </div>
-                <div class="champ"><label>Description</label><textarea rows="2" [name]="'offre-desc-' + $index" [(ngModel)]="o.description"></textarea></div>
+                <div class="champ"><label>Description</label><textarea rows="2" [name]="'offre-desc-' + $index" [(ngModel)]="o.description"></textarea>
+                  <app-assistant-redaction [texte]="o.description ?? ''" [sujet]="o.nom" champ="produit" [clientId]="id()" (appliquer)="o.description = $event; modifie.set(true)" /></div>
                 @if (c.typeActivite !== 'SERVICES') {
                   <div class="ligne-champs">
                     <div class="champ"><label>Catégorie <span class="aide">facultatif</span></label>

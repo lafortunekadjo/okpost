@@ -121,6 +121,15 @@ public class GenerateurSpringAi implements GenerateurIA {
     }
 
     @Override
+    public String reformulerTexte(UUID ws, String fiche, String langue, String texte, String sujet, String instruction, int longueurMax) {
+        String user = prompts.rendre("reformuler", Map.of("texte", texte, "sujet", vide(sujet), "instruction", instruction,
+                "langue", langue(langue), "max", String.valueOf(longueurMax)));
+        TexteRegenere t = appelerJson(ws, "reformuler", modeleRedaction, prompts.rendre("reformuler-systeme", Map.of("fiche", fiche)), user,
+                TexteRegenere.class, r -> r.texte() == null || r.texte().isBlank() ? List.of("texte vide") : List.of());
+        return t.texte().trim();
+    }
+
+    @Override
     public Modeles.FicheSite analyserSite(UUID ws, String contenuSite) {
         String user = prompts.rendre("site", Map.of("contenu", contenuSite));
         return appelerJson(ws, "site", modeleRedaction, prompts.rendre("site-systeme", Map.of()), user, Modeles.FicheSite.class,

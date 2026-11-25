@@ -1,0 +1,12 @@
+Sujet du texte : {{sujet}}
+Langue : {{langue}}
+Longueur maximale : {{max}} caractères.
+
+Travail demandé : {{instruction}}
+
+Texte à traiter (entre les repères) :
+<<<
+{{texte}}
+>>>
+
+Réponds avec un objet JSON {"texte": "..."} contenant uniquement le texte final.

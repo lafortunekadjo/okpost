@@ -39,5 +39,11 @@ public interface GenerateurIA {
         throw new GenerationException("Lecture de site non disponible avec ce fournisseur");
     }
 
+    /** Corrige, reformule ou raccourcit un texte de la fiche client, sans rien inventer. */
+    default String reformulerTexte(UUID workspaceId, String ficheClient, String langue, String texte, String sujet,
+                                   String instruction, int longueurMax) {
+        throw new GenerationException("Reformulation non disponible avec ce fournisseur");
+    }
+
     String regenererChamp(UUID workspaceId, String ficheClient, String langue, String publication, String champ, String consigne);
 }

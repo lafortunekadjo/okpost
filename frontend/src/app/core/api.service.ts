@@ -165,6 +165,10 @@ export class ApiService {
   lienCommandeProduit(clientId: string, produit: string) {
     return this.http.get<LienCommande>(`${this.base}/clients/${clientId}/lien-commande`, { params: { produit } });
   }
+  /** Corrige, reformule ou raccourcit un texte de la fiche : renvoie une proposition, rien n'est enregistré. */
+  reformuler(d: { texte: string; sujet?: string; mode: string; champ: 'produit' | 'activite'; clientId?: string }) {
+    return this.http.post<{ texte: string }>(`${this.base}/reformuler`, d);
+  }
   adminComptes() { return this.http.get<{ totaux: AdminTotaux; comptes: AdminCompte[] }>(`${this.base}/admin/comptes`); }
   adminJournal(f: { espace?: string; action?: string; page?: number }) {
     const params: Record<string, string> = { page: String(f.page ?? 0) };
