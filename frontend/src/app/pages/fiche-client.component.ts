@@ -135,6 +135,9 @@ const TYPES_FICHIERS = [
             <div class="champ"><label>Slogan</label><input type="text" name="slogan" [(ngModel)]="c.slogan" /></div>
           }
           @case ('offres') {
+            <div class="champ"><label for="devise">Devise des prix <span class="aide">ajoutée sur les affiches et dans les textes quand un prix n'en porte pas</span></label>
+              <input id="devise" type="text" name="devise" list="devises" [(ngModel)]="c.devise" maxlength="12" placeholder="FCFA" style="max-width:160px" />
+              <datalist id="devises"><option value="FCFA"></option><option value="€"></option><option value="$"></option><option value="MAD"></option><option value="GNF"></option><option value="CDF"></option></datalist></div>
             <p class="aide">Produits ou services. Les prix indiqués ici sont les seuls que l'IA pourra citer.
               @if (c.typeActivite !== 'SERVICES') { Pour chaque produit, rattache ses vraies photos : les publications montreront le vrai article, jamais une image inventée par l'IA. }</p>
             @if (c.typeActivite !== 'SERVICES') {
@@ -193,7 +196,7 @@ const TYPES_FICHIERS = [
                 <div class="offre-corps">
                 <div class="ligne-champs">
                   <div class="champ"><label>Offre</label><input type="text" [name]="'offre-nom-' + $index" [(ngModel)]="o.nom" /></div>
-                  <div class="champ"><label>Prix</label><input type="text" [name]="'offre-prix-' + $index" [(ngModel)]="o.prix" placeholder="25 000 FCFA" /></div>
+                  <div class="champ"><label>Prix <span class="aide">sans la devise</span></label><input type="text" [name]="'offre-prix-' + $index" [(ngModel)]="o.prix" placeholder="25 000" /></div>
                 </div>
                 <div class="champ"><label>Description</label><textarea rows="2" [name]="'offre-desc-' + $index" [(ngModel)]="o.description"></textarea>
                   <app-assistant-redaction [texte]="o.description ?? ''" [sujet]="o.nom" champ="produit" [clientId]="id()" [photoId]="o.photos?.[0]" (appliquer)="o.description = $event; modifie.set(true)" /></div>
@@ -577,7 +580,7 @@ export class FicheClientComponent implements OnInit {
   ];
 
   c: Client = {
-    nom: '', typeActivite: 'SERVICES', positionFiligrane: 'CENTRE', langue: 'fr', tutoiement: false, fetesReligieuses: true, offres: [], cibles: [], concurrents: [], couleurs: [], reseaux: {},
+    nom: '', typeActivite: 'SERVICES', positionFiligrane: 'CENTRE', devise: 'FCFA', langue: 'fr', tutoiement: false, fetesReligieuses: true, offres: [], cibles: [], concurrents: [], couleurs: [], reseaux: {},
   };
 
   ngOnInit() {
@@ -585,7 +588,7 @@ export class FicheClientComponent implements OnInit {
     if (id) {
       this.api.client(id).subscribe({
         next: c => {
-          this.c = { ...c, typeActivite: c.typeActivite ?? 'SERVICES', positionFiligrane: c.positionFiligrane ?? 'CENTRE', offres: c.offres ?? [], cibles: c.cibles ?? [], concurrents: c.concurrents ?? [],
+          this.c = { ...c, typeActivite: c.typeActivite ?? 'SERVICES', positionFiligrane: c.positionFiligrane ?? 'CENTRE', devise: c.devise ?? 'FCFA', offres: c.offres ?? [], cibles: c.cibles ?? [], concurrents: c.concurrents ?? [],
             couleurs: c.couleurs ?? [], reseaux: c.reseaux ?? {} };
           this.assets.set(c.assets ?? []);
         },

@@ -59,7 +59,8 @@ public final class CalendrierDtos {
                                @Pattern(regexp = MISES_EN_PAGE) String gabarit,
                                @Size(max = 20) String chiffre, @Size(max = 300) String texte, @Size(max = 60) String cta,
                                @Pattern(regexp = "AUTO|IA|BANQUE") String photo,
-                               @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(20) Integer diapositive) {}
+                               @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(20) Integer diapositive,
+                               Boolean discret) {}
 
     /** Montage d'un carrousel en vidéo défilante. */
     public record DemandeMontage(@jakarta.validation.constraints.Min(2) @jakarta.validation.constraints.Max(8) Integer secondes,

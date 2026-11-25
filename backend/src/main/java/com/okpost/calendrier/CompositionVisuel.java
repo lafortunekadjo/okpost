@@ -34,10 +34,19 @@ import java.util.List;
 @Component
 public class CompositionVisuel {
 
-    public enum TypeContact { SITE, WHATSAPP, TELEPHONE, RESEAU }
+    public enum TypeContact { SITE, WHATSAPP, TELEPHONE, RESEAU, FACEBOOK, INSTAGRAM, TIKTOK, LINKEDIN }
 
     /** Un élément du bandeau : icône, petit libellé facultatif (ex. « TikTok · Instagram ») et valeur. */
-    public record Contact(TypeContact type, String libelle, String valeur) {}
+    /** reseaux : icônes de marque à dessiner avant la valeur (un pseudo partagé par plusieurs réseaux affiche leurs icônes côte à côte). */
+    public record Contact(TypeContact type, String libelle, String valeur, List<TypeContact> reseaux) {
+        public Contact(TypeContact type, String libelle, String valeur) {
+            this(type, libelle, valeur, null);
+        }
+    }
+
+    static List<TypeContact> icones(Contact c) {
+        return c.reseaux() != null && !c.reseaux().isEmpty() ? c.reseaux() : List.of(c.type());
+    }
 
     /** filigrane : CENTRE (par défaut si null), COIN ou AUCUN, pour la mise en page « photo seule ». */
     public record Habillage(byte[] logo, String couleur, List<Contact> contacts, String filigrane) {
@@ -171,7 +180,9 @@ public class CompositionVisuel {
     }
 
     private float largeurContact(Graphics2D g, Contact c, Font fv, Font fl, float u) {
-        float icone = fv.getSize2D() * 1.55f;
+        float d = fv.getSize2D() * 1.55f;
+        int n = icones(c).size();
+        float icone = n * d + (n - 1) * d * 0.22f;
         float texte = g.getFontMetrics(fv).stringWidth(c.valeur());
         if (c.libelle() != null && !c.libelle().isBlank()) {
             texte += g.getFontMetrics(fl).stringWidth(c.libelle() + "  ");
@@ -182,10 +193,14 @@ public class CompositionVisuel {
     /** Pastille blanche avec l'icône, puis libellé discret et valeur en gras. Renvoie la position x de fin. */
     private float dessinerContact(Graphics2D g, Contact c, float x, float centre, Font fv, Font fl, float u, Color marque) {
         float d = fv.getSize2D() * 1.55f;
-        g.setColor(new Color(255, 255, 255, 240));
-        g.fill(new Ellipse2D.Float(x, centre - d / 2, d, d));
-        dessinerIcone(g, c.type(), x + d / 2, centre, d * 0.56f, marque);
-        float tx = x + d + fv.getSize2D() * 0.55f;
+        float ix = x;
+        for (TypeContact t : icones(c)) {
+            g.setColor(new Color(255, 255, 255, 240));
+            g.fill(new Ellipse2D.Float(ix, centre - d / 2, d, d));
+            dessinerIcone(g, t, ix + d / 2, centre, d * 0.56f, marque);
+            ix += d * 1.22f;
+        }
+        float tx = ix - d * 0.22f + fv.getSize2D() * 0.55f;
         if (c.libelle() != null && !c.libelle().isBlank()) {
             g.setFont(fl);
             FontMetrics fm = g.getFontMetrics();
@@ -226,6 +241,24 @@ public class CompositionVisuel {
                 combine(g2, cx, cy, r * 0.62f);
             }
             case TELEPHONE -> combine(g2, cx, cy, r * 0.95f);
+            case FACEBOOK -> lettres(g2, "f", cx + t * 0.04f, cy, t * 1.6f);
+            case LINKEDIN -> lettres(g2, "in", cx, cy, t * 1.12f);
+            case INSTAGRAM -> {
+                float c = t * 0.92f;
+                g2.draw(new java.awt.geom.RoundRectangle2D.Float(cx - c / 2, cy - c / 2, c, c, c * 0.38f, c * 0.38f));
+                g2.draw(new Ellipse2D.Float(cx - c * 0.23f, cy - c * 0.23f, c * 0.46f, c * 0.46f));
+                g2.fill(new Ellipse2D.Float(cx + c * 0.2f, cy - c * 0.36f, c * 0.13f, c * 0.13f));
+            }
+            case TIKTOK -> {
+                // Note de musique : tête, tige et drapeau
+                g2.draw(new Ellipse2D.Float(cx - r * 0.66f, cy + r * 0.1f, r * 0.74f, r * 0.74f));
+                float tige = cx + r * 0.08f;
+                g2.draw(new Line2D.Float(tige, cy + r * 0.47f, tige, cy - r * 0.85f));
+                GeneralPath drapeau = new GeneralPath();
+                drapeau.moveTo(tige, cy - r * 0.85f);
+                drapeau.quadTo(tige + r * 0.1f, cy - r * 0.38f, cx + r * 0.8f, cy - r * 0.3f);
+                g2.draw(drapeau);
+            }
             case RESEAU -> {
                 Font f = new Font(Font.SANS_SERIF, Font.BOLD, Math.round(t * 1.15f));
                 g2.setFont(f);
@@ -234,6 +267,13 @@ public class CompositionVisuel {
             }
         }
         g2.dispose();
+    }
+
+    /** Lettres en gras centrées : « f » de Facebook, « in » de LinkedIn. */
+    private static void lettres(Graphics2D g, String texte, float cx, float cy, float taille) {
+        g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, Math.round(taille)));
+        FontMetrics fm = g.getFontMetrics();
+        g.drawString(texte, cx - fm.stringWidth(texte) / 2f, cy + (fm.getAscent() - fm.getDescent()) / 2f);
     }
 
     /** Combiné téléphonique stylisé. */

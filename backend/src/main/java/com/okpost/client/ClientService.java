@@ -191,7 +191,7 @@ public class ClientService {
                 c.getLangue(), c.getTon(), c.isTutoiement(), c.getMotsAEviter(), c.getExemples(), c.getOffres(),
                 c.getCibles(), c.getConcurrents(), c.getCouleurs(), c.getPolices(), c.getDomaine(), c.getReseaux(),
                 c.getWhatsapp(), c.getCmId(), fichiers, c.getUpdatedAt(), c.isAutoPublication(), c.getHeurePublication(),
-                c.isFetesReligieuses(), c.getTypeActivite(), c.getPositionFiligrane());
+                c.isFetesReligieuses(), c.getTypeActivite(), c.getPositionFiligrane(), c.getDevise());
     }
 
     @Transactional(readOnly = true)
@@ -232,6 +232,7 @@ public class ClientService {
         if (f.fetesReligieuses() != null) c.setFetesReligieuses(f.fetesReligieuses());
         if (f.typeActivite() != null) c.setTypeActivite(f.typeActivite());
         if (f.positionFiligrane() != null) c.setPositionFiligrane(f.positionFiligrane());
+        if (f.devise() != null && !f.devise().isBlank()) c.setDevise(f.devise().trim());
     }
 
     static final int OFFRES_MAX = 300;

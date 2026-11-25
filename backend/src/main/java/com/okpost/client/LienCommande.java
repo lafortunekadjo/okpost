@@ -71,7 +71,8 @@ public final class LienCommande {
             return sb.append("j'ai vu votre publication et je souhaite avoir plus d'informations.").toString();
         }
         sb.append("je souhaite commander : ").append(produit.nom());
-        if (produit.prix() != null && !produit.prix().isBlank()) sb.append(" (").append(produit.prix().trim()).append(')');
+        String prix = Prix.avecDevise(produit.prix(), client.getDevise());
+        if (prix != null) sb.append(" (").append(prix).append(')');
         sb.append('.');
         if (produit.tailles() != null && !produit.tailles().isEmpty()) sb.append("\nTaille : ");
         if (produit.couleurs() != null && !produit.couleurs().isEmpty()) sb.append("\nCouleur : ");

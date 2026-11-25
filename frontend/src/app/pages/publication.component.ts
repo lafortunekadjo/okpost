@@ -168,6 +168,8 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
               <label class="case-habiller"><input type="checkbox" name="habiller" [(ngModel)]="habiller" />
                 Affiche complète : l'IA fournit la photo, OkPost écrit le titre et ajoute logo et coordonnées</label>
               @if (habiller) {
+                <label class="case-habiller"><input type="checkbox" name="discret" [(ngModel)]="discret" />
+                  Texte discret : plus petit et voiles plus légers, pour cacher moins la photo</label>
                 <div class="champ"><label>Mise en page</label>
                   <select name="b-gabarit" [(ngModel)]="brief.gabarit" style="max-width:360px">
                     <option value="">Automatique</option>
@@ -478,6 +480,7 @@ export class PublicationComponent implements OnInit {
   envoiMedia = signal(false);
   progression = signal(0);
   habiller = true;
+  discret = false;
   sourcePhoto = 'AUTO';
   moteurs = signal<string[]>([]);
   moteur = '';
@@ -698,7 +701,7 @@ export class PublicationComponent implements OnInit {
     this.generationImage.set(true);
     this.erreur.set('');
     this.api.genererImage(p.id, this.brief.promptImage, this.brief.ratio, this.habiller, this.brief.accroche ?? '', this.moteur,
-      undefined, { gabarit: this.brief.gabarit, chiffre: this.brief.chiffre, texte: this.brief.texte, cta: this.brief.cta, photo: this.sourcePhoto }).subscribe({
+      undefined, { gabarit: this.brief.gabarit, chiffre: this.brief.chiffre, texte: this.brief.texte, cta: this.brief.cta, photo: this.sourcePhoto, discret: this.discret }).subscribe({
       next: v => {
         this.p.set({ ...p, visuels: [v, ...(p.visuels ?? [])] });
         this.generationImage.set(false);

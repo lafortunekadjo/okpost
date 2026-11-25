@@ -39,7 +39,8 @@ class AfficheTest {
     void pseudosDesReseaux() {
         var c = VisuelService.reseaux(new java.util.LinkedHashMap<>(Map.of("TIKTOK", "https://www.tiktok.com/@my2_zero")));
         assertThat(c).hasSize(1);
-        assertThat(c.get(0).libelle()).isEqualTo("TikTok");
+        assertThat(c.get(0).libelle()).isNull();
+        assertThat(c.get(0).reseaux()).containsExactly(CompositionVisuel.TypeContact.TIKTOK);
         assertThat(c.get(0).valeur()).isEqualTo("@my2_zero");
         assertThat(VisuelService.reseaux(Map.of("FACEBOOK", "https://www.facebook.com/share/1FHGa9c3Et/"))).isEmpty();
     }

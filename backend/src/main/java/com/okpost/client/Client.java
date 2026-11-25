@@ -92,6 +92,9 @@ public class Client extends BaseEntity {
 
     @Column(name = "position_filigrane", nullable = false)
     private String positionFiligrane = "CENTRE";
+
+    @Column(nullable = false)
+    private String devise = "FCFA";
     private boolean archive;
 
     @Column(name = "auto_publication")
@@ -157,6 +160,8 @@ public class Client extends BaseEntity {
     public void setDomaine(String domaine) { this.domaine = domaine; }
     public Map<String, String> getReseaux() { return reseaux; }
     public void setReseaux(Map<String, String> reseaux) { this.reseaux = reseaux; }
+    public String getDevise() { return devise; }
+    public void setDevise(String devise) { this.devise = devise; }
     public String getPositionFiligrane() { return positionFiligrane; }
     public void setPositionFiligrane(String positionFiligrane) { this.positionFiligrane = positionFiligrane; }
     public String getTypeActivite() { return typeActivite; }

@@ -110,7 +110,7 @@ public class VisuelService {
         ClientAsset deLaBanque = null;
         Client.Offre produit = habiller ? produitMisEnAvant(client, p.getBrief()) : null;
         if (produit != null) {
-            contenu = avecProduit(contenu, produit);
+            contenu = avecProduit(contenu, produit, client.getDevise());
         }
         if (habiller && !"IA".equals(mode) && produit != null) {
             // Publication sur un produit précis : sa vraie photo d'abord, jamais l'image d'un autre article
@@ -265,7 +265,7 @@ public class VisuelService {
             ClientAsset photo = photoProduit(client, o, p.getId()).orElse(null);
             if (photo == null) continue;
             try (var in = stockage.lire(photo.getChemin()).getInputStream()) {
-                articles.add(new MoteurAffiche.Article(in.readAllBytes(), o.nom(), o.prix()));
+                articles.add(new MoteurAffiche.Article(in.readAllBytes(), o.nom(), com.okpost.client.Prix.avecDevise(o.prix(), client.getDevise())));
             } catch (java.io.IOException e) {
                 continue;
             }
@@ -297,12 +297,17 @@ public class VisuelService {
 
     /** Pour un produit : le prix et le nom viennent de la fiche (jamais inventés) et le gabarit « fiche produit » est utilisé par défaut. */
     static MoteurAffiche.Contenu avecProduit(MoteurAffiche.Contenu c, Client.Offre produit) {
+        return avecProduit(c, produit, null);
+    }
+
+    /** devise : celle de la fiche client, ajoutée au prix quand il n'en porte pas. */
+    static MoteurAffiche.Contenu avecProduit(MoteurAffiche.Contenu c, Client.Offre produit, String devise) {
         String titre = c.titre() != null && !c.titre().isBlank() ? c.titre() : produit.nom();
         MoteurAffiche.Gabarit g = c.gabarit() == MoteurAffiche.Gabarit.PLEIN_CADRE || c.gabarit() == null ? MoteurAffiche.Gabarit.PRODUIT : c.gabarit();
         boolean prixSaisi = g == MoteurAffiche.Gabarit.PRODUIT && c.chiffre() != null && !c.chiffre().isBlank();
-        String prix = prixSaisi ? c.chiffre() : produit.prix();
+        String prix = com.okpost.client.Prix.avecDevise(prixSaisi ? c.chiffre() : produit.prix(), devise);
         // Pour NOUVEAUTE et PROMO, « chiffre » reste l'étiquette ou la remise ; pour PRODUIT il ne sert que de prix
-        return new MoteurAffiche.Contenu(g, titre, g == MoteurAffiche.Gabarit.PRODUIT ? null : c.chiffre(), c.texte(), c.cta(), prix);
+        return new MoteurAffiche.Contenu(g, titre, g == MoteurAffiche.Gabarit.PRODUIT ? null : c.chiffre(), c.texte(), c.cta(), prix, c.discret());
     }
 
     /** Photo du produit dans la banque : celles rattachées à l'offre, en variant d'une publication à l'autre. */
@@ -365,7 +370,11 @@ public class VisuelService {
     record Fiche(byte[] logo, String logoMime, String couleur, List<CompositionVisuel.Contact> contacts) {}
 
     /** Ce que le CM a saisi dans le formulaire : prioritaire sur le brief enregistré (champs vides = on garde le brief). */
-    public record Saisie(String titre, String gabarit, String chiffre, String texte, String cta, String photo) {}
+    public record Saisie(String titre, String gabarit, String chiffre, String texte, String cta, String photo, Boolean discret) {
+        public Saisie(String titre, String gabarit, String chiffre, String texte, String cta, String photo) {
+            this(titre, gabarit, chiffre, texte, cta, photo, null);
+        }
+    }
 
     private static String ou(String saisi, String brief) {
         return saisi != null && !saisi.isBlank() ? saisi : brief;
@@ -376,7 +385,7 @@ public class VisuelService {
         Saisie s = saisie == null ? new Saisie(null, null, null, null, null, null) : saisie;
         if (diapo != null) {
             // Diapositive de carrousel : photo pleine page, titre et texte de la diapositive.
-            return new MoteurAffiche.Contenu(MoteurAffiche.Gabarit.PLEIN_CADRE, ou(s.titre(), diapo.titre()), null, diapo.texte(), null);
+            return new MoteurAffiche.Contenu(MoteurAffiche.Gabarit.PLEIN_CADRE, ou(s.titre(), diapo.titre()), null, diapo.texte(), null, null, Boolean.TRUE.equals(s.discret()));
         }
         String titreBrief = b == null ? null
                 : b.accroche() != null && !b.accroche().isBlank() ? b.accroche()
@@ -385,7 +394,7 @@ public class VisuelService {
         String texte = ou(s.texte(), b == null ? null : b.texte());
         String cta = ou(s.cta(), b == null ? null : b.cta());
         MoteurAffiche.Gabarit g = MoteurAffiche.resoudre(s.gabarit(), b == null ? null : b.gabarit(), chiffre, texte);
-        return new MoteurAffiche.Contenu(g, ou(s.titre(), titreBrief), chiffre, texte, cta);
+        return new MoteurAffiche.Contenu(g, ou(s.titre(), titreBrief), chiffre, texte, cta, null, Boolean.TRUE.equals(s.discret()));
     }
 
     /** Demande à l'IA une photo seule, cadrée pour laisser de la place au texte du gabarit. */
@@ -430,10 +439,10 @@ public class VisuelService {
         return new Fiche(octetsLogo, logo == null ? null : logo.getMime(), couleur, contacts.subList(0, Math.min(contacts.size(), 5)));
     }
 
-    /** Un élément par pseudo : « TikTok · Instagram  @my2_zero » quand plusieurs réseaux partagent le même. */
+    /** Un élément par pseudo, avec l'icône de chaque réseau qui le partage (pas leur nom) : « [f] [instagram] @my2_zero ». */
     static List<CompositionVisuel.Contact> reseaux(Map<String, String> liens) {
         if (liens == null || liens.isEmpty()) return List.of();
-        Map<String, List<String>> parPseudo = new LinkedHashMap<>();
+        Map<String, List<CompositionVisuel.TypeContact>> parPseudo = new LinkedHashMap<>();
         liens.forEach((reseau, url) -> {
             if (url == null || url.isBlank()) return;
             String propre = url.trim().replaceFirst("[?#].*$", "").replaceFirst("/+$", "");
@@ -444,18 +453,17 @@ public class VisuelService {
             String[] morceaux = propre.split("/");
             String pseudo = morceaux[morceaux.length - 1].replace("@", "");
             if (pseudo.isBlank() || pseudo.contains(".")) return;
-            String nom = switch (reseau.toUpperCase(java.util.Locale.ROOT)) {
-                case "TIKTOK" -> "TikTok";
-                case "LINKEDIN" -> "LinkedIn";
-                case "INSTAGRAM" -> "Instagram";
-                case "FACEBOOK" -> "Facebook";
-                default -> reseau;
+            CompositionVisuel.TypeContact type = switch (reseau.toUpperCase(java.util.Locale.ROOT)) {
+                case "TIKTOK" -> CompositionVisuel.TypeContact.TIKTOK;
+                case "LINKEDIN" -> CompositionVisuel.TypeContact.LINKEDIN;
+                case "INSTAGRAM" -> CompositionVisuel.TypeContact.INSTAGRAM;
+                case "FACEBOOK" -> CompositionVisuel.TypeContact.FACEBOOK;
+                default -> CompositionVisuel.TypeContact.RESEAU;
             };
-            parPseudo.computeIfAbsent(pseudo, k -> new java.util.ArrayList<>()).add(nom);
+            parPseudo.computeIfAbsent(pseudo, k -> new java.util.ArrayList<>()).add(type);
         });
         return parPseudo.entrySet().stream()
-                .map(e -> new CompositionVisuel.Contact(CompositionVisuel.TypeContact.RESEAU,
-                        String.join(" · ", e.getValue()), "@" + e.getKey()))
+                .map(e -> new CompositionVisuel.Contact(CompositionVisuel.TypeContact.RESEAU, null, "@" + e.getKey(), e.getValue()))
                 .limit(3).toList();
     }
 

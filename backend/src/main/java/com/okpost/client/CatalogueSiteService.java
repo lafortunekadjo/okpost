@@ -71,7 +71,7 @@ public class CatalogueSiteService {
 
     public Resultat lire(Session s, UUID clientId, String url) {
         abonnements.exigerEcriture(s.workspaceId());
-        clients.charger(s, clientId);
+        Client client = clients.charger(s, clientId);
         limiter(s.workspaceId());
         URI depart = SecuriteUrl.normaliser(url);
         String origine = depart.getScheme() + "://" + depart.getHost() + (depart.getPort() > 0 ? ":" + depart.getPort() : "");
@@ -82,7 +82,7 @@ public class CatalogueSiteService {
             return r.ok() ? ParseursCatalogue.shopify(json, r.texte()) : List.of();
         });
         if (!produits.isEmpty()) {
-            avertissements.add("Le site ne donne pas la devise des prix : vérifie-les avant d'ajouter.");
+            avertissements.add("Le site ne donne pas la devise des prix : les affiches utiliseront celle de la fiche (" + client.getDevise() + "). Vérifie les montants avant d'ajouter.");
             return termine(produits, "boutique Shopify", avertissements);
         }
         produits = essayer("WooCommerce", () -> {

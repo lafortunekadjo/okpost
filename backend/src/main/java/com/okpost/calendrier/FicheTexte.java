@@ -29,12 +29,14 @@ public final class FicheTexte {
         ligne(sb, "Adresse", c.getAdresse());
         ligne(sb, "Horaires", c.getHoraires());
         if (c.getOffres() != null && !c.getOffres().isEmpty()) {
+            ligne(sb, "Devise des prix", c.getDevise());
             sb.append("Offres :\n");
             int affichees = 0;
             for (Client.Offre o : c.getOffres()) {
                 if (affichees++ >= OFFRES_DANS_LE_PROMPT) break;
                 sb.append("  - ").append(o.nom());
-                if (o.prix() != null && !o.prix().isBlank()) sb.append(" — ").append(o.prix());
+                String prix = com.okpost.client.Prix.avecDevise(o.prix(), c.getDevise());
+                if (prix != null) sb.append(" — ").append(prix);
                 if (o.description() != null && !o.description().isBlank()) sb.append(" : ").append(o.description());
                 if (o.categorie() != null && !o.categorie().isBlank()) sb.append(" [catégorie : ").append(o.categorie().trim()).append(']');
                 if (o.tailles() != null && !o.tailles().isEmpty()) sb.append(" [tailles : ").append(String.join(", ", o.tailles())).append(']');

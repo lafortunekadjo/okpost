@@ -61,6 +61,7 @@ export interface Client {
   id?: string;
   typeActivite?: TypeActivite;
   positionFiligrane?: 'CENTRE' | 'COIN' | 'AUCUN';
+  devise?: string;
   nom: string;
   secteur?: string;
   description?: string;

@@ -110,10 +110,10 @@ class GabaritsBoutiqueTest {
     void toutesLesMisesEnPageDuMoteurSontAccepteesParLaValidation() {
         var validateur = jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
         for (String nom : Stream.concat(Arrays.stream(Gabarit.values()).map(Enum::name), Stream.of("AUTO")).toList()) {
-            var d = new CalendrierDtos.DemandeImage(null, null, true, null, null, nom, "1 500 000 FCFA", null, null, null, null);
+            var d = new CalendrierDtos.DemandeImage(null, null, true, null, null, nom, "1 500 000 FCFA", null, null, null, null, null);
             assertThat(validateur.validate(d)).as("gabarit %s accepté", nom).isEmpty();
         }
-        var inconnu = new CalendrierDtos.DemandeImage(null, null, true, null, null, "N_IMPORTE_QUOI", null, null, null, null, null);
+        var inconnu = new CalendrierDtos.DemandeImage(null, null, true, null, null, "N_IMPORTE_QUOI", null, null, null, null, null, null);
         assertThat(validateur.validate(inconnu)).isNotEmpty();
     }
 

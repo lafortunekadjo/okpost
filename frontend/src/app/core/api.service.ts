@@ -51,11 +51,11 @@ export class ApiService {
     return this.http.patch<Publication>(`${this.base}/publications/${id}`, patch);
   }
   genererImage(id: string, prompt?: string, ratio?: string, habiller = true, accroche?: string, moteur?: string,
-               diapositive?: number, affiche?: { gabarit?: string; chiffre?: string; texte?: string; cta?: string; photo?: string }) {
+               diapositive?: number, affiche?: { gabarit?: string; chiffre?: string; texte?: string; cta?: string; photo?: string; discret?: boolean }) {
     return this.http.post<Visuel>(`${this.base}/publications/${id}/visuels`,
       { prompt: prompt || null, ratio: ratio || null, habiller, accroche: accroche ?? null, moteur: moteur || null,
         diapositive: diapositive ?? null, gabarit: affiche?.gabarit || null, chiffre: affiche?.chiffre || null,
-        texte: affiche?.texte || null, cta: affiche?.cta || null, photo: affiche?.photo || null });
+        texte: affiche?.texte || null, cta: affiche?.cta || null, photo: affiche?.photo || null, discret: affiche?.discret ?? null });
   }
   /** seulementImages : ne cherche que le logo et les photos (sans IA, rapide). */
   analyserSite(url: string, seulementImages = false) {

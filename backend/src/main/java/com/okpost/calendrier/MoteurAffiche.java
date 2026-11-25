@@ -68,9 +68,14 @@ public class MoteurAffiche {
     }
 
     /** prix : prix du produit (gabarits boutique) ; chiffre : chiffre fort, ou remise pour PROMO, ou étiquette pour NOUVEAUTE. */
-    public record Contenu(Gabarit gabarit, String titre, String chiffre, String texte, String cta, String prix) {
+    /** discret : texte plus petit et voiles plus légers, pour que le texte cache moins la photo. */
+    public record Contenu(Gabarit gabarit, String titre, String chiffre, String texte, String cta, String prix, boolean discret) {
+        public Contenu(Gabarit gabarit, String titre, String chiffre, String texte, String cta, String prix) {
+            this(gabarit, titre, chiffre, texte, cta, prix, false);
+        }
+
         public Contenu(Gabarit gabarit, String titre, String chiffre, String texte, String cta) {
-            this(gabarit, titre, chiffre, texte, cta, null);
+            this(gabarit, titre, chiffre, texte, cta, null, false);
         }
     }
 
@@ -145,7 +150,7 @@ public class MoteurAffiche {
         g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
         couvrir(g, src, w, h);
 
-        Zone z = new Zone(w, h, u, haut, h - bandeau);
+        Zone z = new Zone(w, h, u, haut, h - bandeau, c.discret() ? 0.7f : 1f, c.discret() ? 0.6f : 1f);
         String titre = nettoyer(c.titre());
         String chiffre = nettoyer(c.chiffre());
         String texte = nettoyer(c.texte());
@@ -175,7 +180,8 @@ public class MoteurAffiche {
     // ------------------------------------------------------------------ gabarits
 
     /** Zone utile : sous le logo, au-dessus du bandeau de coordonnées. */
-    private record Zone(int w, int h, float u, float haut, float bas) {}
+    /** k : échelle du texte et des panneaux (1 = normal, 0,7 = discret) ; voile : opacité des dégradés sombres (1 ou 0,6). */
+    private record Zone(int w, int h, float u, float haut, float bas, float k, float voile) {}
 
     private record Palette(Color marque, Color fond, Color accent) {
         Palette(Color marque) {
@@ -185,16 +191,16 @@ public class MoteurAffiche {
 
     private void chiffre(Graphics2D g, Zone z, Palette p, String titre, String chiffre, String texte, String cta) {
         float u = z.u();
-        g.setPaint(new GradientPaint(0, 0, alpha(p.fond(), 0.9f), z.w() * 0.66f, 0, alpha(p.fond(), 0f)));
+        g.setPaint(new GradientPaint(0, 0, alpha(p.fond(), 0.9f * z.voile()), z.w() * (0.30f + 0.36f * z.k()), 0, alpha(p.fond(), 0f)));
         g.fillRect(0, 0, z.w(), z.h());
-        g.setPaint(new GradientPaint(0, z.h() * 0.55f, alpha(p.fond(), 0f), 0, z.bas(), alpha(p.fond(), 0.6f)));
+        g.setPaint(new GradientPaint(0, z.h() * 0.55f, alpha(p.fond(), 0f), 0, z.bas(), alpha(p.fond(), 0.6f * z.voile())));
         g.fillRect(0, Math.round(z.h() * 0.55f), z.w(), z.h());
 
         float cx = 3 * u;
-        float cw = 62 * u;
+        float cw = 62 * u * z.k();
         float pad = 3.2f * u;
-        Bloc nb = ajuster(g, gras, chiffre, cw - 2 * pad, 26 * u, 26 * u, 6 * u, 1.0f, 1);
-        Bloc tb = titre.isEmpty() ? null : ajuster(g, gras, titre, cw - 2 * pad, 16 * u, 7.4f * u, 3.4f * u, 1.12f, 2);
+        Bloc nb = ajuster(g, gras, chiffre, cw - 2 * pad, 26 * u * z.k(), 26 * u * z.k(), 6 * u, 1.0f, 1);
+        Bloc tb = titre.isEmpty() ? null : ajuster(g, gras, titre, cw - 2 * pad, 16 * u * z.k(), 7.4f * u * z.k(), 3.4f * u, 1.12f, 2);
         float ch = pad + nb.hauteur() + (tb == null ? 0 : 0.6f * u + tb.hauteur()) + pad * 0.8f;
         float cy = z.haut();
         g.setColor(alpha(p.fond(), 0.93f));
@@ -208,9 +214,9 @@ public class MoteurAffiche {
 
         float y2 = cy + ch + 3 * u;
         float libre = z.bas() - 3 * u - y2;
-        float lc = 42 * u;
+        float lc = 42 * u * Math.max(0.8f, z.k());
         if (!texte.isEmpty() && libre > 6 * u) {
-            Bloc b = ajuster(g, semi, texte, lc, libre * 0.5f, 3.8f * u, 2.6f * u, 1.3f, 5);
+            Bloc b = ajuster(g, semi, texte, lc, libre * 0.5f, 3.8f * u * z.k(), 2.6f * u, 1.3f, 5);
             y2 = dessiner(g, b, 4 * u, y2, Color.WHITE, true) + 2 * u;
         }
         if (!cta.isEmpty() && libre > 12 * u) {
@@ -225,12 +231,12 @@ public class MoteurAffiche {
         float u = z.u();
         float x = 4 * u;
         float largeur = 92 * u;
-        Bloc tb = titre.isEmpty() ? null : ajuster(g, gras, titre, largeur, z.h() * 0.22f, 9.4f * u, 4.4f * u, 1.1f, 3);
-        Bloc xb = texte.isEmpty() ? null : ajuster(g, semi, texte, 80 * u, z.h() * 0.13f, 3.8f * u, 2.6f * u, 1.3f, 4);
+        Bloc tb = titre.isEmpty() ? null : ajuster(g, gras, titre, largeur, z.h() * 0.22f * z.k(), 9.4f * u * z.k(), 4.4f * u, 1.1f, z.k() < 1f ? 2 : 3);
+        Bloc xb = texte.isEmpty() ? null : ajuster(g, semi, texte, 80 * u, z.h() * 0.13f * z.k(), 3.8f * u * z.k(), 2.6f * u, 1.3f, z.k() < 1f ? 2 : 4);
         float y = z.haut();
         float contenu = (tb == null ? 0 : tb.hauteur()) + (xb == null ? 0 : xb.hauteur() + 1.6f * u);
         float bas = y + contenu + 3 * u;
-        g.setColor(p.fond());
+        g.setColor(alpha(p.fond(), z.k() < 1f ? 0.86f : 1f));
         g.fillRect(0, 0, z.w(), Math.round(bas));
         g.setPaint(new GradientPaint(0, bas, alpha(p.fond(), 0.9f), 0, bas + 7 * u, alpha(p.fond(), 0f)));
         g.fillRect(0, Math.round(bas), z.w(), Math.round(7 * u));
@@ -241,7 +247,7 @@ public class MoteurAffiche {
         if (tb != null) y = dessiner(g, tb, x, y, Color.WHITE, false);
         if (xb != null) y = dessiner(g, xb, x, y + 1.6f * u, new Color(235, 238, 245), false);
         // Dégradé de lisibilité en bas de la photo
-        g.setPaint(new GradientPaint(0, z.h() * 0.7f, alpha(p.fond(), 0f), 0, z.bas(), alpha(p.fond(), 0.5f)));
+        g.setPaint(new GradientPaint(0, z.h() * 0.7f, alpha(p.fond(), 0f), 0, z.bas(), alpha(p.fond(), 0.5f * z.voile())));
         g.fillRect(0, Math.round(z.h() * 0.7f), z.w(), z.h());
         if (!cta.isEmpty()) pilule(g, cta, x, bas + 1.5f * u, 3.6f * u, p, 90 * u);
     }
@@ -249,29 +255,29 @@ public class MoteurAffiche {
     private void diagonale(Graphics2D g, Zone z, Palette p, String titre, String texte, String cta) {
         float u = z.u();
         float x = 4 * u;
-        Bloc tb = titre.isEmpty() ? null : ajuster(g, gras, titre, 44 * u, z.h() * 0.34f, 8.6f * u, 4.2f * u, 1.1f, 4);
+        Bloc tb = titre.isEmpty() ? null : ajuster(g, gras, titre, 44 * u * z.k(), z.h() * 0.34f * z.k(), 8.6f * u * z.k(), 4.2f * u, 1.1f, 4);
         float y = z.haut();
         float hp = y + (tb == null ? 0 : tb.hauteur()) + 5 * u;
         Polygon panneau = new Polygon(
-                new int[]{0, Math.round(z.w() * 0.66f), Math.round(z.w() * 0.52f), 0},
+                new int[]{0, Math.round(z.w() * (0.30f + 0.36f * z.k())), Math.round(z.w() * (0.16f + 0.36f * z.k())), 0},
                 new int[]{0, 0, Math.round(hp), Math.round(hp)}, 4);
         g.setColor(alpha(p.marque(), 0.96f));
         g.fill(panneau);
         g.setColor(alpha(Color.WHITE, 0.18f));
         g.setStroke(new BasicStroke(0.5f * u));
-        g.drawLine(Math.round(z.w() * 0.66f), 0, Math.round(z.w() * 0.52f), Math.round(hp));
+        g.drawLine(Math.round(z.w() * (0.30f + 0.36f * z.k())), 0, Math.round(z.w() * (0.16f + 0.36f * z.k())), Math.round(hp));
         Color surMarque = contraste(p.marque());
         float suite = hp;
         if (tb != null) dessiner(g, tb, x, y, surMarque, false);
         if (!texte.isEmpty()) {
-            Bloc xb = ajuster(g, semi, texte, 42 * u, z.h() * 0.2f, 3.7f * u, 2.6f * u, 1.3f, 5);
+            Bloc xb = ajuster(g, semi, texte, 42 * u * z.k(), z.h() * 0.2f * z.k(), 3.7f * u * z.k(), 2.6f * u, 1.3f, 5);
             float bh = xb.hauteur() + 3.4f * u;
             g.setColor(alpha(p.fond(), 0.88f));
-            g.fillRect(0, Math.round(hp), Math.round(50 * u), Math.round(bh));
+            g.fillRect(0, Math.round(hp), Math.round(50 * u * z.k()), Math.round(bh));
             dessiner(g, xb, x, hp + 1.7f * u, Color.WHITE, false);
             suite = hp + bh;
         }
-        g.setPaint(new GradientPaint(0, z.h() * 0.7f, alpha(p.fond(), 0f), 0, z.bas(), alpha(p.fond(), 0.45f)));
+        g.setPaint(new GradientPaint(0, z.h() * 0.7f, alpha(p.fond(), 0f), 0, z.bas(), alpha(p.fond(), 0.45f * z.voile())));
         g.fillRect(0, Math.round(z.h() * 0.7f), z.w(), z.h());
         if (!cta.isEmpty()) pilule(g, cta, 3 * u, suite + 3 * u, 3.6f * u, p, 60 * u);
     }
@@ -499,10 +505,10 @@ public class MoteurAffiche {
 
     private void pleinCadre(Graphics2D g, Zone z, Palette p, String titre, String texte, String cta) {
         float u = z.u();
-        g.setPaint(new GradientPaint(0, 0, alpha(Color.BLACK, 0.45f), 0, z.h() * 0.22f, alpha(Color.BLACK, 0f)));
+        g.setPaint(new GradientPaint(0, 0, alpha(Color.BLACK, 0.45f * z.voile()), 0, z.h() * 0.22f, alpha(Color.BLACK, 0f)));
         g.fillRect(0, 0, z.w(), Math.round(z.h() * 0.22f));
-        float debut = z.h() * 0.42f;
-        g.setPaint(new GradientPaint(0, debut, alpha(p.fond(), 0f), 0, z.bas() - 6 * u, alpha(p.fond(), 0.93f)));
+        float debut = z.h() * (1f - 0.58f * z.k());
+        g.setPaint(new GradientPaint(0, debut, alpha(p.fond(), 0f), 0, z.bas() - 6 * u, alpha(p.fond(), z.k() < 1f ? 0.78f : 0.93f)));
         g.fillRect(0, Math.round(debut), z.w(), Math.round(z.h() - debut));
 
         float x = 4 * u;
@@ -515,13 +521,13 @@ public class MoteurAffiche {
             y -= hp + 2.4f * u;
         }
         if (!texte.isEmpty()) {
-            Bloc xb = ajuster(g, semi, texte, 84 * u, Math.min(dispo * 0.3f, z.h() * 0.16f), 3.9f * u, 2.6f * u, 1.3f, 5);
+            Bloc xb = ajuster(g, semi, texte, 84 * u, Math.min(dispo * 0.3f, z.h() * 0.16f) * z.k(), 3.9f * u * z.k(), 2.6f * u, 1.3f, z.k() < 1f ? 3 : 5);
             y -= xb.hauteur();
             dessiner(g, xb, x, y, new Color(235, 238, 245), true);
             y -= 2 * u;
         }
         if (!titre.isEmpty()) {
-            Bloc tb = ajuster(g, gras, titre, 90 * u, Math.max(8 * u, y - z.haut() - 2 * u), 10.4f * u, 4.4f * u, 1.1f, 4);
+            Bloc tb = ajuster(g, gras, titre, 90 * u, Math.max(8 * u, (y - z.haut() - 2 * u) * z.k()), 10.4f * u * z.k(), 4.4f * u, 1.1f, z.k() < 1f ? 3 : 4);
             y -= tb.hauteur();
             g.setColor(p.accent());
             g.fillRect(Math.round(x), Math.round(y - 2.2f * u), Math.round(12 * u), Math.max(2, Math.round(0.8f * u)));
