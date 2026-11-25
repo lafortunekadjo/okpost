@@ -26,14 +26,14 @@ public final class CalendrierDtos {
             Boolean analyserPage) {}
 
     public record CalendrierResume(UUID id, LocalDate debut, LocalDate fin, List<String> reseaux,
-                                   String statutGeneration, long publications) {}
+                                   String statutGeneration, long publications, boolean archive) {}
 
     public record CalendrierVue(UUID id, UUID clientId, String clientNom, LocalDate debut, LocalDate fin,
                                 List<String> reseaux, Map<String, Integer> rythme, String objectifs,
                                 String tempsForts, String langue, String strategie, List<String> piliers,
                                 String statutGeneration, String messageErreur, String fournisseurIa,
                                 long total, long detaillees, List<PublicationVue> publications,
-                                boolean analyserPage, String analysePage) {}
+                                boolean analyserPage, String analysePage, boolean archive) {}
 
     public record RetourVue(String decision, String commentaire, String legendeProposee, String legendeOrigine,
                             java.time.Instant date, String par) {}

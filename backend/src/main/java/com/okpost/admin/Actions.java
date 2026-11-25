@@ -14,6 +14,11 @@ public final class Actions {
     public static final String MEMBRE_INVITE = "MEMBRE_INVITE";
     public static final String CLIENT_CREE = "CLIENT_CREE";
     public static final String CLIENT_ARCHIVE = "CLIENT_ARCHIVE";
+    public static final String CLIENT_RESTAURE = "CLIENT_RESTAURE";
+    public static final String CLIENT_SUPPRIME = "CLIENT_SUPPRIME";
+    public static final String CALENDRIER_ARCHIVE = "CALENDRIER_ARCHIVE";
+    public static final String CALENDRIER_SUPPRIME = "CALENDRIER_SUPPRIME";
+    public static final String PUBLICATION_SUPPRIMEE = "PUBLICATION_SUPPRIMEE";
     public static final String CALENDRIER_CREE = "CALENDRIER_CREE";
     public static final String LIEN_VALIDATION = "LIEN_VALIDATION";
     public static final String LIEN_PARTAGE = "LIEN_PARTAGE";
@@ -31,6 +36,11 @@ public final class Actions {
         m.put(MEMBRE_INVITE, "Membre invité");
         m.put(CLIENT_CREE, "Client créé");
         m.put(CLIENT_ARCHIVE, "Client archivé");
+        m.put(CLIENT_RESTAURE, "Client restauré");
+        m.put(CLIENT_SUPPRIME, "Client supprimé définitivement");
+        m.put(CALENDRIER_ARCHIVE, "Calendrier archivé");
+        m.put(CALENDRIER_SUPPRIME, "Calendrier supprimé");
+        m.put(PUBLICATION_SUPPRIMEE, "Publication supprimée");
         m.put(CALENDRIER_CREE, "Calendrier généré");
         m.put(LIEN_VALIDATION, "Lien de validation envoyé");
         m.put(LIEN_PARTAGE, "Lien de consultation envoyé");

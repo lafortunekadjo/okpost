@@ -2,7 +2,7 @@ import { Component, inject, input, signal, OnInit } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpEventType } from '@angular/common/http';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ApiService, messageErreur } from '../core/api.service';
 import { ConfirmationService } from '../core/confirmation.service';
 import {
@@ -385,6 +385,10 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
           </div>
           <p class="aide" style="margin-top:8px">Les modifications non enregistrées seront remplacées.</p>
         </div>
+        <div class="ligne" style="margin-top:24px">
+          <span class="espace"></span>
+          <button type="button" class="bouton danger petit" (click)="supprimerPublication(pub)">Supprimer cette publication</button>
+        </div>
       } @else if (!erreur()) {
         <p class="chargement">Chargement…</p>
       }
@@ -432,6 +436,7 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
 export class PublicationComponent implements OnInit {
   private api = inject(ApiService);
   private confirmation = inject(ConfirmationService);
+  private router = inject(Router);
   id = input.required<string>();
 
   p = signal<Publication | null>(null);
@@ -812,6 +817,22 @@ export class PublicationComponent implements OnInit {
     this.api.regenerer(p.id, champ, this.consigne).subscribe({
       next: maj => { this.afficher(maj); this.regen.set(false); },
       error: e => { this.erreur.set(messageErreur(e)); this.regen.set(false); },
+    });
+  }
+
+  async supprimerPublication(pub: Publication) {
+    const dejaPubliee = pub.statut === 'PUBLIEE';
+    if (!(await this.confirmation.demander({
+      titre: 'Supprimer cette publication ?',
+      message: (pub.statut === 'PROGRAMMEE' ? 'Elle est programmée : elle ne partira pas. ' : '')
+        + (dejaPubliee ? 'Elle est déjà publiée : le post reste en ligne sur le réseau, seule sa fiche OkPost est effacée. ' : '')
+        + 'Son texte et ses visuels seront supprimés. Cette action est définitive.',
+      confirmer: 'Supprimer',
+      danger: true,
+    }))) return;
+    this.api.supprimerPublication(pub.id).subscribe({
+      next: () => this.router.navigate(['/calendriers', pub.calendrierId]),
+      error: e => { this.erreur.set(messageErreur(e)); window.scrollTo({ top: 0 }); },
     });
   }
 

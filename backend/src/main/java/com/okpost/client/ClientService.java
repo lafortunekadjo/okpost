@@ -86,14 +86,6 @@ public class ClientService {
     }
 
     @Transactional
-    public void archiver(Session s, UUID id) {
-        Client c = charger(s, id);
-        c.setArchive(true);
-        clients.save(c);
-        journal.enregistrer(s, com.okpost.admin.Actions.CLIENT_ARCHIVE, c.getNom(), null);
-    }
-
-    @Transactional
     public ClientAsset ajouterFichier(Session s, UUID clientId, ClientAsset.Type type, String legende, MultipartFile fichier) {
         abonnements.exigerEcriture(s.workspaceId());
         charger(s, clientId);

@@ -221,8 +221,13 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
           </div>
         }
 
-        <div class="ligne" style="margin-top:24px">
+        <div class="ligne" style="margin-top:24px;gap:8px;flex-wrap:wrap">
           <span class="espace"></span>
+          @if (c.archive) {
+            <button class="bouton secondaire petit" (click)="restaurer(c)">Restaurer ce calendrier</button>
+          } @else {
+            <button class="bouton secondaire petit" (click)="archiver(c)">Archiver ce calendrier</button>
+          }
           <button class="bouton danger petit" (click)="supprimer(c)">Supprimer ce calendrier</button>
         </div>
       } @else if (!erreur()) {
@@ -505,8 +510,17 @@ export class CalendrierComponent implements OnInit {
     this.api.relancer(this.id()).subscribe({ next: () => this.charger(), error: e => this.erreur.set(messageErreur(e)) });
   }
 
+  async archiver(c: Calendrier) {
+    if (!(await this.confirmation.demander({ titre: 'Archiver ce calendrier ?', message: 'Il disparaît des listes et ses publications programmées sont annulées (rien ne partira). Tu pourras le restaurer.', confirmer: 'Archiver' }))) return;
+    this.api.archiverCalendrier(c.id).subscribe({ next: () => history.back(), error: e => this.erreur.set(messageErreur(e)) });
+  }
+
+  restaurer(c: Calendrier) {
+    this.api.restaurerCalendrier(c.id).subscribe({ next: () => this.charger(), error: e => this.erreur.set(messageErreur(e)) });
+  }
+
   async supprimer(c: Calendrier) {
-    if (!(await this.confirmation.demander({ titre: 'Supprimer ce calendrier ?', message: 'Toutes ses publications seront supprimées. Cette action est définitive.', confirmer: 'Supprimer', danger: true }))) return;
+    if (!(await this.confirmation.demander({ titre: 'Supprimer ce calendrier ?', message: 'Toutes ses publications et leurs visuels seront effacés. Les posts déjà publiés sur Facebook ou Instagram restent en ligne. Cette action est définitive : pour le garder sans l\'afficher, archive-le plutôt.', confirmer: 'Supprimer', danger: true }))) return;
     this.api.supprimerCalendrier(c.id).subscribe({
       next: () => history.back(),
       error: e => this.erreur.set(messageErreur(e)),

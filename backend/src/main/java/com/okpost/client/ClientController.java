@@ -32,9 +32,12 @@ public class ClientController {
     private final AnalyseurPhoto analyseur;
     private final FicheDepuisSiteService ficheDepuisSite;
     private final ImportImageService importImage;
+    private final SuppressionService suppression;
 
     public ClientController(ClientService service, TableauDeBord tableau, AnalyseurPhoto analyseur,
-                            FicheDepuisSiteService ficheDepuisSite, ImportImageService importImage) {
+                            FicheDepuisSiteService ficheDepuisSite, ImportImageService importImage,
+                            SuppressionService suppression) {
+        this.suppression = suppression;
         this.ficheDepuisSite = ficheDepuisSite;
         this.importImage = importImage;
         this.service = service;
@@ -70,10 +73,29 @@ public class ClientController {
         return service.vue(service.modifier(Session.courante(), id, form));
     }
 
+    /** Clients archivés (pour les restaurer ou les supprimer définitivement). */
+    @GetMapping("/archives")
+    public List<ClientResume> archives() {
+        return suppression.listerArchives(Session.courante()).stream().map(tableau::resume).toList();
+    }
+
+    @PostMapping("/{id}/restaurer")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void restaurer(@PathVariable UUID id) {
+        suppression.restaurer(Session.courante(), id);
+    }
+
+    /** Suppression définitive : réservée aux administrateurs, uniquement pour un client déjà archivé. */
+    @DeleteMapping("/{id}/definitif")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void supprimerDefinitivement(@PathVariable UUID id) {
+        suppression.supprimerDefinitivement(Session.courante(), id);
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void archiver(@PathVariable UUID id) {
-        service.archiver(Session.courante(), id);
+        suppression.archiver(Session.courante(), id);
     }
 
     @PostMapping("/{id}/assets")

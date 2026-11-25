@@ -81,6 +81,24 @@ public class CalendrierController {
         service.supprimer(Session.courante(), id);
     }
 
+    @PostMapping("/calendriers/{id}/archiver")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void archiver(@PathVariable UUID id) {
+        service.archiver(Session.courante(), id);
+    }
+
+    @PostMapping("/calendriers/{id}/restaurer")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void restaurer(@PathVariable UUID id) {
+        service.restaurer(Session.courante(), id);
+    }
+
+    @DeleteMapping("/publications/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void supprimerPublication(@PathVariable UUID id) {
+        service.supprimerPublication(Session.courante(), id);
+    }
+
     @GetMapping("/publications/{id}")
     public PublicationVue lirePublication(@PathVariable UUID id) {
         return service.vuePublication(Session.courante(), id);

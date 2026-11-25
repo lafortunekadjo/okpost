@@ -3,10 +3,11 @@ import { RouterLink } from '@angular/router';
 import { ApiService, messageErreur } from '../core/api.service';
 import { Abonnement, Alerte, ClientResume, LIBELLES_RESEAU } from '../core/models';
 import { DatePipe } from '@angular/common';
+import { ClientsArchivesComponent } from '../shared/clients-archives.component';
 
 @Component({
   selector: 'app-tableau-de-bord',
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, ClientsArchivesComponent],
   template: `
     <div class="page">
       <div class="entete-page">
@@ -76,6 +77,7 @@ import { DatePipe } from '@angular/common';
           }
         </div>
       }
+      <app-clients-archives (restaure)="recharger()" />
     </div>
   `,
   styles: `
@@ -104,8 +106,12 @@ export class TableauDeBordComponent {
   erreurReseaux = new URLSearchParams(window.location.search).get('reseaux') === 'erreur'
     ? new URLSearchParams(window.location.search).get('message') ?? 'erreur inconnue' : '';
 
-  constructor() {
+  recharger() {
     this.api.clients().subscribe({ next: c => this.clients.set(c), error: e => { this.erreur.set(messageErreur(e)); this.clients.set([]); } });
+  }
+
+  constructor() {
+    this.recharger();
     this.api.abonnement().subscribe({ next: a => this.abonnement.set(a), error: () => {} });
     this.api.surveillance().subscribe({ next: a => this.alertes.set(a), error: () => {} });
   }

@@ -131,9 +131,56 @@ public class CalendrierService {
         return c;
     }
 
+    /** Supprime le calendrier, ses publications et leurs fichiers. Les posts déjà publiés sur les réseaux ne sont pas touchés. */
     @Transactional
     public void supprimer(Session s, UUID id) {
-        calendriers.delete(charger(s, id));
+        Calendrier c = charger(s, id);
+        List<UUID> ids = publications.findByCalendrierIdOrderByDatePrevueAscReseauAsc(c.getId()).stream().map(Publication::getId).toList();
+        List<String> fichiers = ids.isEmpty() ? List.of()
+                : visuels.findByPublicationIdInOrderByCreatedAtDesc(ids).stream().map(VisuelGenere::getChemin).toList();
+        calendriers.delete(c);
+        calendriers.flush();
+        com.okpost.client.FichiersApresCommit.supprimer(stockage, fichiers);
+        journal.enregistrer(s, com.okpost.admin.Actions.CALENDRIER_SUPPRIME, c.getPeriodeDebut() + " → " + c.getPeriodeFin(),
+                ids.size() + " publication(s), " + fichiers.size() + " fichier(s)");
+    }
+
+    /** Archive le calendrier : masqué des listes et des échéances ; ses programmations sont annulées pour que rien ne parte. */
+    @Transactional
+    public int archiver(Session s, UUID id) {
+        Calendrier c = charger(s, id);
+        int annulees = 0;
+        for (Publication p : publications.findByCalendrierIdOrderByDatePrevueAscReseauAsc(c.getId())) {
+            if (p.getStatut() == StatutPublication.PROGRAMMEE) {
+                p.setStatut(StatutPublication.VALIDEE);
+                p.setPublicationPrevue(null);
+                publications.save(p);
+                annulees++;
+            }
+        }
+        c.setArchive(true);
+        calendriers.save(c);
+        journal.enregistrer(s, com.okpost.admin.Actions.CALENDRIER_ARCHIVE, c.getPeriodeDebut() + " → " + c.getPeriodeFin(),
+                annulees > 0 ? annulees + " programmation(s) annulée(s)" : null);
+        return annulees;
+    }
+
+    @Transactional
+    public void restaurer(Session s, UUID id) {
+        Calendrier c = charger(s, id);
+        c.setArchive(false);
+        calendriers.save(c);
+    }
+
+    /** Supprime une publication et ses fichiers. Si elle est déjà publiée, le post sur le réseau reste en ligne : seule sa fiche OkPost disparaît. */
+    @Transactional
+    public void supprimerPublication(Session s, UUID id) {
+        Publication p = chargerPublication(s, id);
+        List<String> fichiers = visuels.findByPublicationIdInOrderByCreatedAtDesc(List.of(p.getId())).stream().map(VisuelGenere::getChemin).toList();
+        publications.delete(p);
+        publications.flush();
+        com.okpost.client.FichiersApresCommit.supprimer(stockage, fichiers);
+        journal.enregistrer(s, com.okpost.admin.Actions.PUBLICATION_SUPPRIMEE, p.getReseau() + " du " + p.getDatePrevue(), p.getStatut().name());
     }
 
     @Transactional(readOnly = true)
@@ -141,7 +188,7 @@ public class CalendrierService {
         clients.charger(s, clientId);
         return calendriers.findByClientIdAndWorkspaceIdOrderByPeriodeDebutDesc(clientId, s.workspaceId()).stream()
                 .map(c -> new CalendrierResume(c.getId(), c.getPeriodeDebut(), c.getPeriodeFin(), c.getReseaux(),
-                        c.getStatutGeneration().name(), publications.countByCalendrierId(c.getId())))
+                        c.getStatutGeneration().name(), publications.countByCalendrierId(c.getId()), c.isArchive()))
                 .toList();
     }
 
@@ -158,7 +205,7 @@ public class CalendrierService {
         return new CalendrierVue(c.getId(), c.getClientId(), client.getNom(), c.getPeriodeDebut(), c.getPeriodeFin(),
                 c.getReseaux(), c.getRythme(), c.getObjectifs(), c.getTempsForts(), c.getLangue(), c.getStrategie(),
                 c.getPiliers(), c.getStatutGeneration().name(), c.getMessageErreur(), c.getFournisseurIa(),
-                pubs.size(), detaillees, vues, c.isAnalyserPage(), c.getAnalysePage());
+                pubs.size(), detaillees, vues, c.isAnalyserPage(), c.getAnalysePage(), c.isArchive());
     }
 
     @Transactional(readOnly = true)

@@ -11,4 +11,6 @@ public interface ClientRepository extends JpaRepository<Client, UUID> {
     List<Client> findByWorkspaceIdAndCmIdAndArchiveFalseOrderByNom(UUID workspaceId, UUID cmId);
     Optional<Client> findByIdAndWorkspaceId(UUID id, UUID workspaceId);
     long countByWorkspaceIdAndArchiveFalse(UUID workspaceId);
+    List<Client> findByWorkspaceIdAndArchiveTrueOrderByNom(UUID workspaceId);
+    List<Client> findByWorkspaceIdAndCmIdAndArchiveTrueOrderByNom(UUID workspaceId, UUID cmId);
 }

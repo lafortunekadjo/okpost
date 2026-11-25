@@ -36,7 +36,7 @@ public interface PublicationRepository extends JpaRepository<Publication, UUID> 
     @Query("""
             select p.statut as statut, count(p) as nombre
             from Publication p, Calendrier c
-            where p.calendrierId = c.id and c.clientId = :clientId
+            where p.calendrierId = c.id and c.clientId = :clientId and c.archive = false
               and p.datePrevue between :debut and :fin
             group by p.statut
             """)
@@ -47,7 +47,7 @@ public interface PublicationRepository extends JpaRepository<Publication, UUID> 
     long compterPublieesParOkPost(UUID clientId, java.time.Instant debut, java.time.Instant fin);
 
     /** Date de la prochaine publication prévue (programmée ou validée) d'un client. */
-    @Query("select min(p.datePrevue) from Publication p, Calendrier c where p.calendrierId = c.id and c.clientId = :clientId "
+    @Query("select min(p.datePrevue) from Publication p, Calendrier c where p.calendrierId = c.id and c.clientId = :clientId and c.archive = false "
             + "and p.statut in (com.okpost.calendrier.StatutPublication.PROGRAMMEE, com.okpost.calendrier.StatutPublication.VALIDEE) "
             + "and p.datePrevue >= :aujourdhui")
     LocalDate prochainePublication(UUID clientId, LocalDate aujourdhui);

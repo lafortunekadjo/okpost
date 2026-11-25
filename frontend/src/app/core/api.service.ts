@@ -16,6 +16,12 @@ export class ApiService {
   client(id: string) { return this.http.get<Client>(`${this.base}/clients/${id}`); }
   creerClient(c: Client) { return this.http.post<Client>(`${this.base}/clients`, c); }
   modifierClient(id: string, c: Client) { return this.http.put<Client>(`${this.base}/clients/${id}`, c); }
+  clientsArchives() { return this.http.get<ClientResume[]>(`${this.base}/clients/archives`); }
+  restaurerClient(id: string) { return this.http.post<void>(`${this.base}/clients/${id}/restaurer`, {}); }
+  supprimerClientDefinitivement(id: string) { return this.http.delete<void>(`${this.base}/clients/${id}/definitif`); }
+  archiverCalendrier(id: string) { return this.http.post<void>(`${this.base}/calendriers/${id}/archiver`, {}); }
+  restaurerCalendrier(id: string) { return this.http.post<void>(`${this.base}/calendriers/${id}/restaurer`, {}); }
+  supprimerPublication(id: string) { return this.http.delete<void>(`${this.base}/publications/${id}`); }
   archiverClient(id: string) { return this.http.delete<void>(`${this.base}/clients/${id}`); }
   ajouterFichier(clientId: string, type: string, fichier: File, legende?: string) {
     const f = new FormData();

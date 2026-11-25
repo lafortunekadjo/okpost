@@ -33,7 +33,7 @@ public class TelechargeurImage {
             SecuriteUrl.verifierHote(courant);
             HttpRequest requete = HttpRequest.newBuilder(courant)
                     .timeout(Duration.ofSeconds(10))
-                    .header("User-Agent", "Mozilla/5.0 (compatible; OkPostBot/1.0; import d'images demandé par le propriétaire du site)")
+                    .header("User-Agent", agentPour(courant.getHost()))
                     .header("Accept", "image/*")
                     .GET().build();
             HttpResponse<InputStream> reponse;
@@ -61,7 +61,7 @@ public class TelechargeurImage {
             }
             if (code >= 400) {
                 fermer(reponse);
-                throw ApiException.requeteInvalide("Le site refuse le téléchargement de l'image (" + code + ")");
+                throw ApiException.requeteInvalide("Le site " + courant.getHost() + " refuse le téléchargement de l'image (" + code + ")");
             }
             String type = reponse.headers().firstValue("Content-Type").orElse("").toLowerCase(Locale.ROOT);
             if (!type.startsWith("image/") || type.contains("svg")) {
@@ -77,6 +77,21 @@ public class TelechargeurImage {
             }
         }
         throw ApiException.requeteInvalide("Trop de redirections");
+    }
+
+    private static final String AGENT_OKPOST = "Mozilla/5.0 (compatible; OkPostBot/1.0; import d'images demandé par le propriétaire du site)";
+    private static final String AGENT_NAVIGATEUR = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+
+    /**
+     * Le CDN de Meta (photos Facebook et Instagram) répond 400 aux agents qu'il ne connaît pas et 200 à un navigateur standard.
+     * Ces images viennent de la Page ou du compte que le client a lui-même relié : on s'y présente comme un navigateur. Les autres sites
+     * voient toujours l'agent OkPost.
+     */
+    static String agentPour(String hote) {
+        String h = hote == null ? "" : hote.toLowerCase(Locale.ROOT);
+        boolean meta = h.endsWith(".fbcdn.net") || h.equals("fbcdn.net") || h.endsWith(".cdninstagram.com") || h.equals("cdninstagram.com")
+                || h.endsWith(".fbsbx.com");
+        return meta ? AGENT_NAVIGATEUR : AGENT_OKPOST;
     }
 
     private static void fermer(HttpResponse<InputStream> reponse) {

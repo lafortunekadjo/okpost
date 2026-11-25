@@ -86,7 +86,7 @@ export interface ClientResume {
 }
 
 export interface CalendrierResume {
-  id: string; debut: string; fin: string; reseaux: string[]; statutGeneration: string; publications: number;
+  id: string; debut: string; fin: string; reseaux: string[]; statutGeneration: string; publications: number; archive?: boolean;
 }
 
 export interface TexteCarrousel { visuel: number; titre: string; texte: string; }
@@ -155,7 +155,7 @@ export interface Calendrier {
   id: string; clientId: string; clientNom: string; debut: string; fin: string; reseaux: string[];
   rythme: Record<string, number>; objectifs?: string; tempsForts?: string; langue: string; strategie?: string;
   piliers?: string[]; statutGeneration: 'EN_ATTENTE' | 'GRILLE' | 'DETAILS' | 'TERMINE' | 'ERREUR';
-  messageErreur?: string; fournisseurIa?: string; total: number; detaillees: number; publications: Publication[];
+  messageErreur?: string; fournisseurIa?: string; total: number; detaillees: number; publications: Publication[]; archive?: boolean;
   analyserPage?: boolean; analysePage?: string;
 }
 

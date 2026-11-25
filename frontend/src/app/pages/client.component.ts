@@ -59,12 +59,13 @@ import { BanqueImagesComponent } from '../shared/banque-images.component';
             <p class="vide">Aucun calendrier pour l'instant. Génère le premier en 2 minutes.</p>
           } @else {
             <ul class="liste">
-              @for (cal of calendriers(); track cal.id) {
-                <li>
+              @for (cal of calendriersAffiches(); track cal.id) {
+                <li [class.archive]="cal.archive">
                   <a [routerLink]="['/calendriers', cal.id]">
                     <strong>{{ cal.debut | date: 'd MMM' }} – {{ cal.fin | date: 'd MMM y' }}</strong>
                     <span class="sous-titre">{{ cal.publications }} publications · {{ nomsReseaux(cal.reseaux) }}</span>
                   </a>
+                  @if (cal.archive) { <span class="pastille">Archivé</span> }
                   @if (cal.statutGeneration !== 'TERMINE') {
                     <span class="pastille" [class.statut-A_MODIFIER]="cal.statutGeneration === 'ERREUR'">
                       {{ cal.statutGeneration === 'ERREUR' ? 'Erreur' : 'En cours' }}</span>
@@ -72,6 +73,11 @@ import { BanqueImagesComponent } from '../shared/banque-images.component';
                 </li>
               }
             </ul>
+            @if (nbArchives() > 0) {
+              <button type="button" class="bouton secondaire petit" style="margin-top:8px" (click)="voirArchives.set(!voirArchives())">
+                {{ voirArchives() ? 'Masquer les calendriers archivés' : 'Afficher les calendriers archivés (' + nbArchives() + ')' }}
+              </button>
+            }
           }
         </div>
 
@@ -131,9 +137,13 @@ import { BanqueImagesComponent } from '../shared/banque-images.component';
   `,
   styles: `
     .logo { width: 52px; height: 52px; border-radius: 12px; object-fit: contain; background: #fff; box-shadow: var(--ombre); }
+    li.archive { opacity: .65; }
     .liste { list-style: none; margin: 0; padding: 0; }
+    li.archive { opacity: .65; }
     .liste li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--gris-clair); }
+    li.archive { opacity: .65; }
     .liste li:first-child { border-top: none; }
+    li.archive { opacity: .65; }
     .liste a { flex: 1; display: flex; flex-direction: column; color: inherit; }
     .carte + .carte { margin-top: 16px; }
     .compte { padding: 8px 0; border-top: 1px solid var(--gris-clair); }
@@ -148,6 +158,9 @@ export class ClientComponent implements OnInit {
   id = input.required<string>();
   client = signal<Client | null>(null);
   calendriers = signal<CalendrierResume[] | null>(null);
+  voirArchives = signal(false);
+  calendriersAffiches = computed(() => (this.calendriers() ?? []).filter(c => !c.archive || this.voirArchives()));
+  nbArchives = computed(() => (this.calendriers() ?? []).filter(c => c.archive).length);
   logo = signal<string | null>(null);
   manques = signal<string[]>([]);
   etapes = computed(() => {
