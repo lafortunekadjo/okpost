@@ -42,6 +42,15 @@ public class PortailController {
         service.decider(jeton, id, d.decision(), d.commentaire(), ipHash(req), code);
     }
 
+    public record ResultatToutValider(int validees) {}
+
+    /** Valide toutes les publications du lien qui attendent une réponse (les demandes de modification ne sont pas touchées). */
+    @PostMapping("/tout-valider")
+    public ResultatToutValider toutValider(@PathVariable String jeton,
+                                           @RequestHeader(value = "X-Code-Validation", required = false) String code, HttpServletRequest req) {
+        return new ResultatToutValider(service.validerTout(jeton, ipHash(req), code));
+    }
+
     @PutMapping("/publications/{id}/legende")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void modifierLegende(@PathVariable String jeton, @PathVariable UUID id, @Valid @RequestBody NouvelleLegende n,

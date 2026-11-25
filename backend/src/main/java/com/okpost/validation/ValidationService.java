@@ -261,6 +261,37 @@ public class ValidationService {
         programmerSiAuto(p);
     }
 
+    /**
+     * Valide d'un coup toutes les publications du lien qui attendent une réponse. Celles pour lesquelles le client a demandé une modification
+     * ne sont pas touchées : « tout valider » ne doit jamais écraser une demande. Chaque validation reste enregistrée au nom du validateur.
+     *
+     * @return nombre de publications validées
+     */
+    @Transactional
+    public int validerTout(String jeton, String ipHash, String code) {
+        LienValidation l = lienValidation(jeton);
+        var validateur = identifier(l, jeton, code);
+        Calendrier cal = calendriers.findById(l.getCalendrierId()).orElseThrow(() -> ApiException.introuvable("Lien"));
+        Publication derniere = null;
+        int n = 0;
+        for (Publication p : publications.findByIdInAndCalendrierId(l.getPublications(), cal.getId())) {
+            if (p.getStatut() != StatutPublication.A_VALIDER) continue;
+            p.setStatut(StatutPublication.VALIDEE);
+            publications.save(p);
+            enregistrerRetour(l, p, RetourClient.Decision.OK, null, null, null, ipHash, validateur);
+            programmerSiAuto(p);
+            derniere = p;
+            n++;
+        }
+        if (derniere != null) {
+            // Une seule trace au journal et un seul e-mail (« validation terminée ») pour tout le lot
+            journal.enregistrer(cal.getWorkspaceId(), null, validateur.map(v -> v.nom() + " (client)").orElse("Client (lien de validation)"),
+                    com.okpost.admin.Actions.VALIDATION_CLIENT, "Tout valider", n + " publication(s) validée(s)");
+            notifier(l, derniere, RetourClient.Decision.OK, null, validateur);
+        }
+        return n;
+    }
+
     @Transactional
     public void modifierLegende(String jeton, UUID publicationId, String legende, String commentaire, String ipHash, String code) {
         LienValidation l = lienValidation(jeton);

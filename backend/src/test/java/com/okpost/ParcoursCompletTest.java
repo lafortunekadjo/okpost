@@ -202,6 +202,22 @@ class ParcoursCompletTest {
         assertThat(corrigee.get("statut").asText()).isEqualTo("BROUILLON");
         assertThat(corrigee.get("retours").size()).isEqualTo(1);
 
+        // Tout valider : ce qui attend une réponse est validé d'un coup, une modification demandée n'est pas écrasée
+        JsonNode lienTout = appeler(post("/api/v1/calendriers/" + calId + "/liens-validation"), jeton,
+                Map.of("publications", ids.subList(3, 6)), 201);
+        String urlTout = lienTout.get("url").asText();
+        String jetonTout = urlTout.substring(urlTout.lastIndexOf('/') + 1);
+        appeler(post("/api/v1/public/validation/" + jetonTout + "/publications/" + ids.get(4)), null,
+                Map.of("decision", "A_MODIFIER", "commentaire", "Autre couleur"), 204);
+        assertThat(appeler(post("/api/v1/public/validation/" + jetonTout + "/tout-valider"), null, null, 200).get("validees").asInt()).isEqualTo(2);
+        JsonNode apresTout = appeler(get("/api/v1/calendriers/" + calId), jeton, null, 200);
+        assertThat(statut(apresTout, ids.get(3))).isEqualTo("VALIDEE");
+        assertThat(statut(apresTout, ids.get(4))).isEqualTo("A_MODIFIER");
+        assertThat(statut(apresTout, ids.get(5))).isEqualTo("VALIDEE");
+        assertThat(appeler(post("/api/v1/public/validation/" + jetonTout + "/tout-valider"), null, null, 200).get("validees").asInt()).isZero();
+        // Un lien de partage (lecture seule) ne peut rien valider
+        appeler(post("/api/v1/public/validation/" + jetonPartage + "/tout-valider"), null, null, 403);
+
         // Lien révoqué : le portail n'est plus accessible
         appeler(delete("/api/v1/liens-validation/" + lien.get("id").asText()), jeton, null, 204);
         appeler(get("/api/v1/public/validation/" + jetonLien), null, null, 410);

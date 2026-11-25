@@ -2,6 +2,7 @@ import { Component, computed, inject, input, signal, OnInit } from '@angular/cor
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService, messageErreur } from '../core/api.service';
+import { ConfirmationService } from '../core/confirmation.service';
 import { LIBELLES_FORMAT, LIBELLES_RESEAU, Portail, PortailPublication } from '../core/models';
 import { LogoComponent } from '../shared/logo.component';
 
@@ -47,6 +48,9 @@ type Mode = 'lecture' | 'texte' | 'commentaire';
         <div class="carte resume">
           <strong>{{ validees() }} sur {{ p.total }} validées</strong>
           @if (aModifier()) { <span class="pastille statut-A_MODIFIER">{{ aModifier() }} à modifier</span> }
+          @if (enAttente() > 0) {
+            <button type="button" class="bouton" [disabled]="envoi()" (click)="toutValider()">✓ Tout valider ({{ enAttente() }})</button>
+          }
           <div class="barre"><div [style.width.%]="(validees() / p.total) * 100"></div></div>
           <p class="aide">Pour chaque publication : validez, corrigez le texte vous-même, ou expliquez ce qu'il faut changer.</p>
         </div>
@@ -122,6 +126,11 @@ type Mode = 'lecture' | 'texte' | 'commentaire';
           </article>
         }
 
+        @if (enAttente() > 1) {
+          <div class="carte bas-de-page">
+            <button type="button" class="bouton" [disabled]="envoi()" (click)="toutValider()">✓ Tout valider ({{ enAttente() }} publications en attente)</button>
+          </div>
+        }
         <p class="pied"><app-logo [taille]="14" /> · lien valable jusqu'au {{ p.expireLe | date: 'd MMMM y' }}</p>
       </div>
       }
@@ -146,12 +155,14 @@ type Mode = 'lecture' | 'texte' | 'commentaire';
     .image-prevue { width: 100%; border-radius: 10px; margin: 12px 0 0; display: block; }
     .hashtags { color: var(--bleu); font-size: .9rem; }
     .boutons { margin-top: 12px; }
+    .bas-de-page { text-align: center; margin-top: 16px; }
     .pied { text-align: center; color: var(--gris); font-size: .8rem; margin-top: 24px; }
     @media (max-width: 640px) { .boutons .bouton { flex: 1 1 100%; } }
   `,
 })
 export class PortailComponent implements OnInit {
   private api = inject(ApiService);
+  private confirmation = inject(ConfirmationService);
   jeton = input.required<string>();
 
   portail = signal<Portail | null>(null);
@@ -172,6 +183,8 @@ export class PortailComponent implements OnInit {
   });
   validees = computed(() => this.portail()?.publications.filter(p => p.statut === 'VALIDEE').length ?? 0);
   aModifier = computed(() => this.portail()?.publications.filter(p => p.statut === 'A_MODIFIER').length ?? 0);
+  /** Publications qui attendent encore une réponse : celles-là seulement sont concernées par « Tout valider ». */
+  enAttente = computed(() => this.portail()?.publications.filter(p => p.statut === 'A_VALIDER').length ?? 0);
 
   ngOnInit() {
     // Le code est gardé le temps de la session du navigateur pour ne pas le redemander à chaque rechargement
@@ -219,6 +232,19 @@ export class PortailComponent implements OnInit {
   editer(p: PortailPublication) {
     this.brouillons[p.id] = p.legende ?? '';
     this.modes.set(p.id, 'texte');
+  }
+
+  async toutValider() {
+    const n = this.enAttente();
+    if (!n) return;
+    if (!(await this.confirmation.demander({
+      titre: `Valider les ${n} publication${n > 1 ? 's' : ''} en attente ?`,
+      message: 'Tu valides toutes les publications qui attendent ta réponse, telles qu\'elles sont affichées. Celles pour lesquelles tu as demandé une modification ne sont pas concernées.',
+      confirmer: `Tout valider (${n})`,
+    }))) return;
+    this.envoi.set(true);
+    this.erreur.set('');
+    this.api.toutValider(this.jeton(), this.code).subscribe({ next: () => this.charger(), error: e => this.echec(e) });
   }
 
   valider(p: PortailPublication) {

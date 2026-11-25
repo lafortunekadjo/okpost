@@ -150,6 +150,10 @@ export class ApiService {
   decider(jeton: string, pubId: string, decision: 'OK' | 'A_MODIFIER', commentaire?: string, code?: string | null) {
     return this.http.post<void>(`${this.base}/public/validation/${jeton}/publications/${pubId}`, { decision, commentaire }, this.enteteCode(code));
   }
+  /** Valide d'un coup toutes les publications du lien qui attendent une réponse. */
+  toutValider(jeton: string, code?: string | null) {
+    return this.http.post<{ validees: number }>(`${this.base}/public/validation/${jeton}/tout-valider`, {}, this.enteteCode(code));
+  }
   modifierLegendePortail(jeton: string, pubId: string, legende: string, commentaire?: string, code?: string | null) {
     return this.http.put<void>(`${this.base}/public/validation/${jeton}/publications/${pubId}/legende`, { legende, commentaire }, this.enteteCode(code));
   }
