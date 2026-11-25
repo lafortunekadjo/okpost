@@ -152,9 +152,36 @@ const TYPES_FICHIERS = [
                 }
               </div>
             }
-            @if (c.offres.length > 1) { <p class="aide">{{ c.offres.length }} élément(s) dans le catalogue.</p> }
+            @if (c.offres.length > 1) {
+              <div class="outils-offres">
+                <span class="aide">{{ c.offres.length }} élément(s) dans le catalogue@if (c.typeActivite !== 'SERVICES' && nbSansPhoto() > 0) { · <strong>{{ nbSansPhoto() }} sans photo</strong> }</span>
+                <span class="espace"></span>
+                @if (c.offres.length > 6) {
+                  <input type="search" name="filtre-offres" [(ngModel)]="filtreOffres" (input)="$event.stopPropagation()" placeholder="Chercher un produit…" aria-label="Chercher un produit" class="recherche-offres" />
+                }
+                <button type="button" class="bouton secondaire petit" (click)="toutDeplier()">Tout déplier</button>
+                <button type="button" class="bouton secondaire petit" (click)="toutReplier()">Tout replier</button>
+              </div>
+            }
             @for (o of c.offres; track $index) {
-              <div class="offre">
+              @if (visibleOffre(o)) {
+              <div class="offre" [class.ouverte]="estOuverte(o)">
+                <div class="offre-entete">
+                  <button type="button" class="bascule" (click)="basculerOffre(o)" [attr.aria-expanded]="estOuverte(o)">
+                    <span class="chevron" aria-hidden="true">{{ estOuverte(o) ? '▾' : '▸' }}</span>
+                    <strong>{{ o.nom || 'Nouvelle offre' }}</strong>
+                    @if (o.prix) { <span class="prix">{{ o.prix }}</span> }
+                    @if (o.categorie) { <span class="aide">· {{ o.categorie }}</span> }
+                    @if (c.typeActivite !== 'SERVICES') {
+                      @if (o.disponible === false) { <span class="pastille statut-A_MODIFIER">Rupture</span> }
+                      @if (o.photos?.length) { <span class="aide">· {{ o.photos!.length }} photo{{ o.photos!.length > 1 ? 's' : '' }}</span> }
+                      @else { <span class="aide sans-photo">· sans photo</span> }
+                    }
+                  </button>
+                  <button type="button" class="bouton danger petit" (click)="retirerOffre(o)" [attr.aria-label]="'Retirer ' + (o.nom || 'cette offre')">Retirer</button>
+                </div>
+                @if (estOuverte(o)) {
+                <div class="offre-corps">
                 <div class="ligne-champs">
                   <div class="champ"><label>Offre</label><input type="text" [name]="'offre-nom-' + $index" [(ngModel)]="o.nom" /></div>
                   <div class="champ"><label>Prix</label><input type="text" [name]="'offre-prix-' + $index" [(ngModel)]="o.prix" placeholder="25 000 FCFA" /></div>
@@ -208,11 +235,13 @@ const TYPES_FICHIERS = [
                   @if (c.typeActivite !== 'SERVICES' && id() && o.nom) {
                     <button type="button" class="bouton secondaire petit" (click)="copierLienCommande(o)">{{ lienCopie() === o.nom ? 'Lien copié' : 'Copier le lien de commande WhatsApp' }}</button>
                   }
-                  <button type="button" class="bouton danger petit" (click)="c.offres.splice($index, 1); modifie.set(true)">Retirer</button>
                 </div>
+                </div>
+                }
               </div>
+              }
             }
-            <button type="button" class="bouton secondaire" (click)="c.offres.push({ nom: '' }); modifie.set(true)">+ Ajouter une offre</button>
+            <button type="button" class="bouton secondaire" (click)="ajouterOffre()">+ Ajouter une offre</button>
           }
           @case ('localisation') {
             <div class="ligne-champs">
@@ -312,7 +341,17 @@ const TYPES_FICHIERS = [
     </div>
   `,
   styles: `
-    .offre { border: 1px solid var(--gris-clair); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+    .offre { border: 1px solid var(--gris-clair); border-radius: 10px; padding: 8px 12px; margin-bottom: 8px; }
+    .offre.ouverte { padding: 10px 14px 14px; border-color: var(--vert, #15803d); }
+    .offre-entete { display: flex; gap: 8px; align-items: center; }
+    .bascule { flex: 1; min-width: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: none; border: 0; padding: 6px 0; font: inherit; text-align: left; cursor: pointer; color: inherit; }
+    .bascule:hover strong { text-decoration: underline; }
+    .chevron { width: 1em; color: var(--gris); }
+    .prix { color: var(--gris); font-size: .85rem; }
+    .sans-photo { color: #b45309; }
+    .offre-corps { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--gris-clair); }
+    .outils-offres { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0 10px; }
+    .recherche-offres { max-width: 220px; }
     .import-catalogue { border: 1px dashed var(--gris-clair); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
     .photos-produit { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
     .mini { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; border: 1px solid var(--gris-clair); }
@@ -343,6 +382,49 @@ export class FicheClientComponent implements OnInit {
   onglet = signal<Onglet>('identite');
   assets = signal<Asset[]>([]);
   photosBanque = computed(() => this.assets().filter(a => a.type === 'PHOTO'));
+
+  /** Offres dépliées (par référence : l'état suit l'offre même si la liste change). Les offres existantes démarrent repliées. */
+  private ouvertes = signal<Set<Offre>>(new Set());
+  filtreOffres = '';
+  nbSansPhoto() {
+    return this.c.offres.filter(o => !o.photos?.length).length;
+  }
+
+  estOuverte(o: Offre) {
+    return this.ouvertes().has(o);
+  }
+
+  basculerOffre(o: Offre) {
+    this.ouvertes.update(s => { const n = new Set(s); if (n.has(o)) n.delete(o); else n.add(o); return n; });
+  }
+
+  toutDeplier() {
+    this.ouvertes.set(new Set(this.c.offres));
+  }
+
+  toutReplier() {
+    this.ouvertes.set(new Set());
+  }
+
+  /** Une nouvelle offre s'ouvre tout de suite pour être remplie. */
+  ajouterOffre() {
+    const o: Offre = { nom: '' };
+    this.c.offres.push(o);
+    this.filtreOffres = '';
+    this.ouvertes.update(s => new Set(s).add(o));
+    this.modifie.set(true);
+  }
+
+  retirerOffre(o: Offre) {
+    const i = this.c.offres.indexOf(o);
+    if (i >= 0) this.c.offres.splice(i, 1);
+    this.modifie.set(true);
+  }
+
+  visibleOffre(o: Offre) {
+    const f = this.filtreOffres.trim().toLowerCase();
+    return !f || (o.nom ?? '').toLowerCase().includes(f) || (o.categorie ?? '').toLowerCase().includes(f);
+  }
 
   lienCopie = signal('');
 
