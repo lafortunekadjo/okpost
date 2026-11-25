@@ -41,6 +41,7 @@ public class SuppressionService {
 
     @Transactional(readOnly = true)
     public List<Client> listerArchives(Session s) {
+        s.exigerProprietaire();
         return s.role() == Role.CM
                 ? depot.findByWorkspaceIdAndCmIdAndArchiveTrueOrderByNom(s.workspaceId(), s.userId())
                 : depot.findByWorkspaceIdAndArchiveTrueOrderByNom(s.workspaceId());
@@ -49,6 +50,7 @@ public class SuppressionService {
     /** @return nombre de programmations annulées */
     @Transactional
     public int archiver(Session s, UUID id) {
+        s.exigerProprietaire();
         Client c = clients.charger(s, id);
         int annulees = jdbc.update("""
                 UPDATE publication SET statut = 'VALIDEE', publication_prevue = NULL, updated_at = now()
@@ -62,6 +64,7 @@ public class SuppressionService {
 
     @Transactional
     public void restaurer(Session s, UUID id) {
+        s.exigerProprietaire();
         abonnements.exigerEcriture(s.workspaceId());
         Client c = clients.charger(s, id);
         if (!c.isArchive()) return;
@@ -78,6 +81,7 @@ public class SuppressionService {
     /** Efface le client, ses calendriers, publications, visuels, photos, comptes reliés et codes de validation. Irréversible. */
     @Transactional
     public void supprimerDefinitivement(Session s, UUID id) {
+        s.exigerProprietaire();
         s.exigerAdmin();
         Client c = clients.charger(s, id);
         if (!c.isArchive()) {

@@ -46,6 +46,7 @@ public class MembresController {
     @GetMapping
     public List<Membre> lister() {
         Session s = Session.courante();
+        s.exigerProprietaire();
         return utilisateurs.findByWorkspaceIdOrderByNom(s.workspaceId()).stream().map(MembresController::vue).toList();
     }
 

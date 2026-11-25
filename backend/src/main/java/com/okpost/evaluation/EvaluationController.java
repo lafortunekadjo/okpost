@@ -106,6 +106,7 @@ public class EvaluationController {
     @Transactional(readOnly = true)
     public List<LigneSynthese> synthese() {
         Session s = Session.courante();
+        s.exigerProprietaire();
         List<Calendrier> notes = calendrierRepo.findByWorkspaceId(s.workspaceId());
         Map<UUID, List<EvaluationPublication>> parCalendrier = evaluations
                 .findByCalendrierIdIn(notes.stream().map(Calendrier::getId).toList()).stream()

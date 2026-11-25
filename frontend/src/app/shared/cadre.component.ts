@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { LogoComponent } from './logo.component';
 
@@ -12,7 +12,7 @@ import { LogoComponent } from './logo.component';
         <a routerLink="/" class="marque"><app-logo /></a>
         <nav>
           <a routerLink="/" routerLinkActive="actif" [routerLinkActiveOptions]="{ exact: true }">Clients</a>
-          <a routerLink="/reglages" routerLinkActive="actif">Réglages</a>
+          @if (!auth.estCollaborateur()) { <a routerLink="/reglages" routerLinkActive="actif">Réglages</a> }
           @if (auth.estSuperAdmin()) { <a routerLink="/admin" routerLinkActive="actif">Administration</a> }
         </nav>
         <span class="espace"></span>
@@ -20,6 +20,12 @@ import { LogoComponent } from './logo.component';
         <button class="bouton secondaire petit" (click)="auth.deconnexion()">Déconnexion</button>
       </div>
     </header>
+    @if (auth.estCollaborateur()) {
+      <div class="bandeau-collab" role="status">
+        <span>Collaboration : tu travailles sur <strong>{{ auth.contexteNom() || 'un client partagé' }}</strong>. Tu n'as accès qu'à ce client.</span>
+        <button type="button" class="bouton secondaire petit" (click)="revenir()">Revenir à mon espace</button>
+      </div>
+    }
     <main><router-outlet /></main>
   `,
   styles: `
@@ -31,9 +37,15 @@ import { LogoComponent } from './logo.component';
     nav a:hover { background: #f3f4f6; text-decoration: none; }
     nav a.actif { color: var(--vert-fonce); background: var(--vert-clair); }
     .nom { color: var(--gris); font-size: .85rem; }
+    .bandeau-collab { background: #fef3c7; border-bottom: 1px solid #fcd34d; padding: 8px 16px; display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; font-size: .9rem; }
     @media (max-width: 640px) { .nom { display: none; } .contenu { gap: 8px; } }
   `,
 })
 export class CadreComponent {
   auth = inject(AuthService);
+  private router = inject(Router);
+
+  revenir() {
+    this.auth.quitterContexte().subscribe(() => this.router.navigateByUrl('/'));
+  }
 }

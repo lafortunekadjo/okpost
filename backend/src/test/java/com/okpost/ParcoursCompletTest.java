@@ -279,6 +279,76 @@ class ParcoursCompletTest {
 
     // ------------------------------------------------------------------
 
+    @Autowired com.okpost.abonnement.AbonnementRepository abonnementsDepot;
+
+    /** Un compte d'un autre espace, invité sur UN client : il ne voit que lui, et perd tout dès que l'accès est retiré. */
+    @Test
+    void collaborationSurUnSeulClient() throws Exception {
+        String suffixe = UUID.randomUUID().toString();
+        JsonNode a = appeler(post("/api/v1/auth/inscription"), null,
+                Map.of("nomEspace", "Agence A", "nom", "Alice", "email", "alice+" + suffixe + "@exemple.com", "motDePasse", "motdepasse-ok"), 200);
+        String jetonA = a.get("jetonAcces").asText();
+        UUID espaceA = UUID.fromString(a.get("workspaceId").asText());
+        // L'essai n'autorise qu'un client : la formule PRO permet d'en avoir deux
+        var abonnement = abonnementsDepot.findFirstByWorkspaceIdOrderByFinDesc(espaceA).orElseThrow();
+        abonnement.setFormule(com.okpost.abonnement.Formule.PRO);
+        abonnementsDepot.save(abonnement);
+        String partage = appeler(post("/api/v1/clients"), jetonA, Map.of("nom", "Boutique partagée", "langue", "fr"), 201).get("id").asText();
+        String confidentiel = appeler(post("/api/v1/clients"), jetonA, Map.of("nom", "Client confidentiel", "langue", "fr"), 201).get("id").asText();
+
+        String emailB = "awa+" + suffixe + "@exemple.com";
+        JsonNode b = appeler(post("/api/v1/auth/inscription"), null,
+                Map.of("nomEspace", "Agence B", "nom", "Awa", "email", emailB, "motDePasse", "motdepasse-ok"), 200);
+        String jetonB = b.get("jetonAcces").asText();
+
+        // Sans invitation : aucune session limitée possible
+        appeler(post("/api/v1/acces/contexte"), jetonB, Map.of("clientId", partage), 403);
+        assertThat(appeler(get("/api/v1/acces/partages"), jetonB, null, 200)).isEmpty();
+
+        // Invitation : adresse inconnue refusée, puis acceptée pour le compte existant ; pas deux fois
+        appeler(post("/api/v1/clients/" + partage + "/collaborateurs"), jetonA, Map.of("email", "inconnu+" + suffixe + "@exemple.com"), 400);
+        JsonNode collab = appeler(post("/api/v1/clients/" + partage + "/collaborateurs"), jetonA, Map.of("email", emailB), 201);
+        appeler(post("/api/v1/clients/" + partage + "/collaborateurs"), jetonA, Map.of("email", emailB), 400);
+        // Un invité ne peut inviter personne
+        assertThat(appeler(get("/api/v1/acces/partages"), jetonB, null, 200)).hasSize(1);
+
+        // Session limitée à ce client, dans l'espace du propriétaire
+        JsonNode ctx = appeler(post("/api/v1/acces/contexte"), jetonB, Map.of("clientId", partage), 200);
+        String jetonCtx = ctx.get("jetonAcces").asText();
+        assertThat(ctx.get("role").asText()).isEqualTo("COLLAB");
+        assertThat(ctx.get("workspaceId").asText()).isEqualTo(espaceA.toString());
+        assertThat(ctx.get("clientId").asText()).isEqualTo(partage);
+
+        // Il ne voit que ce client, même en connaissant l'identifiant de l'autre
+        JsonNode liste = appeler(get("/api/v1/clients"), jetonCtx, null, 200);
+        assertThat(liste).hasSize(1);
+        assertThat(liste.get(0).get("id").asText()).isEqualTo(partage);
+        appeler(get("/api/v1/clients/" + confidentiel), jetonCtx, null, 404);
+        appeler(get("/api/v1/clients/" + confidentiel + "/calendriers"), jetonCtx, null, 404);
+        appeler(post("/api/v1/clients/" + confidentiel + "/collaborateurs"), jetonCtx, Map.of("email", emailB), 403);
+
+        // Il travaille sur le client partagé
+        appeler(put("/api/v1/clients/" + partage), jetonCtx, Map.of("nom", "Boutique partagée", "langue", "fr", "slogan", "Modifié par l'invité"), 200);
+        assertThat(appeler(get("/api/v1/clients/" + partage), jetonCtx, null, 200).get("slogan").asText()).isEqualTo("Modifié par l'invité");
+
+        // Mais rien de ce qui concerne l'espace du propriétaire
+        appeler(post("/api/v1/clients"), jetonCtx, Map.of("nom", "Nouveau", "langue", "fr"), 403);
+        appeler(get("/api/v1/membres"), jetonCtx, null, 403);
+        appeler(get("/api/v1/abonnements/courant"), jetonCtx, null, 403);
+        appeler(get("/api/v1/clients/archives"), jetonCtx, null, 403);
+        appeler(delete("/api/v1/clients/" + partage), jetonCtx, null, 403);
+        appeler(delete("/api/v1/clients/" + partage + "/definitif"), jetonCtx, null, 403);
+        appeler(get("/api/v1/clients/" + partage + "/collaborateurs"), jetonCtx, null, 403);
+
+        // Le propriétaire voit son collaborateur, puis retire l'accès : le jeton encore valide ne donne plus rien
+        assertThat(appeler(get("/api/v1/clients/" + partage + "/collaborateurs"), jetonA, null, 200)).hasSize(1);
+        appeler(delete("/api/v1/clients/" + partage + "/collaborateurs/" + collab.get("id").asText()), jetonA, null, 204);
+        appeler(get("/api/v1/clients/" + partage), jetonCtx, null, 404);
+        assertThat(appeler(get("/api/v1/clients"), jetonCtx, null, 200)).isEmpty();
+        appeler(post("/api/v1/acces/contexte"), jetonB, Map.of("clientId", partage), 403);
+        assertThat(appeler(get("/api/v1/acces/partages"), jetonB, null, 200)).isEmpty();
+    }
+
     private String inscrire(String espace, String email) throws Exception {
         JsonNode r = appeler(post("/api/v1/auth/inscription"), null,
                 Map.of("nomEspace", espace, "nom", "Vanessa", "email", email, "motDePasse", "motdepasse-ok"), 200);

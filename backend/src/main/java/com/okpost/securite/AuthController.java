@@ -30,7 +30,8 @@ public class AuthController {
 
     public record Connexion(@NotBlank @Email String email, @NotBlank String motDePasse) {}
 
-    public record Reponse(String jetonAcces, UUID userId, UUID workspaceId, String nom, String email, String role) {}
+    /** clientId : renseigné seulement pour une session limitée à un client partagé (rôle COLLAB). */
+    public record Reponse(String jetonAcces, UUID userId, UUID workspaceId, String nom, String email, String role, UUID clientId) {}
 
     private final AuthService service;
     private final OkpostProperties props;
@@ -68,7 +69,7 @@ public class AuthController {
         rep.addHeader(HttpHeaders.SET_COOKIE,
                 cookie(j.rafraichissement(), Duration.ofDays(props.jwt().rafraichissementJours())).toString());
         Utilisateur u = j.utilisateur();
-        return new Reponse(j.acces(), u.getId(), u.getWorkspaceId(), u.getNom(), u.getEmail(), u.getRole().name());
+        return new Reponse(j.acces(), u.getId(), u.getWorkspaceId(), u.getNom(), u.getEmail(), u.getRole().name(), null);
     }
 
     private ResponseCookie cookie(String valeur, Duration duree) {

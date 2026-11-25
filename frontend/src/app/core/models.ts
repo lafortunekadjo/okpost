@@ -1,4 +1,4 @@
-export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'CM';
+export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'CM' | 'COLLAB';
 
 export interface SessionUtilisateur {
   jetonAcces: string;
@@ -7,7 +7,13 @@ export interface SessionUtilisateur {
   nom: string;
   email: string;
   role: Role;
+  /** Renseigné pour une session limitée à un client partagé (rôle COLLAB). */
+  clientId?: string;
 }
+
+export interface Collaborateur { id: string; nom: string; email: string; depuis: string; }
+
+export interface ClientPartage { clientId: string; clientNom: string; espace: string; depuis: string; }
 
 export interface Offre {
   nom: string; description?: string; prix?: string; variantes?: string; photos?: string[];

@@ -13,6 +13,8 @@ public final class Actions {
     public static final String CONNEXION_ECHEC = "CONNEXION_ECHEC";
     public static final String MEMBRE_INVITE = "MEMBRE_INVITE";
     public static final String CLIENT_CREE = "CLIENT_CREE";
+    public static final String ACCES_INVITE = "ACCES_INVITE";
+    public static final String ACCES_RETIRE = "ACCES_RETIRE";
     public static final String CLIENT_ARCHIVE = "CLIENT_ARCHIVE";
     public static final String CLIENT_RESTAURE = "CLIENT_RESTAURE";
     public static final String CLIENT_SUPPRIME = "CLIENT_SUPPRIME";
@@ -35,6 +37,8 @@ public final class Actions {
         m.put(CONNEXION_ECHEC, "Connexion refusée");
         m.put(MEMBRE_INVITE, "Membre invité");
         m.put(CLIENT_CREE, "Client créé");
+        m.put(ACCES_INVITE, "Collaborateur invité sur un client");
+        m.put(ACCES_RETIRE, "Accès collaborateur retiré");
         m.put(CLIENT_ARCHIVE, "Client archivé");
         m.put(CLIENT_RESTAURE, "Client restauré");
         m.put(CLIENT_SUPPRIME, "Client supprimé définitivement");

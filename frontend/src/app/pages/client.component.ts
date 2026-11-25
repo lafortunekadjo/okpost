@@ -4,12 +4,14 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ApiService, messageErreur } from '../core/api.service';
 import { ConfirmationService } from '../core/confirmation.service';
+import { AuthService } from '../core/auth.service';
 import { CalendrierResume, Client, CompteSocial, LIBELLES_RESEAU } from '../core/models';
 import { BanqueImagesComponent } from '../shared/banque-images.component';
+import { CollaborateursComponent } from '../shared/collaborateurs.component';
 
 @Component({
   selector: 'app-client',
-  imports: [RouterLink, DatePipe, FormsModule, BanqueImagesComponent],
+  imports: [RouterLink, DatePipe, FormsModule, BanqueImagesComponent, CollaborateursComponent],
   template: `
     <div class="page">
       @if (erreur()) { <div class="erreur">{{ erreur() }}</div> }
@@ -128,9 +130,11 @@ import { BanqueImagesComponent } from '../shared/banque-images.component';
           </div>
         </div>
 
+        @if (auth.estAdmin()) { <app-collaborateurs [clientId]="c.id!" /> }
+
         <div class="ligne" style="margin-top:24px">
           <span class="espace"></span>
-          <button class="bouton danger petit" (click)="archiver(c)">Archiver ce client</button>
+          @if (!auth.estCollaborateur()) { <button class="bouton danger petit" (click)="archiver(c)">Archiver ce client</button> }
         </div>
       }
     </div>
@@ -155,6 +159,7 @@ export class ClientComponent implements OnInit {
   private api = inject(ApiService);
   private confirmation = inject(ConfirmationService);
   private router = inject(Router);
+  auth = inject(AuthService);
   id = input.required<string>();
   client = signal<Client | null>(null);
   calendriers = signal<CalendrierResume[] | null>(null);

@@ -1,7 +1,9 @@
 import { Component, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ApiService, messageErreur } from '../core/api.service';
-import { Abonnement, Alerte, ClientResume, LIBELLES_RESEAU } from '../core/models';
+import { Abonnement, Alerte, ClientPartage, ClientResume, LIBELLES_RESEAU } from '../core/models';
+import { AuthService } from '../core/auth.service';
+import { ConfirmationService } from '../core/confirmation.service';
 import { DatePipe } from '@angular/common';
 import { ClientsArchivesComponent } from '../shared/clients-archives.component';
 import { AlerteActionsComponent } from '../shared/alerte-actions.component';
@@ -16,7 +18,7 @@ import { AlerteActionsComponent } from '../shared/alerte-actions.component';
           <h1>Clients</h1>
           <p class="sous-titre">Publications du mois en cours</p>
         </div>
-        <a class="bouton" routerLink="/clients/nouveau">+ Nouveau client</a>
+        @if (!auth.estCollaborateur()) { <a class="bouton" routerLink="/clients/nouveau">+ Nouveau client</a> }
       </div>
 
       @if (abonnement(); as a) {
@@ -42,6 +44,20 @@ import { AlerteActionsComponent } from '../shared/alerte-actions.component';
                 <span class="texte">{{ a.message }}</span>
               </a>
               <app-alerte-actions [alerte]="a" [compteAReconnecter]="compteAReconnecter(a)" (termine)="rechargerAlertes()" />
+            </div>
+          }
+        </section>
+      }
+
+      @if (partages().length && !auth.estCollaborateur()) {
+        <section class="carte partages" aria-label="Clients partagés avec moi">
+          <h2>Clients partagés avec moi</h2>
+          <p class="aide">Tu as été invité(e) à travailler sur ces clients. Tu n'y vois que le client, pas le reste de l'espace de son propriétaire.</p>
+          @for (p of partages(); track p.clientId) {
+            <div class="ligne-partage">
+              <div class="espace"><strong>{{ p.clientNom }}</strong> <span class="aide">espace « {{ p.espace }} »</span></div>
+              <button type="button" class="bouton petit" [disabled]="ouverture()" (click)="ouvrirPartage(p)">Ouvrir</button>
+              <button type="button" class="bouton secondaire petit" [disabled]="ouverture()" (click)="quitterPartage(p)">Quitter</button>
             </div>
           }
         </section>
@@ -81,11 +97,13 @@ import { AlerteActionsComponent } from '../shared/alerte-actions.component';
           }
         </div>
       }
-      <app-clients-archives (restaure)="recharger()" />
+      @if (!auth.estCollaborateur()) { <app-clients-archives (restaure)="recharger()" /> }
     </div>
   `,
   styles: `
     .infos-carte { margin: 8px 0 0; }
+    .partages { margin-bottom: 16px; }
+    .ligne-partage { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--gris-clair); flex-wrap: wrap; }
     .surveillance { border-left: 4px solid #dc2626; margin-bottom: 16px; }
     .alerte { padding: 10px 0; border-top: 1px solid var(--gris-clair); }
     .alerte:first-of-type { border-top: 0; }
@@ -103,6 +121,11 @@ import { AlerteActionsComponent } from '../shared/alerte-actions.component';
 })
 export class TableauDeBordComponent {
   private api = inject(ApiService);
+  private router = inject(Router);
+  private confirmation = inject(ConfirmationService);
+  auth = inject(AuthService);
+  partages = signal<ClientPartage[]>([]);
+  ouverture = signal(false);
   clients = signal<ClientResume[] | null>(null);
   abonnement = signal<Abonnement | null>(null);
   erreur = signal('');
@@ -121,6 +144,27 @@ export class TableauDeBordComponent {
     this.recharger();
   }
 
+  ouvrirPartage(p: ClientPartage) {
+    this.ouverture.set(true);
+    this.auth.entrerContexte(p.clientId, p.clientNom).subscribe({
+      next: () => { this.ouverture.set(false); this.router.navigate(['/clients', p.clientId]); },
+      error: e => { this.ouverture.set(false); this.erreur.set(messageErreur(e)); },
+    });
+  }
+
+  async quitterPartage(p: ClientPartage) {
+    if (!(await this.confirmation.demander({
+      titre: `Quitter « ${p.clientNom} » ?`,
+      message: 'Tu n\'auras plus accès à ce client. Son propriétaire pourra t\'inviter de nouveau.',
+      confirmer: 'Quitter',
+      danger: true,
+    }))) return;
+    this.api.quitterClientPartage(p.clientId).subscribe({
+      next: () => this.partages.update(l => l.filter(x => x.clientId !== p.clientId)),
+      error: e => this.erreur.set(messageErreur(e)),
+    });
+  }
+
   recharger() {
     this.api.clients().subscribe({ next: c => this.clients.set(c), error: e => { this.erreur.set(messageErreur(e)); this.clients.set([]); } });
   }
@@ -129,5 +173,6 @@ export class TableauDeBordComponent {
     this.recharger();
     this.api.abonnement().subscribe({ next: a => this.abonnement.set(a), error: () => {} });
     this.api.surveillance().subscribe({ next: a => this.alertes.set(a), error: () => {} });
+    if (!this.auth.estCollaborateur()) this.api.clientsPartages().subscribe({ next: l => this.partages.set(l), error: () => {} });
   }
 }

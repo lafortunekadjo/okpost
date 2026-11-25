@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http
 import { Injectable, inject } from '@angular/core';
 import {
   Abonnement, Alerte, Asset, FicheProposee, Musique, ResultatDuplication, Calendrier, CalendrierResume, Client, ClientResume, Consommation, EtatIa,
-  AdminCompte, AdminJournal, AdminTotaux, LienCommande, ResultatCatalogue, ResultatCatalogueWeb, CompteSocial, ContactValidation, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
+  AdminCompte, AdminJournal, AdminTotaux, ClientPartage, Collaborateur, LienCommande, ResultatCatalogue, ResultatCatalogueWeb, CompteSocial, ContactValidation, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
   PropositionEvenement, TempsFortSuggere, EvenementCatalogue, EvaluationCalendrier, LigneSynthese, NotesPublication,
   BilanPage, Recommandations,
 } from './models';
@@ -185,6 +185,15 @@ export class ApiService {
   carrouselProduit(publicationId: string) {
     return this.http.post<Publication>(`${this.base}/publications/${publicationId}/carrousel-produit`, {});
   }
+  collaborateurs(clientId: string) { return this.http.get<Collaborateur[]>(`${this.base}/clients/${clientId}/collaborateurs`); }
+  inviterCollaborateur(clientId: string, email: string) {
+    return this.http.post<Collaborateur>(`${this.base}/clients/${clientId}/collaborateurs`, { email });
+  }
+  retirerCollaborateur(clientId: string, accesId: string) {
+    return this.http.delete<void>(`${this.base}/clients/${clientId}/collaborateurs/${accesId}`);
+  }
+  clientsPartages() { return this.http.get<ClientPartage[]>(`${this.base}/acces/partages`); }
+  quitterClientPartage(clientId: string) { return this.http.delete<void>(`${this.base}/acces/partages/${clientId}`); }
   adminComptes() { return this.http.get<{ totaux: AdminTotaux; comptes: AdminCompte[] }>(`${this.base}/admin/comptes`); }
   adminJournal(f: { espace?: string; action?: string; page?: number }) {
     const params: Record<string, string> = { page: String(f.page ?? 0) };

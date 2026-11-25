@@ -23,7 +23,9 @@ public class AbonnementController {
 
     @GetMapping("/courant")
     public AbonnementVue courant() {
-        Abonnement a = service.courant(Session.courante().workspaceId());
+        Session s = Session.courante();
+        s.exigerProprietaire();
+        Abonnement a = service.courant(s.workspaceId());
         Formule f = a.getFormule();
         return new AbonnementVue(f.name(), a.getDebut(), a.getFin(), a.statutAu(LocalDate.now()).name(),
                 a.getMode().name(), f.maxClients(), f.maxMembres(), f.calendriersParMois(), f.imagesParMois(),

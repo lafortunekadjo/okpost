@@ -21,6 +21,9 @@ public class SurveillanceController {
     /** Alertes du tableau de bord : ce qui ne partira pas ou a échoué. */
     @GetMapping
     public List<Alerte> alertes() {
-        return surveillance.alertes(Session.courante().workspaceId());
+        Session s = Session.courante();
+        List<Alerte> alertes = surveillance.alertes(s.workspaceId());
+        // Une session limitée à un client ne voit que les alertes de ce client
+        return s.estCollaborateur() ? alertes.stream().filter(a -> a.clientId().equals(s.clientRestreint())).toList() : alertes;
     }
 }

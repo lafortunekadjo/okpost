@@ -29,9 +29,11 @@ public class ClientService {
     private final AbonnementService abonnements;
 
     private final com.okpost.admin.JournalService journal;
+    private final AccesClientRepository acces;
 
     public ClientService(ClientRepository clients, ClientAssetRepository assets, StockageFichiers stockage,
-                         AbonnementService abonnements, com.okpost.admin.JournalService journal) {
+                         AbonnementService abonnements, com.okpost.admin.JournalService journal, AccesClientRepository acces) {
+        this.acces = acces;
         this.journal = journal;
         this.clients = clients;
         this.assets = assets;
@@ -41,6 +43,11 @@ public class ClientService {
 
     @Transactional(readOnly = true)
     public List<Client> lister(Session s) {
+        if (s.estCollaborateur()) {
+            // Invité sur un seul client : la liste ne contient que lui, et seulement si l'accès existe encore
+            return s.clientRestreint() == null ? List.of() : clients.findByIdAndWorkspaceId(s.clientRestreint(), s.workspaceId())
+                    .filter(c -> !c.isArchive() && acces.existsByClientIdAndUserId(c.getId(), s.userId())).map(List::of).orElse(List.of());
+        }
         return s.role() == Role.CM
                 ? clients.findByWorkspaceIdAndCmIdAndArchiveFalseOrderByNom(s.workspaceId(), s.userId())
                 : clients.findByWorkspaceIdAndArchiveFalseOrderByNom(s.workspaceId());
@@ -54,11 +61,17 @@ public class ClientService {
         if (s.role() == Role.CM && c.getCmId() != null && !c.getCmId().equals(s.userId())) {
             throw ApiException.introuvable("Client");
         }
+        // Une session limitée à un client ne peut charger que lui, tant que l'accès n'a pas été retiré et que le client n'est pas archivé
+        if (s.estCollaborateur() && (!id.equals(s.clientRestreint()) || c.isArchive()
+                || !acces.existsByClientIdAndUserId(id, s.userId()))) {
+            throw ApiException.introuvable("Client");
+        }
         return c;
     }
 
     @Transactional
     public Client creer(Session s, ClientForm f) {
+        s.exigerProprietaire();
         abonnements.exigerEcriture(s.workspaceId());
         int max = abonnements.formule(s.workspaceId()).maxClients();
         if (clients.countByWorkspaceIdAndArchiveFalse(s.workspaceId()) >= max) {

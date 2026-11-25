@@ -23,3 +23,10 @@ export const superAdminGuard: CanActivateFn = () => {
   const router = inject(Router);
   return auth.estSuperAdmin() ? true : router.parseUrl('/');
 };
+
+/** Écrans de l'espace (création de client, réglages) : fermés à un invité sur un seul client. */
+export const proprietaireGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  return auth.estCollaborateur() ? router.parseUrl('/') : true;
+};

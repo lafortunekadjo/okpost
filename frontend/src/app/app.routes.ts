@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { connecteGuard, inviteGuard, superAdminGuard } from './core/guards';
+import { connecteGuard, inviteGuard, proprietaireGuard, superAdminGuard } from './core/guards';
 import { CadreComponent } from './shared/cadre.component';
 
 export const routes: Routes = [
@@ -27,7 +27,7 @@ export const routes: Routes = [
     canActivate: [connecteGuard],
     children: [
       { path: '', loadComponent: () => import('./pages/tableau-de-bord.component').then(m => m.TableauDeBordComponent) },
-      { path: 'clients/nouveau', loadComponent: () => import('./pages/fiche-client.component').then(m => m.FicheClientComponent) },
+      { path: 'clients/nouveau', canActivate: [proprietaireGuard], loadComponent: () => import('./pages/fiche-client.component').then(m => m.FicheClientComponent) },
       { path: 'clients/:id', loadComponent: () => import('./pages/client.component').then(m => m.ClientComponent) },
       { path: 'clients/:id/fiche', loadComponent: () => import('./pages/fiche-client.component').then(m => m.FicheClientComponent) },
       { path: 'clients/:id/calendriers/nouveau', loadComponent: () => import('./pages/nouveau-calendrier.component').then(m => m.NouveauCalendrierComponent) },
@@ -35,7 +35,7 @@ export const routes: Routes = [
       { path: 'calendriers/:id', loadComponent: () => import('./pages/calendrier.component').then(m => m.CalendrierComponent) },
       { path: 'publications/:id', loadComponent: () => import('./pages/publication.component').then(m => m.PublicationComponent) },
       { path: 'admin', canActivate: [superAdminGuard], loadComponent: () => import('./pages/admin.component').then(m => m.AdminComponent) },
-      { path: 'reglages', loadComponent: () => import('./pages/reglages.component').then(m => m.ReglagesComponent) },
+      { path: 'reglages', canActivate: [proprietaireGuard], loadComponent: () => import('./pages/reglages.component').then(m => m.ReglagesComponent) },
     ],
   },
   { path: '**', redirectTo: '' },

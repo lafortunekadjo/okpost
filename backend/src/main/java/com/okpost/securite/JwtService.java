@@ -30,6 +30,23 @@ public class JwtService {
         this.props = props;
     }
 
+    /** Session limitée à un client d'un autre espace : même durée de vie qu'un jeton normal, rôle COLLAB, un seul client autorisé. */
+    public String jetonContexte(Utilisateur u, java.util.UUID espaceId, java.util.UUID clientId) {
+        Instant maintenant = Instant.now();
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuer("okpost")
+                .subject(u.getId().toString())
+                .issuedAt(maintenant)
+                .expiresAt(maintenant.plus(Duration.ofMinutes(props.jwt().accesMinutes())))
+                .claim("ws", espaceId.toString())
+                .claim("role", Role.COLLAB.name())
+                .claim("client", clientId.toString())
+                .claim("nom", u.getNom())
+                .build();
+        JwsHeader entete = JwsHeader.with(MacAlgorithm.HS256).build();
+        return encodeur.encode(JwtEncoderParameters.from(entete, claims)).getTokenValue();
+    }
+
     public String jetonAcces(Utilisateur u) {
         Instant maintenant = Instant.now();
         JwtClaimsSet claims = JwtClaimsSet.builder()
