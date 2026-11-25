@@ -135,7 +135,7 @@ class GabaritsBoutiqueTest {
         ByteArrayOutputStream logoOctets = new ByteArrayOutputStream();
         ImageIO.write(logo, "png", logoOctets);
 
-        var marque = new CompositionVisuel.Habillage(logoOctets.toByteArray(), "#15803d", List.of());
+        var marque = new CompositionVisuel.Habillage(logoOctets.toByteArray(), "#15803d", List.of(), "COIN");
         byte[] sortie = moteur.composer(photo.toByteArray(), "1:1", new Contenu(Gabarit.PHOTO_SEULE, "Titre ignoré", null, "texte ignoré", "bouton ignoré"), marque);
         BufferedImage image = lire(sortie);
         assertThat(image.getWidth()).isEqualTo(1080);
@@ -147,6 +147,35 @@ class GabaritsBoutiqueTest {
         assertThat(ailleurs.getRed()).isBetween(20, 45);
         // Aucun texte, aucune bande de coordonnées : le haut de l'image reste uni
         assertThat(new Color(image.getRGB(540, 30)).getRed()).isBetween(20, 45);
+    }
+
+    @Test
+    void lePlacementDuFiligraneSuitLeReglageDuClientEtVautCentreParDefaut() throws Exception {
+        BufferedImage fond = new BufferedImage(800, 800, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = fond.createGraphics();
+        g.setColor(new Color(30, 30, 40));
+        g.fillRect(0, 0, 800, 800);
+        g.dispose();
+        ByteArrayOutputStream photo = new ByteArrayOutputStream();
+        ImageIO.write(fond, "png", photo);
+        BufferedImage logo = new BufferedImage(200, 100, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D gl = logo.createGraphics();
+        gl.setColor(Color.RED);
+        gl.fillRect(20, 20, 160, 60);
+        gl.dispose();
+        ByteArrayOutputStream logoOctets = new ByteArrayOutputStream();
+        ImageIO.write(logo, "png", logoOctets);
+        Contenu c = new Contenu(Gabarit.PHOTO_SEULE, null, null, null, null);
+        // Par défaut (null) et « CENTRE » : le logo est au milieu, le coin reste intact
+        for (String position : new String[]{null, "CENTRE"}) {
+            BufferedImage image = lire(moteur.composer(photo.toByteArray(), "1:1", c, new CompositionVisuel.Habillage(logoOctets.toByteArray(), null, List.of(), position)));
+            assertThat(new Color(image.getRGB(540, 540)).getRed()).as("centre, réglage %s", position).isGreaterThan(90);
+            assertThat(new Color(image.getRGB(1000, 1000)).getRed()).as("coin, réglage %s", position).isBetween(20, 45);
+        }
+        // AUCUN : la photo reste intacte, sans logo
+        BufferedImage nue = lire(moteur.composer(photo.toByteArray(), "1:1", c, new CompositionVisuel.Habillage(logoOctets.toByteArray(), null, List.of(), "AUCUN")));
+        assertThat(new Color(nue.getRGB(540, 540)).getRed()).isBetween(20, 45);
+        assertThat(new Color(nue.getRGB(1000, 1000)).getRed()).isBetween(20, 45);
     }
 
     @Test

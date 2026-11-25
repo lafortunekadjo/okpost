@@ -99,7 +99,7 @@ public class VisuelService {
         CompositionVisuel.Habillage marque = null;
         if (habiller) {
             Fiche f = fiche(client);
-            marque = new CompositionVisuel.Habillage(f.logo(), f.couleur(), f.contacts());
+            marque = new CompositionVisuel.Habillage(f.logo(), f.couleur(), f.contacts(), client.getPositionFiligrane());
             contenu = contenuAffiche(p.getBrief(), diapo, saisie);
         }
         if (contenu != null && contenu.gabarit() == MoteurAffiche.Gabarit.COLLECTION) {
@@ -221,7 +221,7 @@ public class VisuelService {
         }
         String ratio = p.getBrief().ratio() != null && p.getBrief().ratio().matches("1:1|4:5|9:16") ? p.getBrief().ratio() : "4:5";
         Fiche f = fiche(client);
-        CompositionVisuel.Habillage marque = new CompositionVisuel.Habillage(f.logo(), f.couleur(), List.of());
+        CompositionVisuel.Habillage marque = new CompositionVisuel.Habillage(f.logo(), f.couleur(), List.of(), client.getPositionFiligrane());
         MoteurAffiche.Contenu contenu = new MoteurAffiche.Contenu(MoteurAffiche.Gabarit.PHOTO_SEULE, null, null, null, null);
 
         List<VisuelGenere> anciens = visuels.findByPublicationIdInOrderByCreatedAtDesc(List.of(p.getId())).stream()

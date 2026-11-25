@@ -39,7 +39,12 @@ public class CompositionVisuel {
     /** Un élément du bandeau : icône, petit libellé facultatif (ex. « TikTok · Instagram ») et valeur. */
     public record Contact(TypeContact type, String libelle, String valeur) {}
 
-    public record Habillage(byte[] logo, String couleur, List<Contact> contacts) {}
+    /** filigrane : CENTRE (par défaut si null), COIN ou AUCUN, pour la mise en page « photo seule ». */
+    public record Habillage(byte[] logo, String couleur, List<Contact> contacts, String filigrane) {
+        public Habillage(byte[] logo, String couleur, List<Contact> contacts) {
+            this(logo, couleur, contacts, null);
+        }
+    }
 
     /** Hauteur du bandeau en % de la LARGEUR de l'image (sert aussi à réserver la place dans le prompt). */
     public static float hauteurBandeau(int nbContacts) {

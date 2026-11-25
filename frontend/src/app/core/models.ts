@@ -54,6 +54,7 @@ export interface FicheProposee {
 export interface Client {
   id?: string;
   typeActivite?: TypeActivite;
+  positionFiligrane?: 'CENTRE' | 'COIN' | 'AUCUN';
   nom: string;
   secteur?: string;
   description?: string;

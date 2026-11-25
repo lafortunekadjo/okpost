@@ -127,7 +127,7 @@ public class MoteurAffiche {
         int[] d = dimensions(ratio);
         int w = d[0];
         int h = d[1];
-        if (c.gabarit() == Gabarit.PHOTO_SEULE) return photoSeule(src, w, h, marque == null ? null : marque.logo());
+        if (c.gabarit() == Gabarit.PHOTO_SEULE) return photoSeule(src, w, h, marque == null ? null : marque.logo(), marque == null ? null : marque.filigrane());
         float u = w / 100f;
         Color couleur = CompositionVisuel.couleur(marque == null ? null : marque.couleur(), new Color(37, 99, 235));
         Palette p = new Palette(couleur);
@@ -325,16 +325,23 @@ public class MoteurAffiche {
     static final float FILIGRANE_HAUTEUR = 0.10f;
     static final float FILIGRANE_MARGE = 0.035f;
     static final float FILIGRANE_OPACITE = 0.72f;
+    /** Au centre le logo est plus grand mais plus transparent : il protège la photo sans cacher le produit. */
+    static final float FILIGRANE_CENTRE_LARGEUR = 0.34f;
+    static final float FILIGRANE_CENTRE_HAUTEUR = 0.22f;
+    static final float FILIGRANE_CENTRE_OPACITE = 0.38f;
 
-    /** La photo telle quelle (recadrée au format), avec seulement le logo du client en filigrane dans l'angle en bas à droite. */
-    byte[] photoSeule(BufferedImage src, int w, int h, byte[] logoOctets) {
+    /**
+     * La photo telle quelle (recadrée au format), avec seulement le logo du client en filigrane : au centre par défaut, dans l'angle en bas
+     * à droite (COIN) ou pas du tout (AUCUN).
+     */
+    byte[] photoSeule(BufferedImage src, int w, int h, byte[] logoOctets, String position) {
         BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = out.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
         couvrir(g, src, w, h);
         BufferedImage logo = logoOctets == null ? null : lire(logoOctets);
-        if (logo != null) filigrane(g, out, logo, w, h);
+        if (logo != null && !"AUCUN".equals(position)) filigrane(g, out, logo, w, h, "COIN".equals(position));
         g.dispose();
         return CompositionVisuel.jpeg(out);
     }
@@ -343,15 +350,17 @@ public class MoteurAffiche {
      * Logo semi-transparent. Un logo à fond transparent est teinté en blanc sur une zone sombre et en bleu nuit sur une zone claire,
      * pour rester lisible sans cacher la photo ; un logo opaque (fond plein) est posé tel quel.
      */
-    private void filigrane(Graphics2D g, BufferedImage fond, BufferedImage logo, int w, int h) {
-        double e = Math.min(w * FILIGRANE_LARGEUR / logo.getWidth(), h * FILIGRANE_HAUTEUR / logo.getHeight());
+    private void filigrane(Graphics2D g, BufferedImage fond, BufferedImage logo, int w, int h, boolean coin) {
+        float largeur = coin ? FILIGRANE_LARGEUR : FILIGRANE_CENTRE_LARGEUR;
+        float hauteur = coin ? FILIGRANE_HAUTEUR : FILIGRANE_CENTRE_HAUTEUR;
+        double e = Math.min(w * largeur / logo.getWidth(), h * hauteur / logo.getHeight());
         int lw = Math.max(1, (int) Math.round(logo.getWidth() * e));
         int lh = Math.max(1, (int) Math.round(logo.getHeight() * e));
         int marge = Math.round(w * FILIGRANE_MARGE);
-        int x = w - marge - lw;
-        int y = h - marge - lh;
+        int x = coin ? w - marge - lw : (w - lw) / 2;
+        int y = coin ? h - marge - lh : (h - lh) / 2;
         BufferedImage version = versionFiligrane(logo, lw, lh, luminanceMoyenne(fond, x, y, lw, lh));
-        g.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, FILIGRANE_OPACITE));
+        g.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, coin ? FILIGRANE_OPACITE : FILIGRANE_CENTRE_OPACITE));
         g.drawImage(version, x, y, null);
         g.setComposite(java.awt.AlphaComposite.SrcOver);
     }

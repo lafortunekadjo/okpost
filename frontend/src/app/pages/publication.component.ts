@@ -1,4 +1,4 @@
-import { Component, inject, input, signal, OnInit } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked, OnInit } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpEventType } from '@angular/common/http';
@@ -28,6 +28,15 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
           </div>
           <span class="pastille statut-{{ pub.statut }}">{{ libellesStatut[pub.statut] }}</span>
         </div>
+        @if (nav(); as n) {
+          <nav class="navigation-pub" aria-label="Publications du calendrier">
+            <button type="button" class="bouton secondaire petit" [disabled]="!n.precedente" (click)="ouvrirVoisine(n.precedente!.id)"
+                    [attr.title]="n.precedente ? (n.precedente.date | date: 'EEE d MMM') + ' · ' + libellesReseau[n.precedente.reseau] : null">← Précédente</button>
+            <span class="aide">Publication {{ n.rang }} sur {{ n.total }}</span>
+            <button type="button" class="bouton secondaire petit" [disabled]="!n.suivante" (click)="ouvrirVoisine(n.suivante!.id)"
+                    [attr.title]="n.suivante ? (n.suivante.date | date: 'EEE d MMM') + ' · ' + libellesReseau[n.suivante.reseau] : null">Suivante →</button>
+          </nav>
+        }
 
         @if (pub.retours?.length) {
           <div class="carte retours">
@@ -173,7 +182,7 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
                     <option value="PHOTO_SEULE">Photo seule (logo en filigrane, sans texte)</option>
                   </select></div>
                 @if (brief.gabarit === 'PHOTO_SEULE') {
-                  <p class="aide">La vraie photo est publiée telle quelle, sans texte, avec seulement le logo du client en filigrane discret en bas à droite.
+                  <p class="aide">La vraie photo est publiée telle quelle, sans texte, avec seulement le logo du client en filigrane discret (au centre par défaut, réglable dans la fiche client, onglet Identité visuelle).
                     Le nom, le prix et la commande vont dans la légende : le lien WhatsApp peut s'y ajouter avec la carte « Commande par WhatsApp ».</p>
                 }
                 <div class="champ"><label>Titre <span class="aide">2 à 7 mots, écrits sur l'affiche</span></label>
@@ -339,6 +348,9 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
 
           <div class="actions">
             <span class="espace"></span>
+            @if (nav()?.suivante; as suivante) {
+              <button type="button" class="bouton secondaire" [disabled]="envoi()" (click)="enregistrer(suivante.id)">Enregistrer et passer à la suivante →</button>
+            }
             <button class="bouton" [disabled]="envoi()">{{ envoi() ? 'Enregistrement…' : 'Enregistrer' }}</button>
           </div>
         </form>
@@ -448,6 +460,7 @@ const DECISIONS: Partial<Record<string, string>> = { OK: 'Validée', A_MODIFIER:
     .apercu-video video { width: 180px; aspect-ratio: 9/16; background: #111; border-radius: 8px; }
     @media (max-width: 640px) { .modes { grid-template-columns: 1fr; } .vignette { width: 76px; } }
     .carte > h2:first-child { margin-top: 0; }
+    .navigation-pub { display: flex; gap: 10px; align-items: center; margin: -6px 0 14px; flex-wrap: wrap; }
   `,
 })
 export class PublicationComponent implements OnInit {
@@ -509,7 +522,62 @@ export class PublicationComponent implements OnInit {
     });
     this.api.musiques().subscribe({ next: l => this.musiques.set(l), error: () => {} });
     this.lecteur.onended = () => this.ecoute.set(false);
-    this.api.publication(this.id()).subscribe({ next: p => this.afficher(p), error: e => this.erreur.set(messageErreur(e)) });
+  }
+
+  constructor() {
+    // Le composant est réutilisé quand on passe d'une publication à l'autre : on recharge à chaque changement d'identifiant
+    effect(() => {
+      const id = this.id();
+      untracked(() => this.charger(id));
+    });
+  }
+
+  private charger(id: string) {
+    this.reinitialiser();
+    this.api.publication(id).subscribe({ next: p => this.afficher(p), error: e => this.erreur.set(messageErreur(e)) });
+  }
+
+  /** Repart d'un état vierge pour la publication qui s'ouvre (rien de la précédente ne doit rester affiché). */
+  private reinitialiser() {
+    this.p.set(null);
+    this.erreur.set('');
+    this.message.set('');
+    this.envoi.set(false);
+    this.regen.set(false);
+    this.generationImage.set(false);
+    this.diapoEnCours.set(null);
+    this.carrouselProduitEnCours.set(false);
+    this.lien.set(null);
+    this.lienErreur.set('');
+    this.resultatDuplication.set(null);
+    this.reseauxCibles.set(new Set());
+    this.consigne = '';
+    window.scrollTo({ top: 0 });
+  }
+
+  // ---------- navigation entre les publications du calendrier
+
+  private voisines = signal<{ calendrierId: string; liste: Publication[] } | null>(null);
+
+  nav = computed(() => {
+    const v = this.voisines();
+    const p = this.p();
+    if (!v || !p || v.calendrierId !== p.calendrierId) return null;
+    const i = v.liste.findIndex(x => x.id === p.id);
+    if (i < 0) return null;
+    return { rang: i + 1, total: v.liste.length, precedente: i > 0 ? v.liste[i - 1] : null, suivante: i < v.liste.length - 1 ? v.liste[i + 1] : null };
+  });
+
+  private chargerVoisines(calendrierId: string) {
+    if (this.voisines()?.calendrierId === calendrierId) return;
+    this.api.calendrier(calendrierId).subscribe({
+      next: c => this.voisines.set({ calendrierId, liste: c.publications }),
+      error: () => {},
+    });
+  }
+
+  ouvrirVoisine(id: string) {
+    this.router.navigate(['/publications', id]);
   }
 
   /** Écoute la piste choisie (chargée avec la session, donc via un blob). */
@@ -562,6 +630,7 @@ export class PublicationComponent implements OnInit {
 
   private afficher(p: Publication) {
     this.p.set({ ...p });
+    this.chargerVoisines(p.calendrierId);
     this.hashtags = [...(p.hashtags ?? [])];
     this.brief = structuredClone(p.brief ?? { textesCarrousel: [] });
     this.brief.textesCarrousel ??= [];
@@ -590,7 +659,8 @@ export class PublicationComponent implements OnInit {
     this.brief.textesCarrousel!.push({ visuel: n, titre: '', texte: '' });
   }
 
-  enregistrer() {
+  /** @param ensuite identifiant de la publication à ouvrir une fois l'enregistrement réussi (bouton « Enregistrer et passer à la suivante ») */
+  enregistrer(ensuite?: string) {
     const p = this.p();
     if (!p) return;
     this.envoi.set(true);
@@ -611,6 +681,7 @@ export class PublicationComponent implements OnInit {
         this.envoi.set(false);
         this.message.set('Publication enregistrée.');
         setTimeout(() => this.message.set(''), 2500);
+        if (ensuite) this.ouvrirVoisine(ensuite);
       },
       error: e => { this.erreur.set(messageErreur(e)); this.envoi.set(false); },
     });

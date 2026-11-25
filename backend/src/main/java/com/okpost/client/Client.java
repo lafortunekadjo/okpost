@@ -89,6 +89,9 @@ public class Client extends BaseEntity {
 
     @Column(name = "type_activite", nullable = false)
     private String typeActivite = "SERVICES";
+
+    @Column(name = "position_filigrane", nullable = false)
+    private String positionFiligrane = "CENTRE";
     private boolean archive;
 
     @Column(name = "auto_publication")
@@ -154,6 +157,8 @@ public class Client extends BaseEntity {
     public void setDomaine(String domaine) { this.domaine = domaine; }
     public Map<String, String> getReseaux() { return reseaux; }
     public void setReseaux(Map<String, String> reseaux) { this.reseaux = reseaux; }
+    public String getPositionFiligrane() { return positionFiligrane; }
+    public void setPositionFiligrane(String positionFiligrane) { this.positionFiligrane = positionFiligrane; }
     public String getTypeActivite() { return typeActivite; }
     public void setTypeActivite(String typeActivite) { this.typeActivite = typeActivite; }
     /** Vend des produits (seuls ou avec des services) : visuels basés sur de vraies photos, commande par message. */

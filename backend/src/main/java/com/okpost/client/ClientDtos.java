@@ -42,7 +42,8 @@ public final class ClientDtos {
             Boolean autoPublication,
             @Pattern(regexp = "([01]\\d|2[0-3]):[0-5]\\d") String heurePublication,
             Boolean fetesReligieuses,
-            @Pattern(regexp = "SERVICES|PRODUITS|MIXTE") String typeActivite) {}
+            @Pattern(regexp = "SERVICES|PRODUITS|MIXTE") String typeActivite,
+            @Pattern(regexp = "CENTRE|COIN|AUCUN") String positionFiligrane) {}
 
     public record AssetVue(UUID id, String type, String url, String nomOrigine, String legende,
                            String description, java.util.List<String> tags, String analyse) {
@@ -64,7 +65,7 @@ public final class ClientDtos {
             List<String> concurrents, List<String> couleurs, String polices, String domaine,
             Map<String, String> reseaux, String whatsapp, UUID cmId, List<AssetVue> assets, Instant updatedAt,
             boolean autoPublication, String heurePublication, boolean fetesReligieuses,
-            String typeActivite) {}
+            String typeActivite, String positionFiligrane) {}
 
     public record ClientResume(UUID id, String nom, String secteur, String ville, String logoUrl,
                                long aValider, long validees, long aModifier,

@@ -297,6 +297,12 @@ const TYPES_FICHIERS = [
               </div>
             </div>
             <div class="champ"><label>Polices</label><input type="text" name="polices" [(ngModel)]="c.polices" /></div>
+            <div class="champ"><label>Logo en filigrane sur les photos de produit <span class="aide">mise en page « Photo seule » et carrousel des photos d'un produit</span></label>
+              <select name="position-filigrane" [(ngModel)]="c.positionFiligrane" style="max-width:420px">
+                <option value="CENTRE">Au centre, discret (conseillé : protège mieux la photo)</option>
+                <option value="COIN">Dans le coin en bas à droite</option>
+                <option value="AUCUN">Pas de filigrane</option>
+              </select></div>
             <h3>Logos</h3>
             @if (!id()) {
               <p class="aide">Enregistre d'abord la fiche pour ajouter des logos et la banque d'images.</p>
@@ -571,7 +577,7 @@ export class FicheClientComponent implements OnInit {
   ];
 
   c: Client = {
-    nom: '', typeActivite: 'SERVICES', langue: 'fr', tutoiement: false, fetesReligieuses: true, offres: [], cibles: [], concurrents: [], couleurs: [], reseaux: {},
+    nom: '', typeActivite: 'SERVICES', positionFiligrane: 'CENTRE', langue: 'fr', tutoiement: false, fetesReligieuses: true, offres: [], cibles: [], concurrents: [], couleurs: [], reseaux: {},
   };
 
   ngOnInit() {
@@ -579,7 +585,7 @@ export class FicheClientComponent implements OnInit {
     if (id) {
       this.api.client(id).subscribe({
         next: c => {
-          this.c = { ...c, typeActivite: c.typeActivite ?? 'SERVICES', offres: c.offres ?? [], cibles: c.cibles ?? [], concurrents: c.concurrents ?? [],
+          this.c = { ...c, typeActivite: c.typeActivite ?? 'SERVICES', positionFiligrane: c.positionFiligrane ?? 'CENTRE', offres: c.offres ?? [], cibles: c.cibles ?? [], concurrents: c.concurrents ?? [],
             couleurs: c.couleurs ?? [], reseaux: c.reseaux ?? {} };
           this.assets.set(c.assets ?? []);
         },
