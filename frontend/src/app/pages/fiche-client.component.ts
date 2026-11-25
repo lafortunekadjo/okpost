@@ -9,6 +9,7 @@ import { PucesComponent } from '../shared/puces.component';
 import { BanqueImagesComponent } from '../shared/banque-images.component';
 import { ContactsValidationComponent } from '../shared/contacts-validation.component';
 import { AssistantRedactionComponent } from '../shared/assistant-redaction.component';
+import { ReformulerToutComponent } from '../shared/reformuler-tout.component';
 
 type Onglet = 'identite' | 'offres' | 'localisation' | 'audience' | 'ton' | 'visuel' | 'en-ligne';
 
@@ -22,7 +23,7 @@ const TYPES_FICHIERS = [
 
 @Component({
   selector: 'app-fiche-client',
-  imports: [FormsModule, RouterLink, PucesComponent, BanqueImagesComponent, ContactsValidationComponent, AssistantRedactionComponent],
+  imports: [FormsModule, RouterLink, PucesComponent, BanqueImagesComponent, ContactsValidationComponent, AssistantRedactionComponent, ReformulerToutComponent],
   template: `
     <div class="page page-etroite">
       <div class="entete-page">
@@ -154,6 +155,9 @@ const TYPES_FICHIERS = [
                 }
               </div>
             }
+            @if (c.offres.length > 0) {
+              <app-reformuler-tout [offres]="c.offres" [clientId]="id()" (modifie)="modifie.set(true)" />
+            }
             @if (c.offres.length > 1) {
               <div class="outils-offres">
                 <span class="aide">{{ c.offres.length }} élément(s) dans le catalogue@if (c.typeActivite !== 'SERVICES' && nbSansPhoto() > 0) { · <strong>{{ nbSansPhoto() }} sans photo</strong> }</span>
@@ -189,7 +193,7 @@ const TYPES_FICHIERS = [
                   <div class="champ"><label>Prix</label><input type="text" [name]="'offre-prix-' + $index" [(ngModel)]="o.prix" placeholder="25 000 FCFA" /></div>
                 </div>
                 <div class="champ"><label>Description</label><textarea rows="2" [name]="'offre-desc-' + $index" [(ngModel)]="o.description"></textarea>
-                  <app-assistant-redaction [texte]="o.description ?? ''" [sujet]="o.nom" champ="produit" [clientId]="id()" (appliquer)="o.description = $event; modifie.set(true)" /></div>
+                  <app-assistant-redaction [texte]="o.description ?? ''" [sujet]="o.nom" champ="produit" [clientId]="id()" [photoId]="o.photos?.[0]" (appliquer)="o.description = $event; modifie.set(true)" /></div>
                 @if (c.typeActivite !== 'SERVICES') {
                   <div class="ligne-champs">
                     <div class="champ"><label>Catégorie <span class="aide">facultatif</span></label>

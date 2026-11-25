@@ -169,6 +169,10 @@ export class ApiService {
   reformuler(d: { texte: string; sujet?: string; mode: string; champ: 'produit' | 'activite'; clientId?: string }) {
     return this.http.post<{ texte: string }>(`${this.base}/reformuler`, d);
   }
+  /** Décrit brièvement un produit d'après une photo de la banque d'images : proposition à ajuster, rien n'est enregistré. */
+  decrireProduit(clientId: string, photoId: string, nom?: string) {
+    return this.http.post<{ texte: string }>(`${this.base}/clients/${clientId}/decrire-produit`, { photoId, nom });
+  }
   adminComptes() { return this.http.get<{ totaux: AdminTotaux; comptes: AdminCompte[] }>(`${this.base}/admin/comptes`); }
   adminJournal(f: { espace?: string; action?: string; page?: number }) {
     const params: Record<string, string> = { page: String(f.page ?? 0) };

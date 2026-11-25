@@ -17,6 +17,14 @@ class AnalyseurPhotoTest {
     private final ObjectMapper json = new ObjectMapper();
 
     @Test
+    void laDescriptionDUnProduitSExtraitDuJson() throws Exception {
+        assertThat(AnalyseurPhoto.extraireTexte(json, "{\"texte\":\" Soutien-gorge en dentelle noire. \"}")).isEqualTo("Soutien-gorge en dentelle noire.");
+        assertThat(AnalyseurPhoto.extraireTexte(json, "```json\n{\"texte\":\"Ensemble en coton rose.\"}\n```")).isEqualTo("Ensemble en coton rose.");
+        assertThatThrownBy(() -> AnalyseurPhoto.extraireTexte(json, "{\"texte\":\"  \"}")).isInstanceOf(IOException.class);
+        assertThatThrownBy(() -> AnalyseurPhoto.extraireTexte(json, "{}")).isInstanceOf(IOException.class);
+    }
+
+    @Test
     void laReponseDuModeleSeLitAvecOuSansBlocDeCode() throws Exception {
         var r = AnalyseurPhoto.parser(json,
                 "```json\n{\"description\":\"Deux joueurs\",\"tags\":[\" Football \",\"football\",\"TEAM\"],\"utilisable\":false}\n```");
