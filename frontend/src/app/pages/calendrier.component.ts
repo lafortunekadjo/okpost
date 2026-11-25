@@ -5,7 +5,7 @@ import { RouterLink } from '@angular/router';
 import { ApiService, messageErreur } from '../core/api.service';
 import { ConfirmationService } from '../core/confirmation.service';
 import {
-  Calendrier, LIBELLES_FORMAT, LIBELLES_RESEAU, LIBELLES_STATUT, LienValidation, Publication, RESEAUX, ResultatDuplication, StatutPublication,
+  Calendrier, ProgressionLot, LIBELLES_FORMAT, LIBELLES_RESEAU, LIBELLES_STATUT, LienValidation, Publication, RESEAUX, ResultatDuplication, StatutPublication,
 } from '../core/models';
 
 interface Jour { date: string; dansPeriode: boolean; publications: Publication[]; }
@@ -31,6 +31,7 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
             <div class="bascule">
               <button [class.actif]="vue() === 'mois'" (click)="vue.set('mois')">Mois</button>
               <button [class.actif]="vue() === 'liste'" (click)="vue.set('liste')">Liste</button>
+              <button [class.actif]="vue() === 'galerie'" (click)="vue.set('galerie')">Galerie</button>
             </div>
           </div>
         </div>
@@ -61,6 +62,38 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
             <summary><strong>Ce que l’IA a appris de la Page Facebook</strong> <span class="aide">90 jours avant la génération</span></summary>
             <p class="analyse-page">{{ c.analysePage }}</p>
           </details>
+        }
+
+        @if (c.statutGeneration === 'TERMINE') {
+          <div class="carte lot">
+            <div class="ligne" style="gap:12px;flex-wrap:wrap;align-items:center">
+              <strong>Visuels</strong>
+              <button type="button" class="bouton" [disabled]="lotEnCours()" (click)="lancerLot()">{{ lotEnCours() ? 'Génération en cours…' : 'Générer tous les visuels' }}</button>
+              <label class="case-lot"><input type="checkbox" [(ngModel)]="optionsLot.remplacer" [disabled]="lotEnCours()" /> Refaire aussi ceux qui existent</label>
+              <label class="case-lot"><input type="checkbox" [(ngModel)]="optionsLot.discret" [disabled]="lotEnCours()" /> Texte discret</label>
+            </div>
+            <p class="aide">Crée d'un coup le visuel de chaque publication qui n'en a pas (images, stories, textes illustrés), pendant que tu fais autre chose : tu peux fermer la page.
+              Reviens ensuite vérifier dans la vue « Galerie ». Les vidéos et les carrousels se préparent dans leur publication.</p>
+            @if (lot(); as l) {
+              @if (l.etat === 'EN_COURS') {
+                <div class="barre"><div [style.width.%]="l.total ? ((l.faits + l.echecs) / l.total) * 100 : 5"></div></div>
+                <span class="aide">{{ l.faits + l.echecs }} sur {{ l.total }} @if (l.courant) { · en cours : {{ l.courant }} }</span>
+              } @else {
+                <div [class]="l.faits ? 'succes' : 'info'" role="status">
+                  {{ l.faits }} visuel{{ l.faits > 1 ? 's' : '' }} généré{{ l.faits > 1 ? 's' : '' }} sur {{ l.total }}.
+                  @if (l.faits) { <button type="button" class="bouton secondaire petit" (click)="vue.set('galerie')">Voir la galerie</button> }
+                </div>
+              }
+              @if (l.erreurs.length) {
+                <div class="erreur" role="alert"><strong>{{ l.echecs }} en échec</strong> : ouvre la publication pour réessayer.
+                  <ul>@for (e of l.erreurs; track $index) { <li>{{ e }}</li> }</ul></div>
+              }
+              @if (l.ignorees.length) {
+                <details><summary class="aide">{{ l.ignorees.length }} publication(s) écartée(s)</summary>
+                  <ul class="aide">@for (e of l.ignorees; track $index) { <li>{{ e }}</li> }</ul></details>
+              }
+            }
+          </div>
         }
 
         <div class="outils">
@@ -178,6 +211,23 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
               </div>
             }
           </div>
+        } @else if (vue() === 'galerie') {
+          <div class="galerie">
+            @for (p of filtrees(); track p.id) {
+              <a class="carte-galerie" [routerLink]="['/publications', p.id]">
+                @if (vignette(p); as v) { <img [src]="v" [alt]="'Visuel du ' + p.date + ' sur ' + libellesReseau[p.reseau]" loading="lazy" /> }
+                @else { <div class="sans-visuel">Pas de visuel</div> }
+                <div class="ligne" style="gap:6px;flex-wrap:wrap">
+                  <strong>{{ p.date | date: 'EEE d MMM' }}</strong>
+                  <span class="reseau reseau-{{ p.reseau }}"></span><span class="aide">{{ libellesFormat[p.format] }}</span>
+                  <span class="pastille statut-{{ p.statut }}">{{ libellesStatut[p.statut] }}</span>
+                </div>
+                <span class="aide idee-galerie">{{ p.idee }}</span>
+              </a>
+            } @empty {
+              <p class="aide">Aucune publication pour ce filtre.</p>
+            }
+          </div>
         } @else {
           <div class="liste">
             @for (p of filtrees(); track p.id) {
@@ -264,6 +314,14 @@ interface Jour { date: string; dansPeriode: boolean; publications: Publication[]
     .mini a { color: inherit; display: block; min-width: 0; }
     .mini .pastille { font-size: .65rem; padding: 0 6px; }
     .mini .idee { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-top: 2px; }
+    .lot { margin-bottom: 14px; display: grid; gap: 8px; }
+    .case-lot { display: flex; gap: 6px; align-items: center; font-weight: 500; }
+    .galerie { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+    .carte-galerie { display: grid; gap: 6px; align-content: start; color: inherit; text-decoration: none; border: 1px solid var(--gris-clair); border-radius: 10px; padding: 8px; background: #fff; }
+    .carte-galerie:hover { box-shadow: 0 4px 12px rgba(17,24,39,.1); }
+    .carte-galerie img, .sans-visuel { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 6px; background: #f3f4f6; }
+    .sans-visuel { display: flex; align-items: center; justify-content: center; color: var(--gris); font-size: .85rem; }
+    .idee-galerie { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .liste { margin-top: 12px; display: grid; gap: 10px; }
     .publi { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; }
     .publi input { margin-top: 4px; }
@@ -288,7 +346,7 @@ export class CalendrierComponent implements OnInit {
   id = input.required<string>();
   cal = signal<Calendrier | null>(null);
   liens = signal<LienValidation[]>([]);
-  vue = signal<'mois' | 'liste'>(window.innerWidth < 760 ? 'liste' : 'mois');
+  vue = signal<'mois' | 'liste' | 'galerie'>(window.innerWidth < 760 ? 'liste' : 'mois');
   selection = signal<Set<string>>(new Set());
   lienCree = signal<LienValidation | null>(null);
   partageCree = signal<LienValidation | null>(null);
@@ -327,8 +385,44 @@ export class CalendrierComponent implements OnInit {
 
   private minuterie: ReturnType<typeof setTimeout> | null = null;
 
+  // ---------- génération de tous les visuels en une fois
+
+  lot = signal<ProgressionLot | null>(null);
+  optionsLot = { remplacer: false, discret: false };
+  lotEnCours = computed(() => this.lot()?.etat === 'EN_COURS');
+  private minuterieLot: ReturnType<typeof setTimeout> | null = null;
+
+  lancerLot() {
+    this.erreur.set('');
+    this.api.genererVisuelsEnLot(this.id(), this.optionsLot).subscribe({
+      next: p => {
+        this.lot.set(p);
+        if (p.etat === 'EN_COURS') this.suivreLot(0); else this.charger();
+      },
+      error: e => this.erreur.set(messageErreur(e)),
+    });
+  }
+
+  /** Interroge le serveur toutes les 3 secondes et recharge le calendrier pour que les visuels apparaissent au fur et à mesure. */
+  private suivreLot(echecs: number) {
+    this.minuterieLot = setTimeout(() => this.api.etatVisuelsEnLot(this.id()).subscribe({
+      next: p => {
+        if (p) this.lot.set(p);
+        this.charger();
+        if (p?.etat === 'EN_COURS') this.suivreLot(0);
+      },
+      error: () => { if (echecs < 5) this.suivreLot(echecs + 1); },
+    }), 3000);
+  }
+
   ngOnInit() {
     this.charger();
+    // Une génération lancée avant un rechargement de la page continue côté serveur : on reprend son suivi
+    this.api.etatVisuelsEnLot(this.id()).subscribe({
+      next: p => { if (p) { this.lot.set(p); if (p.etat === 'EN_COURS') this.suivreLot(0); } },
+      error: () => {},
+    });
+    this.destroy.onDestroy(() => { if (this.minuterieLot) clearTimeout(this.minuterieLot); });
     this.api.liens(this.id()).subscribe({ next: l => this.liens.set(l), error: () => {} });
     this.destroy.onDestroy(() => this.minuterie && clearTimeout(this.minuterie));
   }

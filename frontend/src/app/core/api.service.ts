@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http
 import { Injectable, inject } from '@angular/core';
 import {
   Abonnement, Alerte, Asset, FicheProposee, Musique, ResultatDuplication, Calendrier, CalendrierResume, Client, ClientResume, Consommation, EtatIa,
-  AdminCompte, AdminJournal, AdminTotaux, ClientPartage, Collaborateur, LienCommande, ResultatCatalogue, ResultatCatalogueWeb, CompteSocial, ContactValidation, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
+  AdminCompte, AdminJournal, AdminTotaux, ClientPartage, Collaborateur, ProgressionLot, LienCommande, ResultatCatalogue, ResultatCatalogueWeb, CompteSocial, ContactValidation, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
   PropositionEvenement, TempsFortSuggere, EvenementCatalogue, EvaluationCalendrier, LigneSynthese, NotesPublication,
   BilanPage, Recommandations,
 } from './models';
@@ -194,6 +194,14 @@ export class ApiService {
   }
   clientsPartages() { return this.http.get<ClientPartage[]>(`${this.base}/acces/partages`); }
   quitterClientPartage(clientId: string) { return this.http.delete<void>(`${this.base}/acces/partages/${clientId}`); }
+  /** Lance la génération des visuels manquants de tout le calendrier, en arrière-plan. */
+  genererVisuelsEnLot(calendrierId: string, options: { remplacer: boolean; discret: boolean }) {
+    return this.http.post<ProgressionLot>(`${this.base}/calendriers/${calendrierId}/visuels-en-lot`, options);
+  }
+  /** Avancement de la dernière génération en lot (null s'il n'y en a pas eu). */
+  etatVisuelsEnLot(calendrierId: string) {
+    return this.http.get<ProgressionLot | null>(`${this.base}/calendriers/${calendrierId}/visuels-en-lot`);
+  }
   adminComptes() { return this.http.get<{ totaux: AdminTotaux; comptes: AdminCompte[] }>(`${this.base}/admin/comptes`); }
   adminJournal(f: { espace?: string; action?: string; page?: number }) {
     const params: Record<string, string> = { page: String(f.page ?? 0) };

@@ -11,6 +11,12 @@ export interface SessionUtilisateur {
   clientId?: string;
 }
 
+/** Avancement de la génération de tous les visuels d'un calendrier (en arrière-plan sur le serveur). */
+export interface ProgressionLot {
+  calendrierId: string; etat: 'EN_COURS' | 'TERMINE'; total: number; faits: number; echecs: number; courant?: string | null;
+  ignorees: string[]; erreurs: string[]; debut: string; fin?: string | null;
+}
+
 export interface Collaborateur { id: string; nom: string; email: string; depuis: string; }
 
 export interface ClientPartage { clientId: string; clientNom: string; espace: string; depuis: string; }
