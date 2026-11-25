@@ -4,10 +4,11 @@ import { ApiService, messageErreur } from '../core/api.service';
 import { Abonnement, Alerte, ClientResume, LIBELLES_RESEAU } from '../core/models';
 import { DatePipe } from '@angular/common';
 import { ClientsArchivesComponent } from '../shared/clients-archives.component';
+import { AlerteActionsComponent } from '../shared/alerte-actions.component';
 
 @Component({
   selector: 'app-tableau-de-bord',
-  imports: [RouterLink, DatePipe, ClientsArchivesComponent],
+  imports: [RouterLink, DatePipe, ClientsArchivesComponent, AlerteActionsComponent],
   template: `
     <div class="page">
       <div class="entete-page">
@@ -34,11 +35,14 @@ import { ClientsArchivesComponent } from '../shared/clients-archives.component';
         <section class="carte surveillance" aria-label="À surveiller">
           <h2>À surveiller <span class="pastille statut-A_MODIFIER">{{ alertes().length }}</span></h2>
           @for (a of alertes(); track (a.publicationId ?? a.clientId) + a.type + a.reseau) {
-            <a class="alerte niveau-{{ a.niveau }}" [routerLink]="a.publicationId ? ['/publications', a.publicationId] : ['/clients', a.clientId]">
-              <strong>{{ a.clientNom }}</strong>
-              <span class="aide">{{ libelleReseau(a.reseau) }} · {{ a.date | date: 'd MMM' }}</span>
-              <span class="texte">{{ a.message }}</span>
-            </a>
+            <div class="alerte niveau-{{ a.niveau }}">
+              <a class="lien-alerte" [routerLink]="a.publicationId ? ['/publications', a.publicationId] : ['/clients', a.clientId]">
+                <strong>{{ a.clientNom }}</strong>
+                <span class="aide">{{ libelleReseau(a.reseau) }} · {{ a.date | date: 'd MMM' }}</span>
+                <span class="texte">{{ a.message }}</span>
+              </a>
+              <app-alerte-actions [alerte]="a" [compteAReconnecter]="compteAReconnecter(a)" (termine)="rechargerAlertes()" />
+            </div>
           }
         </section>
       }
@@ -83,9 +87,10 @@ import { ClientsArchivesComponent } from '../shared/clients-archives.component';
   styles: `
     .infos-carte { margin: 8px 0 0; }
     .surveillance { border-left: 4px solid #dc2626; margin-bottom: 16px; }
-    .alerte { display: grid; gap: 2px; padding: 10px 0; border-top: 1px solid var(--gris-clair); color: inherit; text-decoration: none; }
+    .alerte { padding: 10px 0; border-top: 1px solid var(--gris-clair); }
     .alerte:first-of-type { border-top: 0; }
-    .alerte:hover .texte { text-decoration: underline; }
+    .lien-alerte { display: grid; gap: 2px; color: inherit; text-decoration: none; }
+    .lien-alerte:hover .texte { text-decoration: underline; }
     .alerte.niveau-ATTENTION { border-left: 3px solid #d97706; padding-left: 8px; }
     .alerte.niveau-ERREUR { border-left: 3px solid #dc2626; padding-left: 8px; }
     .client { display: block; color: inherit; transition: transform .1s, box-shadow .15s; }
@@ -105,6 +110,16 @@ export class TableauDeBordComponent {
   libelleReseau = (r: string) => LIBELLES_RESEAU[r] ?? r;
   erreurReseaux = new URLSearchParams(window.location.search).get('reseaux') === 'erreur'
     ? new URLSearchParams(window.location.search).get('message') ?? 'erreur inconnue' : '';
+
+  /** Un compte du même client et du même réseau est à reconnecter : réessayer serait inutile tant qu'il ne l'est pas. */
+  compteAReconnecter(a: Alerte) {
+    return a.type !== 'JETON' && this.alertes().some(x => x.type === 'JETON' && x.clientId === a.clientId && x.reseau === a.reseau);
+  }
+
+  rechargerAlertes() {
+    this.api.surveillance().subscribe({ next: a => this.alertes.set(a), error: () => {} });
+    this.recharger();
+  }
 
   recharger() {
     this.api.clients().subscribe({ next: c => this.clients.set(c), error: e => { this.erreur.set(messageErreur(e)); this.clients.set([]); } });

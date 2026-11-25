@@ -39,6 +39,11 @@ public interface GenerateurIA {
         throw new GenerationException("Lecture de site non disponible avec ce fournisseur");
     }
 
+    /** Extrait les produits d'un texte (pages d'un site, publications) : blocs numérotés [n], aucun produit inventé. */
+    default com.okpost.ia.Modeles.ProduitsExtraits extraireProduits(UUID workspaceId, String contenu) {
+        throw new GenerationException("Extraction de produits non disponible avec ce fournisseur");
+    }
+
     /** Corrige, reformule ou raccourcit un texte de la fiche client, sans rien inventer. */
     default String reformulerTexte(UUID workspaceId, String ficheClient, String langue, String texte, String sujet,
                                    String instruction, int longueurMax) {

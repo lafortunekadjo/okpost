@@ -16,9 +16,17 @@ import java.util.UUID;
 public class CatalogueController {
 
     private final CatalogueService service;
+    private final CatalogueSiteService site;
 
-    public CatalogueController(CatalogueService service) {
+    public CatalogueController(CatalogueService service, CatalogueSiteService site) {
         this.service = service;
+        this.site = site;
+    }
+
+    /** Propose les produits du site web du client (boutique Shopify ou WooCommerce, pages produit, ou texte lu par l'IA). */
+    @PostMapping("/depuis-site")
+    public CatalogueImport.Resultat depuisSite(@PathVariable UUID id, @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody ClientDtos.DemandeSite d) {
+        return site.lire(Session.courante(), id, d.url());
     }
 
     /** Lit un catalogue CSV et le renvoie sous forme de produits à relire : rien n'est enregistré. */

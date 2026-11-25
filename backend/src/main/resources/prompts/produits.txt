@@ -1,0 +1,14 @@
+Voici le contenu à analyser, en blocs numérotés [n] :
+
+{{contenu}}
+
+Extrais jusqu'à {{max}} produits distincts. Pour chaque produit :
+- nom : le nom du produit tel qu'il est écrit ;
+- description : une phrase factuelle (200 caractères au plus) ou null ;
+- prix : le prix tel qu'écrit avec sa devise (« 12 000 FCFA »), ou null s'il n'est pas écrit ;
+- categorie : la famille du produit (« Soutiens-gorge ») ou null ;
+- tailles : tailles citées, ou liste vide ;
+- couleurs : couleurs citées, ou liste vide ;
+- source : le numéro n du bloc où le produit apparaît le plus clairement, ou null.
+
+Réponds avec un objet JSON {"produits": [ ... ]}. S'il n'y a aucun produit identifiable, réponds {"produits": []}.

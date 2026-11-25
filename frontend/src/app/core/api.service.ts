@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http
 import { Injectable, inject } from '@angular/core';
 import {
   Abonnement, Alerte, Asset, FicheProposee, Musique, ResultatDuplication, Calendrier, CalendrierResume, Client, ClientResume, Consommation, EtatIa,
-  AdminCompte, AdminJournal, AdminTotaux, LienCommande, ResultatCatalogue, CompteSocial, ContactValidation, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
+  AdminCompte, AdminJournal, AdminTotaux, LienCommande, ResultatCatalogue, ResultatCatalogueWeb, CompteSocial, ContactValidation, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
   PropositionEvenement, TempsFortSuggere, EvenementCatalogue, EvaluationCalendrier, LigneSynthese, NotesPublication,
   BilanPage, Recommandations,
 } from './models';
@@ -172,6 +172,14 @@ export class ApiService {
   /** Décrit brièvement un produit d'après une photo de la banque d'images : proposition à ajuster, rien n'est enregistré. */
   decrireProduit(clientId: string, photoId: string, nom?: string) {
     return this.http.post<{ texte: string }>(`${this.base}/clients/${clientId}/decrire-produit`, { photoId, nom });
+  }
+  /** Lit le site du client (Shopify, WooCommerce, pages produit, ou texte par l'IA) : produits à relire, rien n'est enregistré. */
+  catalogueDepuisSite(clientId: string, url: string) {
+    return this.http.post<ResultatCatalogueWeb>(`${this.base}/clients/${clientId}/catalogue/depuis-site`, { url });
+  }
+  /** Repère les produits cités dans les publications Facebook et Instagram reliées. */
+  catalogueDepuisReseaux(clientId: string) {
+    return this.http.post<ResultatCatalogueWeb>(`${this.base}/clients/${clientId}/catalogue/depuis-reseaux`, {});
   }
   adminComptes() { return this.http.get<{ totaux: AdminTotaux; comptes: AdminCompte[] }>(`${this.base}/admin/comptes`); }
   adminJournal(f: { espace?: string; action?: string; page?: number }) {

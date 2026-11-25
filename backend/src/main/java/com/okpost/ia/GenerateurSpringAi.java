@@ -121,6 +121,13 @@ public class GenerateurSpringAi implements GenerateurIA {
     }
 
     @Override
+    public Modeles.ProduitsExtraits extraireProduits(UUID ws, String contenu) {
+        String user = prompts.rendre("produits", Map.of("contenu", contenu, "max", "40"));
+        return appelerJson(ws, "produits", modeleRedaction, prompts.rendre("produits-systeme", Map.of()), user,
+                Modeles.ProduitsExtraits.class, r -> List.of());
+    }
+
+    @Override
     public String reformulerTexte(UUID ws, String fiche, String langue, String texte, String sujet, String instruction, int longueurMax) {
         String user = prompts.rendre("reformuler", Map.of("texte", texte, "sujet", vide(sujet), "instruction", instruction,
                 "langue", langue(langue), "max", String.valueOf(longueurMax)));

@@ -14,6 +14,14 @@ export interface Offre {
   categorie?: string; tailles?: string[]; couleurs?: string[]; disponible?: boolean;
 }
 
+/** Produit proposé par la lecture d'un site ou de publications : à relire avant d'être ajouté. */
+export interface ProduitPropose {
+  nom: string; description?: string; prix?: string; categorie?: string; tailles?: string[]; couleurs?: string[];
+  disponible?: boolean; imageUrl?: string;
+}
+
+export interface ResultatCatalogueWeb { produits: ProduitPropose[]; source: string; avertissements: string[]; }
+
 export interface ResultatCatalogue { produits: Offre[]; avertissements: string[]; photosRattachees: number; }
 
 export type TypeActivite = 'SERVICES' | 'PRODUITS' | 'MIXTE';

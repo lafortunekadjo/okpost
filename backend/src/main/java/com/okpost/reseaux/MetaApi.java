@@ -534,6 +534,28 @@ public class MetaApi {
                 p.path("shares").path("count").asInt(0), vues);
     }
 
+    /** Une publication de la Page avec son texte et sa photo principale (pour retrouver des produits). */
+    public record PublicationPhoto(String message, String imageUrl) {}
+
+    /** Dernières publications de la Page avec leur texte et leur photo. */
+    public List<PublicationPhoto> publicationsAvecPhoto(String pageId, String jeton, int max) {
+        MetaException derniere = null;
+        for (String arete : List.of("published_posts", "posts")) {
+            try {
+                JsonNode r = get("/{p}/{a}?fields=message,full_picture&limit={n}&access_token={t}", pageId, arete, max, jeton);
+                List<PublicationPhoto> l = new ArrayList<>();
+                r.path("data").forEach(d -> {
+                    String message = d.path("message").asText("").trim();
+                    if (!message.isEmpty()) l.add(new PublicationPhoto(message, texte(d, "full_picture")));
+                });
+                return l;
+            } catch (MetaException e) {
+                derniere = e;
+            }
+        }
+        throw derniere;
+    }
+
     /** Nombre d'abonnés de la Page (null si illisible). */
     public Integer abonnes(String pageId, String jeton) {
         try {

@@ -107,6 +107,14 @@ public final class Modeles {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record TexteRegenere(String texte) {}
 
+    /** source : numéro du bloc de texte d'où vient le produit (pour retrouver sa photo). */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ProduitExtrait(String nom, String description, String prix, String categorie, List<String> tailles,
+                                 List<String> couleurs, Integer source) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ProduitsExtraits(List<ProduitExtrait> produits) {}
+
     /** Fiche client déduite du site web. Chaque champ absent ou incertain vaut null (ou une liste vide). */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record FicheSite(

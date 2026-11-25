@@ -10,6 +10,7 @@ import { BanqueImagesComponent } from '../shared/banque-images.component';
 import { ContactsValidationComponent } from '../shared/contacts-validation.component';
 import { AssistantRedactionComponent } from '../shared/assistant-redaction.component';
 import { ReformulerToutComponent } from '../shared/reformuler-tout.component';
+import { ImportCatalogueWebComponent } from '../shared/import-catalogue-web.component';
 
 type Onglet = 'identite' | 'offres' | 'localisation' | 'audience' | 'ton' | 'visuel' | 'en-ligne';
 
@@ -23,7 +24,7 @@ const TYPES_FICHIERS = [
 
 @Component({
   selector: 'app-fiche-client',
-  imports: [FormsModule, RouterLink, PucesComponent, BanqueImagesComponent, ContactsValidationComponent, AssistantRedactionComponent, ReformulerToutComponent],
+  imports: [FormsModule, RouterLink, PucesComponent, BanqueImagesComponent, ContactsValidationComponent, AssistantRedactionComponent, ReformulerToutComponent, ImportCatalogueWebComponent],
   template: `
     <div class="page page-etroite">
       <div class="entete-page">
@@ -137,6 +138,8 @@ const TYPES_FICHIERS = [
             <p class="aide">Produits ou services. Les prix indiqués ici sont les seuls que l'IA pourra citer.
               @if (c.typeActivite !== 'SERVICES') { Pour chaque produit, rattache ses vraies photos : les publications montreront le vrai article, jamais une image inventée par l'IA. }</p>
             @if (c.typeActivite !== 'SERVICES') {
+              <app-import-catalogue-web [clientId]="id()" [siteUrl]="siteUrl || c.domaine || ''" [offres]="c.offres"
+                                        (modifie)="modifie.set(true)" (assetAjoute)="ajouterAsset($event)" />
               <div class="import-catalogue">
                 <strong>Importer un catalogue</strong>
                 <p class="aide">Depuis Excel ou Google Sheets : enregistre ton tableau en CSV (colonnes : nom, prix, description, categorie, tailles, couleurs, stock, photo).
@@ -388,6 +391,10 @@ export class FicheClientComponent implements OnInit {
   id = input<string>();
   onglet = signal<Onglet>('identite');
   assets = signal<Asset[]>([]);
+  ajouterAsset(a: Asset) {
+    this.assets.update(l => [...l, a]);
+  }
+
   photosBanque = computed(() => this.assets().filter(a => a.type === 'PHOTO'));
 
   /** Offres dépliées (par référence : l'état suit l'offre même si la liste change). Les offres existantes démarrent repliées. */
