@@ -365,6 +365,107 @@ class ParcoursCompletTest {
         assertThat(appeler(get("/api/v1/acces/partages"), jetonB, null, 200)).isEmpty();
     }
 
+    @Autowired com.okpost.securite.UtilisateurRepository utilisateursDepot;
+    @Autowired com.okpost.securite.WorkspaceRepository espacesDepot;
+    @Autowired org.springframework.security.crypto.password.PasswordEncoder encodeurMotsDePasse;
+
+    /** Le propriétaire de la plateforme suit les comptes, change leur formule et modifie les formules elles-mêmes. */
+    @Test
+    void administrationDesFormulesEtDesAbonnements() throws Exception {
+        String suffixe = UUID.randomUUID().toString();
+        // Un super-admin créé directement (l'amorçage au démarrage dépend de variables d'environnement)
+        var espaceProprio = new com.okpost.securite.Workspace();
+        espaceProprio.setNom("Plateforme " + suffixe);
+        espacesDepot.save(espaceProprio);
+        var sa = new com.okpost.securite.Utilisateur();
+        sa.setWorkspaceId(espaceProprio.getId());
+        sa.setNom("Propriétaire");
+        sa.setEmail("root+" + suffixe + "@exemple.com");
+        sa.setMotDePasseHash(encodeurMotsDePasse.encode("motdepasse-ok"));
+        sa.setRole(com.okpost.securite.Role.SUPER_ADMIN);
+        utilisateursDepot.save(sa);
+        var aboSa = new com.okpost.abonnement.Abonnement();
+        aboSa.setWorkspaceId(espaceProprio.getId());
+        aboSa.setFormule(com.okpost.abonnement.Formule.AGENCE);
+        aboSa.setDebut(LocalDate.now());
+        aboSa.setFin(LocalDate.now().plusYears(50));
+        aboSa.setStatut(com.okpost.abonnement.Abonnement.Statut.ACTIF);
+        aboSa.setMode(com.okpost.abonnement.Abonnement.Mode.ESPECES);
+        abonnementsDepot.save(aboSa);
+        String jetonSa = appeler(post("/api/v1/auth/connexion"), null, Map.of("email", sa.getEmail(), "motDePasse", "motdepasse-ok"), 200)
+                .get("jetonAcces").asText();
+
+        // Un compte ordinaire, en essai : un seul client
+        JsonNode b = appeler(post("/api/v1/auth/inscription"), null,
+                Map.of("nomEspace", "Agence B " + suffixe, "nom", "Awa", "email", "awa+" + suffixe + "@exemple.com", "motDePasse", "motdepasse-ok"), 200);
+        String jetonB = b.get("jetonAcces").asText();
+        String espaceB = b.get("workspaceId").asText();
+        appeler(post("/api/v1/clients"), jetonB, Map.of("nom", "Premier", "langue", "fr"), 201);
+        appeler(post("/api/v1/clients"), jetonB, Map.of("nom", "Deuxième", "langue", "fr"), 402);
+
+        // Les écrans d'administration sont fermés aux comptes ordinaires
+        appeler(get("/api/v1/admin/formules"), jetonB, null, 403);
+        appeler(get("/api/v1/admin/comptes"), jetonB, null, 403);
+        appeler(put("/api/v1/admin/comptes/" + espaceB + "/abonnement"), jetonB,
+                Map.of("formule", "PRO", "fin", LocalDate.now().plusDays(30).toString()), 403);
+        appeler(put("/api/v1/admin/formules/PRO"), jetonB,
+                Map.of("nom", "Pro", "prixMensuelXaf", 1, "maxClients", 99, "maxMembres", 9, "calendriersParMois", 9, "imagesParMois", 9), 403);
+
+        // Suivi : formules et comptes
+        assertThat(appeler(get("/api/v1/admin/formules"), jetonSa, null, 200)).hasSize(4);
+        JsonNode vue = appeler(get("/api/v1/admin/comptes"), jetonSa, null, 200);
+        JsonNode compteB = null;
+        JsonNode comptePlateforme = null;
+        for (JsonNode c : vue.get("comptes")) {
+            if (c.get("id").asText().equals(espaceB)) compteB = c;
+            if (c.get("id").asText().equals(espaceProprio.getId().toString())) comptePlateforme = c;
+        }
+        assertThat(compteB).isNotNull();
+        assertThat(compteB.get("formule").asText()).isEqualTo("ESSAI");
+        assertThat(compteB.get("statutAbonnement").asText()).isEqualTo("ESSAI");
+        assertThat(compteB.get("clients").asInt()).isEqualTo(1);
+        assertThat(compteB.get("maxClients").asInt()).isEqualTo(1);
+        assertThat(compteB.get("procheLimite").asBoolean()).isTrue();
+        assertThat(compteB.get("interne").asBoolean()).isFalse();
+        assertThat(comptePlateforme.get("interne").asBoolean()).isTrue();
+        assertThat(vue.get("totaux").get("essais").asInt()).isGreaterThanOrEqualTo(1);
+
+        // Attribuer la formule SOLO pendant 30 jours : trois clients permis
+        appeler(put("/api/v1/admin/comptes/" + espaceB + "/abonnement"), jetonSa,
+                Map.of("formule", "SOLO", "fin", LocalDate.now().plusDays(30).toString()), 200);
+        appeler(post("/api/v1/clients"), jetonB, Map.of("nom", "Deuxième", "langue", "fr"), 201);
+
+        // Modifier la formule elle-même : 2 clients au plus et un autre prix, appliqués tout de suite au compte
+        JsonNode solo = appeler(put("/api/v1/admin/formules/SOLO"), jetonSa,
+                Map.of("nom", "Solo", "prixMensuelXaf", 9000, "maxClients", 2, "maxMembres", 1, "calendriersParMois", 3, "imagesParMois", 30), 200);
+        assertThat(solo.get("maxClients").asInt()).isEqualTo(2);
+        assertThat(solo.get("comptes").asInt()).isGreaterThanOrEqualTo(1);
+        appeler(post("/api/v1/clients"), jetonB, Map.of("nom", "Troisième", "langue", "fr"), 402);
+        JsonNode abo = appeler(get("/api/v1/abonnements/courant"), jetonB, null, 200);
+        assertThat(abo.get("formule").asText()).isEqualTo("SOLO");
+        assertThat(abo.get("maxClients").asInt()).isEqualTo(2);
+        assertThat(abo.get("prixMensuelXaf").asLong()).isEqualTo(9000);
+
+        // Valeurs absurdes et formule inconnue refusées
+        appeler(put("/api/v1/admin/formules/SOLO"), jetonSa,
+                Map.of("nom", "Solo", "prixMensuelXaf", -1, "maxClients", 2, "maxMembres", 1, "calendriersParMois", 3, "imagesParMois", 30), 400);
+        appeler(put("/api/v1/admin/formules/INCONNUE"), jetonSa,
+                Map.of("nom", "X", "prixMensuelXaf", 1, "maxClients", 2, "maxMembres", 1, "calendriersParMois", 3, "imagesParMois", 30), 404);
+
+        // Les changements sont au journal d'administration
+        assertThat(appeler(get("/api/v1/admin/journal?action=ABONNEMENT_MODIFIE"), jetonSa, null, 200).get("total").asLong()).isGreaterThanOrEqualTo(1);
+        assertThat(appeler(get("/api/v1/admin/journal?action=FORMULE_MODIFIEE"), jetonSa, null, 200).get("total").asLong()).isGreaterThanOrEqualTo(1);
+
+        // Suspension : une date de fin dépassée de plus de 5 jours met le compte en lecture seule
+        appeler(put("/api/v1/admin/comptes/" + espaceB + "/abonnement"), jetonSa,
+                Map.of("formule", "SOLO", "fin", LocalDate.now().minusDays(10).toString()), 200);
+        appeler(post("/api/v1/clients"), jetonB, Map.of("nom", "Quatrième", "langue", "fr"), 402);
+
+        // La formule SOLO retrouve ses valeurs d'origine pour ne pas influencer les autres scénarios
+        appeler(put("/api/v1/admin/formules/SOLO"), jetonSa,
+                Map.of("nom", "Solo", "prixMensuelXaf", 7500, "maxClients", 3, "maxMembres", 1, "calendriersParMois", 3, "imagesParMois", 30), 200);
+    }
+
     private String inscrire(String espace, String email) throws Exception {
         JsonNode r = appeler(post("/api/v1/auth/inscription"), null,
                 Map.of("nomEspace", espace, "nom", "Vanessa", "email", email, "motDePasse", "motdepasse-ok"), 200);

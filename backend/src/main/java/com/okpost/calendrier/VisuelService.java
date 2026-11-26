@@ -144,7 +144,7 @@ public class VisuelService {
             modele = deLaBanque.getId().toString();
             source = VisuelGenere.Source.BANQUE;
         } else {
-            int quota = abonnements.formule(s.workspaceId()).imagesParMois();
+            int quota = abonnements.limites(s.workspaceId()).imagesParMois();
             long ceMois = visuels.countByWorkspaceIdAndSourceAndCreatedAtAfter(s.workspaceId(), VisuelGenere.Source.GENERE,
                     LocalDate.now().withDayOfMonth(1).atStartOfDay().toInstant(ZoneOffset.UTC));
             if (ceMois >= quota) {

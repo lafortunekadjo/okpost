@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http
 import { Injectable, inject } from '@angular/core';
 import {
   Abonnement, Alerte, Asset, FicheProposee, Musique, ResultatDuplication, Calendrier, CalendrierResume, Client, ClientResume, Consommation, EtatIa,
-  AdminCompte, AdminJournal, AdminTotaux, ClientPartage, Collaborateur, ProgressionLot, LienCommande, ResultatCatalogue, ResultatCatalogueWeb, CompteSocial, ContactValidation, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
+  AdminCompte, AdminFormule, AdminJournal, AdminTotaux, ClientPartage, Collaborateur, ProgressionLot, LienCommande, ResultatCatalogue, ResultatCatalogueWeb, CompteSocial, ContactValidation, LienValidation, Membre, PartageCalendrier, Portail, Publication, Visuel,
   PropositionEvenement, TempsFortSuggere, EvenementCatalogue, EvaluationCalendrier, LigneSynthese, NotesPublication,
   BilanPage, Recommandations,
 } from './models';
@@ -207,6 +207,13 @@ export class ApiService {
     return this.http.get<ProgressionLot | null>(`${this.base}/calendriers/${calendrierId}/visuels-en-lot`);
   }
   adminComptes() { return this.http.get<{ totaux: AdminTotaux; comptes: AdminCompte[] }>(`${this.base}/admin/comptes`); }
+  adminFormules() { return this.http.get<AdminFormule[]>(`${this.base}/admin/formules`); }
+  modifierFormule(code: string, d: { nom: string; prixMensuelXaf: number; maxClients: number; maxMembres: number; calendriersParMois: number; imagesParMois: number }) {
+    return this.http.put<AdminFormule>(`${this.base}/admin/formules/${code}`, d);
+  }
+  changerAbonnement(compteId: string, d: { formule: string; fin: string }) {
+    return this.http.put<{ formule: string; debut: string; fin: string; statut: string; mode: string }>(`${this.base}/admin/comptes/${compteId}/abonnement`, d);
+  }
   adminJournal(f: { espace?: string; action?: string; page?: number }) {
     const params: Record<string, string> = { page: String(f.page ?? 0) };
     if (f.espace) params['espace'] = f.espace;

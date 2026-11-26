@@ -68,7 +68,7 @@ public class SuppressionService {
         abonnements.exigerEcriture(s.workspaceId());
         Client c = clients.charger(s, id);
         if (!c.isArchive()) return;
-        int max = abonnements.formule(s.workspaceId()).maxClients();
+        int max = abonnements.limites(s.workspaceId()).maxClients();
         if (depot.countByWorkspaceIdAndArchiveFalse(s.workspaceId()) >= max) {
             throw new ApiException(HttpStatus.PAYMENT_REQUIRED,
                     "Ta formule permet " + max + " client(s) actifs. Archive un autre client ou passe à la formule supérieure.");

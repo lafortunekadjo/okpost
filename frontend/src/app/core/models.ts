@@ -122,14 +122,22 @@ export interface ScenarioVideo { titre?: string; dureeTotaleS?: number; accroche
 export interface Retour { decision: string; commentaire?: string; legendeProposee?: string; legendeOrigine?: string; date: string; par?: string; }
 
 export interface AdminCompte {
-  id: string; nom: string; creeLe: string; emailAdmin?: string; membres: number; clients: number; calendriers: number;
-  publications: number; publiees: number; imagesMois: number; appelsIaMois: number; formule?: string; statutAbonnement?: string;
-  finAbonnement?: string; derniereConnexion?: string;
+  id: string; nom: string; creeLe: string; emailAdmin?: string; membres: number; clients: number; calendriers: number; calendriersMois: number;
+  publications: number; publiees: number; imagesMois: number; appelsIaMois: number;
+  formule?: string; nomFormule?: string; statutAbonnement?: string; finAbonnement?: string; joursRestants?: number | null; modeAbonnement?: string;
+  maxClients: number; maxMembres: number; maxCalendriers: number; maxImages: number; procheLimite: boolean; interne: boolean;
+  derniereConnexion?: string;
 }
 
 export interface AdminTotaux {
   comptes: number; clients: number; calendriers: number; publications: number; publieesMois: number;
   appelsIaMois: number; echecsIaMois: number; imagesMois: number; echecsPublication7j: number;
+  essais: number; payants: number; revenuMensuelXaf: number; expirentBientot: number; expires: number;
+}
+
+export interface AdminFormule {
+  code: string; nom: string; prixMensuelXaf: number; maxClients: number; maxMembres: number;
+  calendriersParMois: number; imagesParMois: number; comptes: number;
 }
 
 export interface AdminLigne { date: string; action: string; libelle: string; espace?: string; espaceId?: string; auteur?: string; cible?: string; detail?: string; }

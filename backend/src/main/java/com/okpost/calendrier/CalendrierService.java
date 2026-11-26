@@ -85,7 +85,7 @@ public class CalendrierService {
             }
             rythme.put(r, nombre);
         });
-        int quota = abonnements.formule(s.workspaceId()).calendriersParMois();
+        int quota = abonnements.limites(s.workspaceId()).calendriersParMois();
         long ceMois = calendriers.countByWorkspaceIdAndCreatedAtAfter(s.workspaceId(),
                 LocalDate.now().withDayOfMonth(1).atStartOfDay().toInstant(ZoneOffset.UTC));
         if (ceMois >= quota) {

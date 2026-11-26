@@ -11,9 +11,11 @@ import java.util.UUID;
 public class AbonnementService {
 
     private final AbonnementRepository depot;
+    private final FormulesService formules;
 
-    public AbonnementService(AbonnementRepository depot) {
+    public AbonnementService(AbonnementRepository depot, FormulesService formules) {
         this.depot = depot;
+        this.formules = formules;
     }
 
     public Abonnement creerEssai(UUID workspaceId) {
@@ -34,6 +36,11 @@ public class AbonnementService {
 
     public Formule formule(UUID workspaceId) {
         return courant(workspaceId).getFormule();
+    }
+
+    /** Prix et limites de la formule de cet espace (valeurs modifiables par le super-admin). */
+    public FormulesService.Limites limites(UUID workspaceId) {
+        return formules.pour(formule(workspaceId));
     }
 
     /** Bloque les écritures quand l'abonnement est en lecture seule. */

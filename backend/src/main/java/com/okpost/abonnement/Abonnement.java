@@ -41,6 +41,10 @@ public class Abonnement extends BaseEntity {
 
     /** Statut réel à une date donnée : 5 jours de grâce après l'échéance, puis lecture seule. */
     public Statut statutAu(LocalDate jour) {
+        return statutEffectif(statut, fin, jour);
+    }
+
+    public static Statut statutEffectif(Statut statut, LocalDate fin, LocalDate jour) {
         if (!jour.isAfter(fin)) {
             return statut == Statut.ESSAI ? Statut.ESSAI : Statut.ACTIF;
         }

@@ -73,7 +73,7 @@ public class ClientService {
     public Client creer(Session s, ClientForm f) {
         s.exigerProprietaire();
         abonnements.exigerEcriture(s.workspaceId());
-        int max = abonnements.formule(s.workspaceId()).maxClients();
+        int max = abonnements.limites(s.workspaceId()).maxClients();
         if (clients.countByWorkspaceIdAndArchiveFalse(s.workspaceId()) >= max) {
             throw new ApiException(HttpStatus.PAYMENT_REQUIRED,
                     "Ta formule permet " + max + " client(s). Passe à la formule supérieure pour en ajouter.");

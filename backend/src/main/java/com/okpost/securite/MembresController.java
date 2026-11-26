@@ -57,7 +57,7 @@ public class MembresController {
         s.exigerAdmin();
         abonnements.exigerEcriture(s.workspaceId());
         long actifs = utilisateurs.findByWorkspaceIdOrderByNom(s.workspaceId()).stream().filter(Utilisateur::isActif).count();
-        int max = abonnements.formule(s.workspaceId()).maxMembres();
+        int max = abonnements.limites(s.workspaceId()).maxMembres();
         if (actifs >= max) {
             throw new ApiException(HttpStatus.PAYMENT_REQUIRED, "Ta formule permet " + max + " membre(s). Passe à la formule supérieure.");
         }

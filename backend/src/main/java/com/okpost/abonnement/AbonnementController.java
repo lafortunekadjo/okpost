@@ -26,8 +26,8 @@ public class AbonnementController {
         Session s = Session.courante();
         s.exigerProprietaire();
         Abonnement a = service.courant(s.workspaceId());
-        Formule f = a.getFormule();
-        return new AbonnementVue(f.name(), a.getDebut(), a.getFin(), a.statutAu(LocalDate.now()).name(),
+        FormulesService.Limites f = service.limites(s.workspaceId());
+        return new AbonnementVue(a.getFormule().name(), a.getDebut(), a.getFin(), a.statutAu(LocalDate.now()).name(),
                 a.getMode().name(), f.maxClients(), f.maxMembres(), f.calendriersParMois(), f.imagesParMois(),
                 f.prixMensuelXaf());
     }
